@@ -324,7 +324,9 @@ function setHudMode(mode: "plan" | "drive") {
   document.body.dataset.mode = mode;
   const driving = mode === "drive";
   driveBarEl.toggleAttribute("hidden", !driving);
-  if (!driving) {
+  if (driving) {
+    speedsEl.setAttribute("hidden", "");
+  } else {
     overflowEl.classList.remove("open");
     garageEl.classList.remove("open");
     maneuverEl.setAttribute("hidden", "");
@@ -566,8 +568,8 @@ function renderDash() {
 function renderSpeedRail() {
   const route = routes.find((r) => r.id === selectedId);
   if (!route) { speedsEl.setAttribute("hidden", ""); return; }
-  speedsEl.removeAttribute("hidden");
   speedsEl.innerHTML = `<h2>${originLabel || "Start"} → ${destLabel || "End"} · posted ${Math.round(route.postedCoverage * 100)}%</h2><div class="bands">${route.bands.map((b) => `<div class="band"><div class="name">${esc(b.name)}</div><div class="spd">${b.postedMph ?? "—"} <small>posted</small></div><div class="sub">expect ${b.expectedMph || "—"} · ${formatMiles(b.toMi - b.fromMi)}</div></div>`).join("")}</div>`;
+  if (hudMode !== "drive") speedsEl.removeAttribute("hidden");
 }
 function bootDrive() {
   const route = routes.find((r) => r.id === selectedId);

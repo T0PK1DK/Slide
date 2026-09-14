@@ -170,9 +170,9 @@ button.ghost.on { color: var(--glow); border-color: color-mix(in srgb, var(--glo
   }
   body[data-mode="plan"] #locate { display: none; }
   body[data-mode="plan"] .map-fab {
-    top: auto;
+    top: 42%;
     right: 12px;
-    bottom: calc(238px + env(safe-area-inset-bottom));
+    bottom: auto;
   }
   .maneuver { top: calc(12px + env(safe-area-inset-top)); left: 12px; right: 12px; }
   .posted-chip { top: calc(108px + env(safe-area-inset-top)); left: 50%; right: auto; width: auto; transform: translateX(-50%); }
