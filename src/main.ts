@@ -1,3 +1,4 @@
+import type { Feature } from "geojson";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import "./styles.css";
@@ -20,6 +21,12 @@ import {
 } from "./lib/smooth";
 import { loadGarage, saveGarage, TRAILS, type GarageConfig } from "./lib/garage";
 import { chasePoint, seedGhosts, stepGhost, type GhostCar } from "./lib/ghosts";
+import {
+  emptyFeatureCollection,
+  getGeoJsonSource,
+  styleIsReady,
+  whenStyleReady,
+} from "./lib/mapready";
 
 const MIAMI: LonLat = { lon: -80.1918, lat: 25.7617 };
 const STYLE = "https://tiles.openfreemap.org/styles/dark";
@@ -111,6 +118,7 @@ map.on("load", () => {
   ensure3DBuildings();
   addRouteLayers();
   applyCamera(garage.camera);
+  if (routes.length) paintRoutes();
 });
 
 bindSearch(fromInput, $("#from-suggest"), (hit) => {
@@ -173,54 +181,75 @@ function applyCamera(mode: GarageConfig["camera"]) {
   else map.easeTo({ pitch: 56, zoom: 14.6, duration: 700 });
 }
 function ensure3DBuildings() {
-  if (map.getLayer("slide-buildings")) return;
-  const sourceId = map.getSource("openmaptiles") ? "openmaptiles" : Object.keys(map.getStyle().sources || {})[0];
-  if (!sourceId) return;
-  try {
-    map.addLayer({
-      id: "slide-buildings",
-      source: sourceId,
-      "source-layer": "building",
-      type: "fill-extrusion",
-      minzoom: 13,
-      paint: {
-        "fill-extrusion-color": ["interpolate", ["linear"], ["coalesce", ["get", "render_height"], ["get", "height"], 12], 0, "#141c28", 40, "#1b2736", 120, "#243246"],
-        "fill-extrusion-height": ["coalesce", ["get", "render_height"], ["get", "height"], 14],
-        "fill-extrusion-base": ["coalesce", ["get", "render_min_height"], ["get", "min_height"], 0],
-        "fill-extrusion-opacity": 0.72,
-      },
-    });
-  } catch {}
-  toggleBuildings(garage.showBuildings);
+  whenStyleReady(map, () => {
+    if (map.getLayer("slide-buildings")) {
+      toggleBuildings(garage.showBuildings);
+      return;
+    }
+    const sources = map.getStyle().sources || {};
+    const sourceId = map.getSource("openmaptiles") ? "openmaptiles" : Object.keys(sources)[0];
+    if (!sourceId) return;
+    try {
+      map.addLayer({
+        id: "slide-buildings",
+        source: sourceId,
+        "source-layer": "building",
+        type: "fill-extrusion",
+        minzoom: 13,
+        paint: {
+          "fill-extrusion-color": ["interpolate", ["linear"], ["coalesce", ["get", "render_height"], ["get", "height"], 12], 0, "#141c28", 40, "#1b2736", 120, "#243246"],
+          "fill-extrusion-height": ["coalesce", ["get", "render_height"], ["get", "height"], 14],
+          "fill-extrusion-base": ["coalesce", ["get", "render_min_height"], ["get", "min_height"], 0],
+          "fill-extrusion-opacity": 0.72,
+        },
+      });
+    } catch {
+      // OpenFreeMap styles without a building source-layer fail soft.
+    }
+    toggleBuildings(garage.showBuildings);
+  });
 }
 function toggleBuildings(on: boolean) {
-  if (map.getLayer("slide-buildings")) map.setLayoutProperty("slide-buildings", "visibility", on ? "visible" : "none");
+  whenStyleReady(map, () => {
+    if (map.getLayer("slide-buildings")) {
+      map.setLayoutProperty("slide-buildings", "visibility", on ? "visible" : "none");
+    }
+  });
 }
-function emptyFc(): GeoJSON.FeatureCollection { return { type: "FeatureCollection", features: [] }; }
 function addRouteLayers() {
+  if (!styleIsReady(map)) {
+    whenStyleReady(map, addRouteLayers);
+    return;
+  }
   if (map.getSource("routes")) return;
-  map.addSource("routes", { type: "geojson", data: emptyFc() });
-  map.addSource("ghost-trails", { type: "geojson", data: emptyFc() });
+  const empty = emptyFeatureCollection();
+  map.addSource("routes", { type: "geojson", data: empty });
+  map.addSource("ghost-trails", { type: "geojson", data: empty });
   map.addLayer({ id: "route-glow", type: "line", source: "routes", paint: { "line-color": TRAILS[garage.trail].line, "line-width": 14, "line-opacity": 0.18, "line-blur": 8 } });
   map.addLayer({ id: "route-case", type: "line", source: "routes", paint: { "line-color": "#061016", "line-width": 8, "line-opacity": 0.85 } });
   map.addLayer({ id: "route-line", type: "line", source: "routes", paint: { "line-color": ["case", ["==", ["get", "selected"], true], TRAILS[garage.trail].line, "#4c5d68"], "line-width": ["case", ["==", ["get", "selected"], true], 4.5, 2.5], "line-opacity": ["case", ["==", ["get", "selected"], true], 0.98, 0.35] } });
   map.addLayer({ id: "ghost-trails", type: "line", source: "ghost-trails", paint: { "line-color": ["get", "color"], "line-width": 2, "line-opacity": 0.35, "line-dasharray": [1, 1.4] } });
 }
 function bindSearch(input: HTMLInputElement, box: HTMLElement, onPick: (hit: SearchHit) => void) {
-  let timer = 0; let items: SearchHit[] = []; let active = -1;
+  let timer = 0;
   input.addEventListener("input", () => {
     window.clearTimeout(timer);
     timer = window.setTimeout(async () => {
-      try { items = await searchPlaces(input.value, origin ?? MIAMI); renderSuggest(box, items, active, onPick); box.hidden = items.length === 0; } catch { box.hidden = true; }
+      try {
+        const items = await searchPlaces(input.value, origin ?? MIAMI);
+        renderSuggest(box, items, onPick);
+        box.hidden = items.length === 0;
+      } catch {
+        box.hidden = true;
+      }
     }, 200);
   });
 }
-function renderSuggest(box: HTMLElement, items: SearchHit[], active: number, onPick: (hit: SearchHit) => void) {
+function renderSuggest(box: HTMLElement, items: SearchHit[], onPick: (hit: SearchHit) => void) {
   box.innerHTML = "";
-  items.forEach((hit, i) => {
+  items.forEach((hit) => {
     const btn = document.createElement("button");
     btn.textContent = hit.label;
-    if (i === active) btn.classList.add("active");
     btn.onclick = () => { onPick(hit); box.hidden = true; };
     box.appendChild(btn);
   });
@@ -259,14 +288,16 @@ async function plan() {
   }
 }
 function paintRoutes() {
-  addRouteLayers();
-  const features = routes.map((r) => ({
-    type: "Feature" as const,
-    properties: { id: r.id, selected: r.id === selectedId },
-    geometry: { type: "LineString" as const, coordinates: decodePolyline6(r.trip.legs.map((l) => l.shape).join("")) },
-  }));
-  (map.getSource("routes") as maplibregl.GeoJSONSource)?.setData({ type: "FeatureCollection", features });
-  if (map.getLayer("route-glow")) map.setPaintProperty("route-glow", "line-color", TRAILS[garage.trail].line);
+  whenStyleReady(map, () => {
+    addRouteLayers();
+    const features = routes.map((r) => ({
+      type: "Feature" as const,
+      properties: { id: r.id, selected: r.id === selectedId },
+      geometry: { type: "LineString" as const, coordinates: decodePolyline6(r.trip.legs.map((l) => l.shape).join("")) },
+    }));
+    getGeoJsonSource(map, "routes")?.setData({ type: "FeatureCollection", features });
+    if (map.getLayer("route-glow")) map.setPaintProperty("route-glow", "line-color", TRAILS[garage.trail].line);
+  });
 }
 function renderDash() {
   dashEl.removeAttribute("hidden");
@@ -315,7 +346,7 @@ function spawnGhosts() {
   ghosts = garage.showGhosts ? seedGhosts(selectedCoords, garage.tag) : [];
   if (!garage.shareGhost) ghosts = ghosts.filter((g) => g.tag !== garage.tag.slice(0, 8));
   $("#stat-ghosts").textContent = String(ghosts.length);
-  const trails: GeoJSON.Feature[] = [];
+  const trails: Feature[] = [];
   for (const g of ghosts) {
     const el = document.createElement("div");
     el.className = "ghost-marker"; el.style.color = g.color;
@@ -323,7 +354,9 @@ function spawnGhosts() {
     ghostMarkers.push(new maplibregl.Marker({ element: el, anchor: "center", pitchAlignment: "map", rotationAlignment: "map" }).setLngLat([g.samples[0].lon, g.samples[0].lat]).addTo(map));
     trails.push({ type: "Feature", properties: { color: g.color }, geometry: { type: "LineString", coordinates: g.samples.map((s) => [s.lon, s.lat]) } });
   }
-  (map.getSource("ghost-trails") as maplibregl.GeoJSONSource)?.setData({ type: "FeatureCollection", features: garage.showGhosts ? trails : [] });
+  whenStyleReady(map, () => {
+    getGeoJsonSource(map, "ghost-trails")?.setData({ type: "FeatureCollection", features: garage.showGhosts ? trails : [] });
+  });
 }
 function setGhostVisibility(show: boolean) {
   ghostMarkers.forEach((m) => { m.getElement().style.display = show ? "block" : "none"; });
@@ -347,5 +380,15 @@ function tick(ts: number) {
 }
 function setStatus(text: string) { statusEl.textContent = text; statusEl.classList.toggle("show", Boolean(text)); }
 function showError(text: string) { errorEl.textContent = text; errorEl.toggleAttribute("hidden", !text); }
-function esc(s: string): string { return s.replace(/[&<>"']/g, (c) => ({ "&": "&", "<": "<", ">": ">", '"': """, "'": "&#39;" }[c]!)); }
+function esc(s: string): string {
+  return s.replace(/[&<>"']/g, (c) => {
+    switch (c) {
+      case "&": return "\u0026amp;";
+      case "<": return "\u0026lt;";
+      case ">": return "\u0026gt;";
+      case '"': return "\u0026quot;";
+      default: return "\u0026#39;";
+    }
+  });
+}
 persist();
