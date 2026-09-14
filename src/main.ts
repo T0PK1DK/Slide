@@ -51,24 +51,34 @@ app.innerHTML = `
   <div id="map"></div>
   <div class="vignette"></div>
   <div class="hud">
+    <button class="map-fab menu-fab plan-only" id="menu-fab" type="button" aria-label="Menu">☰</button>
+    <button class="map-fab compass-fab plan-only" id="compass-fab" type="button" aria-label="North up">
+      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M12 3l4 14-4-2-4 2z" fill="currentColor"/></svg>
+    </button>
+    <button class="map-fab locate-fab plan-only" id="locate-fab" type="button" aria-label="Locate">⌖</button>
     <div class="panel search-card plan-only" id="search-card">
-      <div class="brand"><h1>Slide</h1><span class="chip" id="rank-chip">GARAGE</span><button class="icon" id="help" type="button" aria-label="How to Slide">?</button></div>
-      <div class="fields">
-        <div class="field"><label>From</label><input id="from" placeholder="Current location or address" autocomplete="off" /><div class="suggest" id="from-suggest" hidden></div></div>
-        <div class="field"><label>To</label><input id="to" placeholder="Where to?" autocomplete="off" /><div class="suggest" id="to-suggest" hidden></div></div>
+      <div class="brand desktop-only"><h1>Slide</h1><span class="chip" id="rank-chip">GARAGE</span><button class="icon" id="help" type="button" aria-label="How to Slide">?</button></div>
+      <div class="where-row">
+        <input id="to" placeholder="Where to?" autocomplete="off" />
+        <div class="suggest" id="to-suggest" hidden></div>
       </div>
-      <div class="place-chips" id="place-chips">
-        <button type="button" class="place-chip" id="chip-home">Home</button>
-        <button type="button" class="place-chip" id="chip-work">Work</button>
+      <div class="sheet-more">
+        <div class="fields">
+          <div class="field"><label>From</label><input id="from" placeholder="Current location or address" autocomplete="off" /><div class="suggest" id="from-suggest" hidden></div></div>
+        </div>
+        <div class="place-chips" id="place-chips">
+          <button type="button" class="place-chip" id="chip-home">Home</button>
+          <button type="button" class="place-chip" id="chip-work">Work</button>
+        </div>
+        <div class="recents" id="recents" hidden></div>
+        <div class="actions">
+          <button class="primary" id="go">Drop the line</button>
+          <button class="ghost" id="locate">Locate</button>
+          <button class="icon" id="tune">Tune</button>
+        </div>
+        <div class="error" id="error" hidden></div>
       </div>
-      <div class="actions">
-        <button class="primary" id="go">Drop the line</button>
-        <button class="ghost" id="locate">Locate</button>
-        <button class="icon" id="tune">Tune</button>
-      </div>
-      <div class="error" id="error" hidden></div>
     </div>
-    <button class="map-fab plan-only" id="locate-fab" type="button" aria-label="Locate">⌖</button>
     <div class="panel status-pill" id="status">Locking a 3D line…</div>
     <div class="panel maneuver drive-only" id="maneuver" hidden>
       <svg class="arrow" viewBox="0 0 24 24" aria-hidden="true"><path id="man-arrow" d="" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -110,8 +120,8 @@ app.innerHTML = `
       <div class="panel coach-card">
         <h2>How to Slide</h2>
         <ol>
-          <li>Set <b>From</b> and <b>Where to?</b><span>Search, Locate, or a Home / Work chip.</span></li>
-          <li>Tap <b>Drop the line</b><span>Slide picks the smoothest road, not the fastest.</span></li>
+          <li>Type <b>Where to?</b><span>Or tap Home / Work. Locate sets From.</span></li>
+          <li>Slide drops the smoothest line<span>Not the fastest — that’s an explicit pick.</span></li>
           <li>Follow the banner<span>Posted limit is the sign. Never a target to beat.</span></li>
         </ol>
         <button class="primary" id="coach-ok" type="button">Got it</button>
@@ -190,7 +200,8 @@ map.on("load", () => {
   liftNightBasemap(map);
   ensure3DBuildings();
   addRouteLayers();
-  applyCamera(garage.camera);
+  if (hudMode === "drive") applyCamera(garage.camera);
+  else applyPlanView();
   styleQueue.splice(0).forEach((fn) => fn());
 });
 map.on("error", () => {
@@ -206,9 +217,21 @@ bindSearch(toInput, $("#to-suggest"), (hit) => {
   dest = { lon: hit.lon, lat: hit.lat };
   destLabel = hit.label;
   toInput.value = hit.label;
+  rememberRecent(hit);
+  ensureOrigin();
+  plan();
 });
 $("#locate").addEventListener("click", locateMe);
 $("#locate-fab").addEventListener("click", locateMe);
+$("#menu-fab").addEventListener("click", () => {
+  overflowEl.classList.toggle("open");
+  overflowEl.classList.toggle("from-plan", overflowEl.classList.contains("open"));
+});
+$("#compass-fab").addEventListener("click", () => {
+  followCamera = true;
+  map.easeTo({ bearing: 0, pitch: window.innerWidth < 820 && hudMode === "plan" ? 8 : map.getPitch(), duration: 500 });
+});
+toInput.addEventListener("focus", () => $("#search-card").classList.add("open"));
 $("#go").addEventListener("click", plan);
 $("#tune").addEventListener("click", () => garageEl.classList.toggle("open"));
 $("#g-close").addEventListener("click", () => garageEl.classList.remove("open"));
@@ -238,11 +261,16 @@ window.addEventListener("resize", () => {
 map.on("dragstart", () => { if (garage.camera === "chase") { followCamera = false; recenterEl.removeAttribute("hidden"); } });
 document.addEventListener("click", (e) => {
   const t = e.target as HTMLElement;
-  if (!t.closest(".field")) document.querySelectorAll<HTMLElement>(".suggest").forEach((b) => { b.hidden = true; });
+  if (!t.closest(".field") && !t.closest(".where-row")) document.querySelectorAll<HTMLElement>(".suggest").forEach((b) => { b.hidden = true; });
+  if (!t.closest("#search-card") && !t.closest("#menu-fab") && !t.closest(".overflow")) {
+    $("#search-card").classList.remove("open");
+    if (!t.closest("#more")) overflowEl.classList.remove("open", "from-plan");
+  }
 });
 toInput.addEventListener("keydown", (e) => { if (e.key === "Enter") plan(); });
 wireGarage();
 refreshPlaceChips();
+renderRecents();
 setHudMode("plan");
 if (!garage.coachDismissed) showCoach(true);
 
@@ -263,8 +291,47 @@ function applyTheme(cfg: GarageConfig) {
 function persist() {
   saveGarage(garage);
   applyTheme(garage);
-  $("#rank-chip").textContent = garage.tag;
+  const chip = document.querySelector("#rank-chip");
+  if (chip) chip.textContent = garage.tag;
   refreshPlaceChips();
+}
+function rememberRecent(hit: { label: string; lon: number; lat: number }) {
+  const recents = [
+    { label: hit.label, lon: hit.lon, lat: hit.lat },
+    ...(garage.recents ?? []).filter((r) => r.label !== hit.label),
+  ].slice(0, 4);
+  garage.recents = recents;
+  persist();
+  renderRecents();
+}
+function renderRecents() {
+  const box = $("#recents");
+  const items = garage.recents ?? [];
+  if (!items.length) { box.hidden = true; box.innerHTML = ""; return; }
+  box.hidden = false;
+  box.innerHTML = `<div class="recents-label">Recent</div>${items.map((r) => `<button type="button" class="recent-item" data-lon="${r.lon}" data-lat="${r.lat}">${esc(r.label)}</button>`).join("")}`;
+  box.querySelectorAll<HTMLButtonElement>(".recent-item").forEach((btn) => {
+    btn.onclick = () => {
+      dest = { lon: Number(btn.dataset.lon), lat: Number(btn.dataset.lat) };
+      destLabel = btn.textContent || "";
+      toInput.value = destLabel;
+      ensureOrigin();
+      plan();
+    };
+  });
+}
+function ensureOrigin() {
+  if (origin) return;
+  const c = map.getCenter();
+  origin = { lon: c.lng, lat: c.lat };
+  originLabel = "Map center";
+  fromInput.value = "Map center";
+}
+function applyPlanView() {
+  const phone = window.innerWidth < 820;
+  toggleBuildings(phone ? false : garage.showBuildings);
+  if (phone) map.easeTo({ pitch: 8, bearing: 0, zoom: Math.max(map.getZoom(), 11.3), duration: 700 });
+  else applyCamera(garage.camera);
 }
 function savePlace(slot: "home" | "work") {
   if (!dest) { showError("Set a destination first, then save it as Home or Work."); return; }
@@ -279,6 +346,8 @@ function useOrSavePlace(slot: "home" | "work") {
     destLabel = saved.label;
     toInput.value = saved.label;
     showError("");
+    ensureOrigin();
+    plan();
     return;
   }
   savePlace(slot);
@@ -326,8 +395,10 @@ function setHudMode(mode: "plan" | "drive") {
   driveBarEl.toggleAttribute("hidden", !driving);
   if (driving) {
     speedsEl.setAttribute("hidden", "");
+    toggleBuildings(garage.showBuildings);
+    $("#search-card").classList.remove("open");
   } else {
-    overflowEl.classList.remove("open");
+    overflowEl.classList.remove("open", "from-plan");
     garageEl.classList.remove("open");
     maneuverEl.setAttribute("hidden", "");
     postedEl.setAttribute("hidden", "");
@@ -338,6 +409,7 @@ function setHudMode(mode: "plan" | "drive") {
   requestAnimationFrame(() => {
     map.resize();
     if (driving) fitToRoute();
+    else applyPlanView();
   });
 }
 function endDrive() {
@@ -459,6 +531,7 @@ function locateMe() {
 async function plan() {
   if (planning) return;
   showError("");
+  if (!origin) ensureOrigin();
   if (!origin) return showError("Set a start point.");
   if (!dest) return showError("Set a destination.");
   planning = true;

@@ -1,14 +1,16 @@
 import type { Map as MapLibreMap, PaddingOptions } from "maplibre-gl";
 
-/** Night palette: readable on a phone, still not a daylight Maps clone. */
-const LAND = "#1b2838";
-const WATER = "#2c5270";
-const ROAD = "#5d6e82";
-const ROAD_CASE = "#8fa0b4";
-const MOTORWAY = "#6d7f96";
-const BUILDING = "#31455c";
-const LABEL = "#d7e2ee";
-const HALO = "#15202c";
+/** Night palette tuned toward a readable phone map (blue water, green parks, gold roads). */
+const LAND = "#17202c";
+const WATER = "#1b4f86";
+const ROAD = "#d2c37a";
+const ROAD_CASE = "#8a7a48";
+const MOTORWAY = "#e0c35c";
+const MINOR = "#b9a96a";
+const PARK = "#1b5c3c";
+const BUILDING = "#2a3a4e";
+const LABEL = "#e6eef6";
+const HALO = "#121820";
 
 function paint(map: MapLibreMap, id: string, prop: string, value: unknown): void {
   if (!map.getLayer(id)) return;
@@ -27,12 +29,12 @@ export function liftNightBasemap(map: MapLibreMap): void {
   paint(map, "landcover_ice_shelf", "fill-color", LAND);
   paint(map, "landcover_glacier", "fill-color", "#243044");
   paint(map, "landuse_residential", "fill-color", "#203044");
-  paint(map, "landcover_wood", "fill-color", "#243a32");
-  paint(map, "landuse_park", "fill-color", "#243a32");
+  paint(map, "landcover_wood", "fill-color", PARK);
+  paint(map, "landuse_park", "fill-color", PARK);
   paint(map, "building", "fill-color", BUILDING);
-  paint(map, "building", "fill-outline-color", "#4a6280");
-  paint(map, "highway_path", "line-color", "#3a4a5c");
-  paint(map, "highway_minor", "line-color", "#3f5166");
+  paint(map, "building", "fill-outline-color", "#3d536c");
+  paint(map, "highway_path", "line-color", "#6d6240");
+  paint(map, "highway_minor", "line-color", MINOR);
   paint(map, "highway_major_casing", "line-color", ROAD_CASE);
   paint(map, "highway_major_inner", "line-color", ROAD);
   paint(map, "highway_major_subtle", "line-color", ROAD);

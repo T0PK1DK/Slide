@@ -16,6 +16,7 @@ export type GarageConfig = {
   coachDismissed: boolean;
   home: SavedPlace | null;
   work: SavedPlace | null;
+  recents: SavedPlace[];
 };
 
 const KEY = "slide.garage.v1";
@@ -39,6 +40,7 @@ export const DEFAULT_GARAGE: GarageConfig = {
   coachDismissed: false,
   home: null,
   work: null,
+  recents: [],
 };
 
 export function loadGarage(): GarageConfig {

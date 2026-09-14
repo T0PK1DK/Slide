@@ -22,7 +22,19 @@ html, body, #app { margin: 0; height: 100%; background: #1b2838; color: var(--te
 .hud { position: absolute; inset: 0; pointer-events: none; z-index: 2; }
 .hud > * { pointer-events: auto; }
 .panel { background: var(--glass); backdrop-filter: blur(22px) saturate(1.2); border: 1px solid var(--line); box-shadow: var(--shadow), inset 0 1px 0 rgba(255,255,255,.06); }
-.search-card { position: absolute; top: 16px; left: 16px; width: min(360px, calc(100vw - 32px)); border-radius: 22px; padding: 14px; }
+.desktop-only { display: flex; }
+.where-row { position: relative; }
+.where-row input {
+  width: 100%; border: 1px solid var(--line); background: rgba(255,255,255,.03);
+  color: var(--text); border-radius: 12px; padding: 12px 14px; font-size: 16px; outline: none;
+}
+.recents { margin-top: 8px; display: grid; gap: 4px; }
+.recents-label { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); padding: 4px 2px; }
+.recent-item { display: block; width: 100%; text-align: left; background: transparent; color: var(--text); border: 0; border-radius: 10px; padding: 8px 10px; cursor: pointer; font-size: 13px; }
+.recent-item small { display: block; color: var(--muted); font-size: 11px; }
+.menu-fab { top: calc(12px + env(safe-area-inset-top)); left: 12px; right: auto; bottom: auto; }
+.compass-fab { left: 12px; right: auto; bottom: calc(96px + env(safe-area-inset-bottom)); }
+.locate-fab { right: 12px; left: auto; bottom: calc(96px + env(safe-area-inset-bottom)); }
 .place-chips { display: flex; gap: 8px; margin-top: 10px; }
 .place-chip { flex: 1; background: rgba(255,255,255,.04); color: var(--text); border: 1px solid var(--line); border-radius: 999px; padding: 8px 10px; font-size: 12px; cursor: pointer; }
 .place-chip.empty { color: var(--muted); }
@@ -139,7 +151,9 @@ button.icon { background: rgba(255,255,255,.04); color: var(--text); border: 1px
 .coach-card ol { margin: 0 0 14px; padding-left: 1.2em; color: var(--text); }
 .coach-card li { margin: 8px 0; font-size: 15px; line-height: 1.4; }
 .coach-card li span { display: block; color: var(--muted); font-size: 13px; margin-top: 2px; }
-body[data-mode="drive"] .map-fab,
+  body[data-mode="drive"] .menu-fab,
+  body[data-mode="drive"] .compass-fab,
+  body[data-mode="drive"] .map-fab,
 body[data-mode="plan"] .drive-only { display: none !important; }
 body[data-mode="drive"] .plan-only { display: none !important; }
 body[data-mode="drive"] .search-card,
@@ -167,12 +181,25 @@ button.ghost.on { color: var(--glow); border-color: color-mix(in srgb, var(--glo
   body[data-mode="plan"] .search-card {
     top: auto;
     bottom: calc(12px + env(safe-area-inset-bottom));
+    padding: 8px 10px 10px;
+    border-radius: 28px;
+  }
+  body[data-mode="plan"] .search-card:not(.open) .brand,
+  body[data-mode="plan"] .search-card:not(.open) .sheet-more,
+  body[data-mode="plan"] .desktop-only { display: none !important; }
+  body[data-mode="plan"] .where-row input {
+    border: 0; background: transparent; font-size: 18px; padding: 12px 14px;
+  }
+  body[data-mode="plan"] .search-card.open { padding: 12px 12px 14px; border-radius: 22px; }
+  body[data-mode="plan"] .search-card .suggest {
+    top: auto; bottom: calc(100% + 8px); max-height: 40vh;
   }
   body[data-mode="plan"] #locate { display: none; }
-  body[data-mode="plan"] .map-fab {
-    top: 42%;
-    right: 12px;
-    bottom: auto;
+  body[data-mode="plan"] .menu-fab { top: calc(12px + env(safe-area-inset-top)); left: 12px; }
+  body[data-mode="plan"] .compass-fab { top: auto; left: 12px; bottom: calc(92px + env(safe-area-inset-bottom)); }
+  body[data-mode="plan"] .locate-fab { top: auto; right: 12px; left: auto; bottom: calc(92px + env(safe-area-inset-bottom)); }
+  body[data-mode="plan"] .overflow.from-plan {
+    top: calc(64px + env(safe-area-inset-top)); left: 12px; right: auto; bottom: auto;
   }
   .maneuver { top: calc(12px + env(safe-area-inset-top)); left: 12px; right: 12px; }
   .posted-chip { top: calc(108px + env(safe-area-inset-top)); left: 50%; right: auto; width: auto; transform: translateX(-50%); }
