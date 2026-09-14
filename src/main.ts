@@ -1,4 +1,5 @@
 import maplibregl from "maplibre-gl";
+import type { Feature, FeatureCollection } from "geojson";
 import "maplibre-gl/dist/maplibre-gl.css";
 import "./styles.css";
 import { decodePolyline6 } from "./lib/polyline";
@@ -97,6 +98,8 @@ let chaseT = 0;
 let raf = 0;
 let lastTs = 0;
 let streak = 0;
+let styleReady = false;
+const styleQueue: Array<() => void> = [];
 
 const fromInput = $("#from") as HTMLInputElement;
 const toInput = $("#to") as HTMLInputElement;
@@ -108,9 +111,11 @@ const speedsEl = $("#speeds");
 const garageEl = $("#garage");
 
 map.on("load", () => {
+  styleReady = true;
   ensure3DBuildings();
   addRouteLayers();
   applyCamera(garage.camera);
+  styleQueue.splice(0).forEach((fn) => fn());
 });
 
 bindSearch(fromInput, $("#from-suggest"), (hit) => {
@@ -130,6 +135,11 @@ toInput.addEventListener("keydown", (e) => { if (e.key === "Enter") plan(); });
 wireGarage();
 
 function $(sel: string): HTMLElement { return document.querySelector(sel)!; }
+/** Run map work that touches sources/layers, deferring until the style has loaded. */
+function whenStyleReady(fn: () => void) {
+  if (styleReady) fn();
+  else styleQueue.push(fn);
+}
 function applyTheme(cfg: GarageConfig) {
   document.documentElement.style.setProperty("--glow", cfg.glow);
   document.documentElement.style.setProperty("--mint", TRAILS[cfg.trail].line);
@@ -196,7 +206,7 @@ function ensure3DBuildings() {
 function toggleBuildings(on: boolean) {
   if (map.getLayer("slide-buildings")) map.setLayoutProperty("slide-buildings", "visibility", on ? "visible" : "none");
 }
-function emptyFc(): GeoJSON.FeatureCollection { return { type: "FeatureCollection", features: [] }; }
+function emptyFc(): FeatureCollection { return { type: "FeatureCollection", features: [] }; }
 function addRouteLayers() {
   if (map.getSource("routes")) return;
   map.addSource("routes", { type: "geojson", data: emptyFc() });
@@ -259,14 +269,19 @@ async function plan() {
   }
 }
 function paintRoutes() {
-  addRouteLayers();
-  const features = routes.map((r) => ({
-    type: "Feature" as const,
-    properties: { id: r.id, selected: r.id === selectedId },
-    geometry: { type: "LineString" as const, coordinates: decodePolyline6(r.trip.legs.map((l) => l.shape).join("")) },
-  }));
-  (map.getSource("routes") as maplibregl.GeoJSONSource)?.setData({ type: "FeatureCollection", features });
-  if (map.getLayer("route-glow")) map.setPaintProperty("route-glow", "line-color", TRAILS[garage.trail].line);
+  whenStyleReady(() => {
+    addRouteLayers();
+    const features = routes.map((r) => ({
+      type: "Feature" as const,
+      properties: { id: r.id, selected: r.id === selectedId },
+      geometry: { type: "LineString" as const, coordinates: decodePolyline6(r.trip.legs.map((l) => l.shape).join("")) },
+    }));
+    (map.getSource("routes") as maplibregl.GeoJSONSource)?.setData({ type: "FeatureCollection", features });
+    if (map.getLayer("route-glow")) map.setPaintProperty("route-glow", "line-color", TRAILS[garage.trail].line);
+    if (map.getLayer("route-line")) {
+      map.setPaintProperty("route-line", "line-color", ["case", ["==", ["get", "selected"], true], TRAILS[garage.trail].line, "#4c5d68"]);
+    }
+  });
 }
 function renderDash() {
   dashEl.removeAttribute("hidden");
@@ -315,7 +330,7 @@ function spawnGhosts() {
   ghosts = garage.showGhosts ? seedGhosts(selectedCoords, garage.tag) : [];
   if (!garage.shareGhost) ghosts = ghosts.filter((g) => g.tag !== garage.tag.slice(0, 8));
   $("#stat-ghosts").textContent = String(ghosts.length);
-  const trails: GeoJSON.Feature[] = [];
+  const trails: Feature[] = [];
   for (const g of ghosts) {
     const el = document.createElement("div");
     el.className = "ghost-marker"; el.style.color = g.color;
@@ -323,7 +338,10 @@ function spawnGhosts() {
     ghostMarkers.push(new maplibregl.Marker({ element: el, anchor: "center", pitchAlignment: "map", rotationAlignment: "map" }).setLngLat([g.samples[0].lon, g.samples[0].lat]).addTo(map));
     trails.push({ type: "Feature", properties: { color: g.color }, geometry: { type: "LineString", coordinates: g.samples.map((s) => [s.lon, s.lat]) } });
   }
-  (map.getSource("ghost-trails") as maplibregl.GeoJSONSource)?.setData({ type: "FeatureCollection", features: garage.showGhosts ? trails : [] });
+  whenStyleReady(() => {
+    addRouteLayers();
+    (map.getSource("ghost-trails") as maplibregl.GeoJSONSource)?.setData({ type: "FeatureCollection", features: garage.showGhosts ? trails : [] });
+  });
 }
 function setGhostVisibility(show: boolean) {
   ghostMarkers.forEach((m) => { m.getElement().style.display = show ? "block" : "none"; });
@@ -347,5 +365,6 @@ function tick(ts: number) {
 }
 function setStatus(text: string) { statusEl.textContent = text; statusEl.classList.toggle("show", Boolean(text)); }
 function showError(text: string) { errorEl.textContent = text; errorEl.toggleAttribute("hidden", !text); }
-function esc(s: string): string { return s.replace(/[&<>"']/g, (c) => ({ "&": "&", "<": "<", ">": ">", '"': """, "'": "&#39;" }[c]!)); }
+const ESCAPES: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
+function esc(s: string): string { return s.replace(/[&<>"']/g, (c) => ESCAPES[c]); }
 persist();
