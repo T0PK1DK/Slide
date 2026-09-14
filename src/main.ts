@@ -55,7 +55,11 @@ app.innerHTML = `
       <div class="brand"><h1>Slide</h1><span class="chip" id="rank-chip">GARAGE</span><button class="icon" id="help" type="button" aria-label="How to Slide">?</button></div>
       <div class="fields">
         <div class="field"><label>From</label><input id="from" placeholder="Current location or address" autocomplete="off" /><div class="suggest" id="from-suggest" hidden></div></div>
-        <div class="field"><label>To</label><input id="to" placeholder="Where are you going?" autocomplete="off" /><div class="suggest" id="to-suggest" hidden></div></div>
+        <div class="field"><label>To</label><input id="to" placeholder="Where to?" autocomplete="off" /><div class="suggest" id="to-suggest" hidden></div></div>
+      </div>
+      <div class="place-chips" id="place-chips">
+        <button type="button" class="place-chip" id="chip-home">Home</button>
+        <button type="button" class="place-chip" id="chip-work">Work</button>
       </div>
       <div class="actions">
         <button class="primary" id="go">Drop the line</button>
@@ -64,6 +68,7 @@ app.innerHTML = `
       </div>
       <div class="error" id="error" hidden></div>
     </div>
+    <button class="map-fab plan-only" id="locate-fab" type="button" aria-label="Locate">⌖</button>
     <div class="panel status-pill" id="status">Locking a 3D line…</div>
     <div class="panel maneuver drive-only" id="maneuver" hidden>
       <svg class="arrow" viewBox="0 0 24 24" aria-hidden="true"><path id="man-arrow" d="" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -98,12 +103,14 @@ app.innerHTML = `
       <button type="button" id="ov-tune">Tune garage</button>
       <button type="button" id="ov-help">How to Slide</button>
       <button type="button" id="ov-rail">Speed rail</button>
+      <button type="button" id="ov-home">Save To as Home</button>
+      <button type="button" id="ov-work">Save To as Work</button>
     </div>
     <div class="coach" id="coach" hidden>
       <div class="panel coach-card">
         <h2>How to Slide</h2>
         <ol>
-          <li>Set <b>From</b> and <b>To</b><span>Search or tap Locate.</span></li>
+          <li>Set <b>From</b> and <b>Where to?</b><span>Search, Locate, or a Home / Work chip.</span></li>
           <li>Tap <b>Drop the line</b><span>Slide picks the smoothest road, not the fastest.</span></li>
           <li>Follow the banner<span>Posted limit is the sign. Never a target to beat.</span></li>
         </ol>
@@ -201,6 +208,7 @@ bindSearch(toInput, $("#to-suggest"), (hit) => {
   toInput.value = hit.label;
 });
 $("#locate").addEventListener("click", locateMe);
+$("#locate-fab").addEventListener("click", locateMe);
 $("#go").addEventListener("click", plan);
 $("#tune").addEventListener("click", () => garageEl.classList.toggle("open"));
 $("#g-close").addEventListener("click", () => garageEl.classList.remove("open"));
@@ -219,6 +227,10 @@ $("#ov-rail").addEventListener("click", () => {
   overflowEl.classList.remove("open");
   speedsEl.toggleAttribute("hidden", !speedsEl.hasAttribute("hidden"));
 });
+$("#ov-home").addEventListener("click", () => { overflowEl.classList.remove("open"); savePlace("home"); });
+$("#ov-work").addEventListener("click", () => { overflowEl.classList.remove("open"); savePlace("work"); });
+$("#chip-home").addEventListener("click", () => useOrSavePlace("home"));
+$("#chip-work").addEventListener("click", () => useOrSavePlace("work"));
 window.addEventListener("resize", () => {
   map.resize();
   if (hudMode === "drive") fitToRoute();
@@ -230,6 +242,7 @@ document.addEventListener("click", (e) => {
 });
 toInput.addEventListener("keydown", (e) => { if (e.key === "Enter") plan(); });
 wireGarage();
+refreshPlaceChips();
 setHudMode("plan");
 if (!garage.coachDismissed) showCoach(true);
 
@@ -251,6 +264,32 @@ function persist() {
   saveGarage(garage);
   applyTheme(garage);
   $("#rank-chip").textContent = garage.tag;
+  refreshPlaceChips();
+}
+function savePlace(slot: "home" | "work") {
+  if (!dest) { showError("Set a destination first, then save it as Home or Work."); return; }
+  garage[slot] = { label: destLabel || toInput.value, lon: dest.lon, lat: dest.lat };
+  persist();
+  refreshPlaceChips();
+}
+function useOrSavePlace(slot: "home" | "work") {
+  const saved = garage[slot];
+  if (saved) {
+    dest = { lon: saved.lon, lat: saved.lat };
+    destLabel = saved.label;
+    toInput.value = saved.label;
+    showError("");
+    return;
+  }
+  savePlace(slot);
+}
+function refreshPlaceChips() {
+  for (const slot of ["home", "work"] as const) {
+    const btn = $(`#chip-${slot}`);
+    const saved = garage[slot];
+    btn.classList.toggle("empty", !saved);
+    btn.textContent = saved ? slot[0].toUpperCase() + slot.slice(1) : `Set ${slot}`;
+  }
 }
 function wireGarage() {
   const tag = $("#g-tag") as HTMLInputElement;

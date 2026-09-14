@@ -23,7 +23,15 @@ html, body, #app { margin: 0; height: 100%; background: #1b2838; color: var(--te
 .hud > * { pointer-events: auto; }
 .panel { background: var(--glass); backdrop-filter: blur(22px) saturate(1.2); border: 1px solid var(--line); box-shadow: var(--shadow), inset 0 1px 0 rgba(255,255,255,.06); }
 .search-card { position: absolute; top: 16px; left: 16px; width: min(360px, calc(100vw - 32px)); border-radius: 22px; padding: 14px; }
-.search-card .actions { flex-wrap: wrap; }
+.place-chips { display: flex; gap: 8px; margin-top: 10px; }
+.place-chip { flex: 1; background: rgba(255,255,255,.04); color: var(--text); border: 1px solid var(--line); border-radius: 999px; padding: 8px 10px; font-size: 12px; cursor: pointer; }
+.place-chip.empty { color: var(--muted); }
+.map-fab {
+  position: absolute; right: 16px; bottom: 24px; z-index: 3;
+  width: 44px; height: 44px; border-radius: 50%; padding: 0; font-size: 18px;
+  background: var(--glass-2); color: var(--text); border: 1px solid var(--line); cursor: pointer;
+  box-shadow: var(--shadow);
+}
 .brand { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
 .brand h1 { margin: 0; font-size: 15px; letter-spacing: 0.34em; text-transform: uppercase; flex: 1; }
 .chip { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--mint); border: 1px solid rgba(124,240,216,.3); border-radius: 999px; padding: 4px 8px; }
@@ -131,6 +139,7 @@ button.icon { background: rgba(255,255,255,.04); color: var(--text); border: 1px
 .coach-card ol { margin: 0 0 14px; padding-left: 1.2em; color: var(--text); }
 .coach-card li { margin: 8px 0; font-size: 15px; line-height: 1.4; }
 .coach-card li span { display: block; color: var(--muted); font-size: 13px; margin-top: 2px; }
+body[data-mode="drive"] .map-fab,
 body[data-mode="plan"] .drive-only { display: none !important; }
 body[data-mode="drive"] .plan-only { display: none !important; }
 body[data-mode="drive"] .search-card,
@@ -155,6 +164,16 @@ button.ghost.on { color: var(--glow); border-color: color-mix(in srgb, var(--glo
     left: 12px; right: 12px; width: auto; max-width: none; transform: none;
   }
   .search-card { top: calc(12px + env(safe-area-inset-top)); }
+  body[data-mode="plan"] .search-card {
+    top: auto;
+    bottom: calc(12px + env(safe-area-inset-bottom));
+  }
+  body[data-mode="plan"] #locate { display: none; }
+  body[data-mode="plan"] .map-fab {
+    top: auto;
+    right: 12px;
+    bottom: calc(238px + env(safe-area-inset-bottom));
+  }
   .maneuver { top: calc(12px + env(safe-area-inset-top)); left: 12px; right: 12px; }
   .posted-chip { top: calc(108px + env(safe-area-inset-top)); left: 50%; right: auto; width: auto; transform: translateX(-50%); }
   body[data-mode="drive"] .posted-chip { top: calc(118px + env(safe-area-inset-top)); }
