@@ -31,6 +31,13 @@ import {
   postedOutlook,
   type Step,
 } from "./lib/guidance";
+import {
+  BUILDING_PAINT,
+  hudFitPadding,
+  liftNightBasemap,
+  LINE_LAYOUT,
+  routeLayerPaints,
+} from "./lib/maplook";
 import { cumulativeMiles, snapToRoute, startTracking, type Fix, type TrackerHandle } from "./lib/tracking";
 
 const MIAMI: LonLat = { lon: -80.1918, lat: 25.7617 };
@@ -44,8 +51,8 @@ app.innerHTML = `
   <div id="map"></div>
   <div class="vignette"></div>
   <div class="hud">
-    <div class="panel search-card">
-      <div class="brand"><h1>Slide</h1><span class="chip" id="rank-chip">GARAGE</span></div>
+    <div class="panel search-card plan-only" id="search-card">
+      <div class="brand"><h1>Slide</h1><span class="chip" id="rank-chip">GARAGE</span><button class="icon" id="help" type="button" aria-label="How to Slide">?</button></div>
       <div class="fields">
         <div class="field"><label>From</label><input id="from" placeholder="Current location or address" autocomplete="off" /><div class="suggest" id="from-suggest" hidden></div></div>
         <div class="field"><label>To</label><input id="to" placeholder="Where are you going?" autocomplete="off" /><div class="suggest" id="to-suggest" hidden></div></div>
@@ -58,13 +65,13 @@ app.innerHTML = `
       <div class="error" id="error" hidden></div>
     </div>
     <div class="panel status-pill" id="status">Locking a 3D line…</div>
-    <div class="panel maneuver" id="maneuver" hidden>
+    <div class="panel maneuver drive-only" id="maneuver" hidden>
       <svg class="arrow" viewBox="0 0 24 24" aria-hidden="true"><path id="man-arrow" d="" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
       <div class="man-text"><b id="man-dist">—</b><span id="man-instr">—</span></div>
       <div class="man-bar"><i id="man-fill"></i></div>
     </div>
-    <div class="panel posted-chip" id="posted" hidden></div>
-    <div class="panel dash" id="dash" hidden>
+    <div class="panel posted-chip drive-only" id="posted" hidden></div>
+    <div class="panel dash plan-only" id="dash" hidden>
       <div class="stat-row">
         <div class="stat"><span>Slide</span><b id="stat-score">—</b></div>
         <div class="stat"><span>Arrive</span><b id="stat-eta">—</b></div>
@@ -73,15 +80,36 @@ app.innerHTML = `
       </div>
       <div id="routes"></div>
     </div>
-    <div class="speedo" id="speedo" hidden>
+    <div class="speedo drive-only" id="speedo" hidden>
       <div class="cluster">
         <div class="limit" id="limit" hidden><span>Limit</span><b id="limit-n">—</b></div>
         <div class="live"><div class="n" id="speed-n">0</div><div class="u" id="speed-src">Est</div></div>
       </div>
       <div class="ghost-delta" id="ghost-delta">GHOST ±0.0s</div>
     </div>
-    <button class="panel recenter" id="recenter" hidden>Recenter</button>
+    <button class="panel recenter drive-only" id="recenter" hidden>Recenter</button>
     <div class="panel speed-rail" id="speeds" hidden></div>
+    <div class="panel drive-bar drive-only" id="drive-bar" hidden>
+      <div class="meta"><b id="drive-eta">—</b><span id="drive-remain">—</span></div>
+      <button class="icon" id="more" type="button" aria-label="More">⋯</button>
+      <button class="end" id="end-drive" type="button">End</button>
+    </div>
+    <div class="panel overflow" id="overflow">
+      <button type="button" id="ov-tune">Tune garage</button>
+      <button type="button" id="ov-help">How to Slide</button>
+      <button type="button" id="ov-rail">Speed rail</button>
+    </div>
+    <div class="coach" id="coach" hidden>
+      <div class="panel coach-card">
+        <h2>How to Slide</h2>
+        <ol>
+          <li>Set <b>From</b> and <b>To</b><span>Search or tap Locate.</span></li>
+          <li>Tap <b>Drop the line</b><span>Slide picks the smoothest road, not the fastest.</span></li>
+          <li>Follow the banner<span>Posted limit is the sign. Never a target to beat.</span></li>
+        </ol>
+        <button class="primary" id="coach-ok" type="button">Got it</button>
+      </div>
+    </div>
     <div class="panel garage" id="garage">
       <div class="garage-head"><h3>Garage</h3><button class="close" id="g-close" aria-label="Close garage">×</button></div>
       <label>Tag</label><input id="g-tag" type="text" maxlength="12" />
@@ -144,13 +172,22 @@ const garageEl = $("#garage");
 const maneuverEl = $("#maneuver");
 const postedEl = $("#posted");
 const recenterEl = $("#recenter");
+const driveBarEl = $("#drive-bar");
+const coachEl = $("#coach");
+const overflowEl = $("#overflow");
+const moreBtn = $("#more");
+let hudMode: "plan" | "drive" = "plan";
 
 map.on("load", () => {
   styleReady = true;
+  liftNightBasemap(map);
   ensure3DBuildings();
   addRouteLayers();
   applyCamera(garage.camera);
   styleQueue.splice(0).forEach((fn) => fn());
+});
+map.on("error", () => {
+  // Tiles / style can 429. Keep the HUD usable; route paint still applies on a lifted land color.
 });
 
 bindSearch(fromInput, $("#from-suggest"), (hit) => {
@@ -167,7 +204,25 @@ $("#locate").addEventListener("click", locateMe);
 $("#go").addEventListener("click", plan);
 $("#tune").addEventListener("click", () => garageEl.classList.toggle("open"));
 $("#g-close").addEventListener("click", () => garageEl.classList.remove("open"));
-recenterEl.addEventListener("click", () => { followCamera = true; recenterEl.setAttribute("hidden", ""); applyCamera(garage.camera); });
+recenterEl.addEventListener("click", () => { followCamera = true; recenterEl.setAttribute("hidden", ""); fitToRoute(); });
+$("#end-drive").addEventListener("click", endDrive);
+$("#help").addEventListener("click", () => showCoach(true));
+$("#coach-ok").addEventListener("click", () => {
+  garage.coachDismissed = true;
+  persist();
+  showCoach(false);
+});
+moreBtn.addEventListener("click", () => overflowEl.classList.toggle("open"));
+$("#ov-tune").addEventListener("click", () => { overflowEl.classList.remove("open"); garageEl.classList.add("open"); });
+$("#ov-help").addEventListener("click", () => { overflowEl.classList.remove("open"); showCoach(true); });
+$("#ov-rail").addEventListener("click", () => {
+  overflowEl.classList.remove("open");
+  speedsEl.toggleAttribute("hidden", !speedsEl.hasAttribute("hidden"));
+});
+window.addEventListener("resize", () => {
+  map.resize();
+  if (hudMode === "drive") fitToRoute();
+});
 map.on("dragstart", () => { if (garage.camera === "chase") { followCamera = false; recenterEl.removeAttribute("hidden"); } });
 document.addEventListener("click", (e) => {
   const t = e.target as HTMLElement;
@@ -175,6 +230,12 @@ document.addEventListener("click", (e) => {
 });
 toInput.addEventListener("keydown", (e) => { if (e.key === "Enter") plan(); });
 wireGarage();
+setHudMode("plan");
+if (!garage.coachDismissed) showCoach(true);
+
+function showCoach(on: boolean) {
+  coachEl.toggleAttribute("hidden", !on);
+}
 
 function $(sel: string): HTMLElement { return document.querySelector(sel)!; }
 /** Run map work that touches sources/layers, deferring until the style has loaded. */
@@ -219,6 +280,29 @@ function paintSwatches(el: HTMLElement, colors: string[], current: string, onPic
     el.appendChild(b);
   });
 }
+function setHudMode(mode: "plan" | "drive") {
+  hudMode = mode;
+  document.body.dataset.mode = mode;
+  const driving = mode === "drive";
+  driveBarEl.toggleAttribute("hidden", !driving);
+  if (!driving) {
+    overflowEl.classList.remove("open");
+    garageEl.classList.remove("open");
+    maneuverEl.setAttribute("hidden", "");
+    postedEl.setAttribute("hidden", "");
+    $("#speedo").setAttribute("hidden", "");
+    recenterEl.setAttribute("hidden", "");
+    speedsEl.setAttribute("hidden", "");
+  }
+  requestAnimationFrame(() => {
+    map.resize();
+    if (driving) fitToRoute();
+  });
+}
+function endDrive() {
+  setHudMode("plan");
+  followCamera = true;
+}
 function applyCamera(mode: GarageConfig["camera"]) {
   if (mode === "top") map.easeTo({ pitch: 0, zoom: Math.max(map.getZoom(), 13), duration: 700 });
   else if (mode === "chase") map.easeTo({ pitch: 62, zoom: 16.2, duration: 700 });
@@ -235,12 +319,7 @@ function ensure3DBuildings() {
       "source-layer": "building",
       type: "fill-extrusion",
       minzoom: 13,
-      paint: {
-        "fill-extrusion-color": ["interpolate", ["linear"], ["coalesce", ["get", "render_height"], ["get", "height"], 12], 0, "#141c28", 40, "#1b2736", 120, "#243246"],
-        "fill-extrusion-height": ["coalesce", ["get", "render_height"], ["get", "height"], 14],
-        "fill-extrusion-base": ["coalesce", ["get", "render_min_height"], ["get", "min_height"], 0],
-        "fill-extrusion-opacity": 0.72,
-      },
+        paint: BUILDING_PAINT as never,
     });
   } catch {}
   toggleBuildings(garage.showBuildings);
@@ -253,10 +332,12 @@ function addRouteLayers() {
   if (map.getSource("routes")) return;
   map.addSource("routes", { type: "geojson", data: emptyFc() });
   map.addSource("ghost-trails", { type: "geojson", data: emptyFc() });
-  map.addLayer({ id: "route-glow", type: "line", source: "routes", paint: { "line-color": TRAILS[garage.trail].line, "line-width": 14, "line-opacity": 0.18, "line-blur": 8 } });
-  map.addLayer({ id: "route-case", type: "line", source: "routes", paint: { "line-color": "#061016", "line-width": 8, "line-opacity": 0.85 } });
-  map.addLayer({ id: "route-line", type: "line", source: "routes", paint: { "line-color": ["case", ["==", ["get", "selected"], true], TRAILS[garage.trail].line, "#4c5d68"], "line-width": ["case", ["==", ["get", "selected"], true], 4.5, 2.5], "line-opacity": ["case", ["==", ["get", "selected"], true], 0.98, 0.35] } });
-  map.addLayer({ id: "ghost-trails", type: "line", source: "ghost-trails", paint: { "line-color": ["get", "color"], "line-width": 2, "line-opacity": 0.35, "line-dasharray": [1, 1.4] } });
+  const paint = routeLayerPaints(TRAILS[garage.trail].line);
+  map.addLayer({ id: "route-glow", type: "line", source: "routes", layout: LINE_LAYOUT, paint: paint.glow as never });
+  map.addLayer({ id: "route-case", type: "line", source: "routes", layout: LINE_LAYOUT, paint: paint.case as never });
+  map.addLayer({ id: "route-line", type: "line", source: "routes", layout: LINE_LAYOUT, paint: paint.line as never });
+  map.addLayer({ id: "route-core", type: "line", source: "routes", layout: LINE_LAYOUT, paint: paint.core as never });
+  map.addLayer({ id: "ghost-trails", type: "line", source: "ghost-trails", paint: { "line-color": ["get", "color"], "line-width": 3, "line-opacity": 0.55, "line-dasharray": [1, 1.2] } });
 }
 function bindSearch(input: HTMLInputElement, box: HTMLElement, onPick: (hit: SearchHit) => void) {
   let timer = 0; let items: SearchHit[] = []; let active = -1;
@@ -365,10 +446,12 @@ async function plan() {
     }
     routes = rankRoutes(scored);
     selectedId = routes[0]?.id ?? "";
-    paintRoutes(); renderDash(); renderSpeedRail(); bootDrive(); fitToRoute();
+    paintRoutes(); renderDash(); renderSpeedRail(); bootDrive(); setHudMode("drive"); fitToRoute();
     setStatus(""); streak += 1; $("#stat-streak").textContent = String(streak);
   } catch (err) {
-    showError(err instanceof Error ? err.message : "Routing failed."); setStatus("");
+    const msg = err instanceof Error ? err.message : "Routing failed.";
+    showError(/failed|network|fetch|load/i.test(msg) ? "Can't reach routing right now. Check your connection and try again." : msg);
+    setStatus("");
   } finally {
     planning = false;
     goBtn.disabled = false;
@@ -381,10 +464,10 @@ function fitToRoute() {
     for (const c of selectedCoords) bounds.extend(c);
     followCamera = true;
     map.fitBounds(bounds, {
-      padding: { top: 130, bottom: 210, left: 60, right: 60 },
-      pitch: 52,
+      padding: hudFitPadding(),
+      pitch: window.innerWidth < 820 ? 48 : 52,
       bearing: -18,
-      maxZoom: 15.4,
+      maxZoom: window.innerWidth < 820 ? 15.2 : 15.4,
       duration: 1100,
     });
   });
@@ -392,6 +475,7 @@ function fitToRoute() {
 function selectRoute(id: string) {
   selectedId = id;
   paintRoutes(); renderDash(); renderSpeedRail(); bootDrive();
+  if (hudMode === "drive") fitToRoute();
 }
 function paintRoutes() {
   whenStyleReady(() => {
@@ -403,9 +487,9 @@ function paintRoutes() {
     }));
     (map.getSource("routes") as maplibregl.GeoJSONSource)?.setData({ type: "FeatureCollection", features });
     if (map.getLayer("route-glow")) map.setPaintProperty("route-glow", "line-color", TRAILS[garage.trail].line);
-    if (map.getLayer("route-line")) {
-      map.setPaintProperty("route-line", "line-color", ["case", ["==", ["get", "selected"], true], TRAILS[garage.trail].line, "#4c5d68"]);
-    }
+    const next = routeLayerPaints(TRAILS[garage.trail].line);
+    if (map.getLayer("route-line")) map.setPaintProperty("route-line", "line-color", next.line["line-color"] as never);
+    if (map.getLayer("route-core")) map.setPaintProperty("route-core", "line-color", next.core["line-color"] as never);
   });
   paintRouteChips();
 }
@@ -459,8 +543,9 @@ function bootDrive() {
   if (!raf) { lastTs = performance.now(); raf = requestAnimationFrame(tick); }
 }
 function carSvg(color: string, glow: string, ghost = false): string {
-  const opacity = ghost ? 0.55 : 1;
-  return `<svg viewBox="0 0 40 64" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${glow}" stop-opacity=".9"/><stop offset="1" stop-color="${color}" stop-opacity="${opacity}"/></linearGradient></defs><ellipse cx="20" cy="58" rx="10" ry="4" fill="${glow}" opacity=".35"/><path d="M12 50 L20 8 L28 50 Z" fill="url(#g)" stroke="${glow}" stroke-width="1.4"/><path d="M16 28 L20 16 L24 28 Z" fill="#0b1218" opacity=".45"/></svg>`;
+  const opacity = ghost ? 0.6 : 1;
+  const id = `cg${Math.random().toString(36).slice(2, 8)}`;
+  return `<svg viewBox="0 0 44 72" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${glow}" stop-opacity=".95"/><stop offset="1" stop-color="${color}" stop-opacity="${opacity}"/></linearGradient></defs><ellipse cx="22" cy="66" rx="12" ry="4.5" fill="${glow}" opacity=".4"/><path d="M13 58 L22 8 L31 58 Z" fill="url(#${id})" stroke="${glow}" stroke-width="1.8"/><path d="M17 32 L22 16 L27 32 Z" fill="#0b1218" opacity=".4"/><circle cx="16" cy="14" r="2.2" fill="#fff6c8"/><circle cx="28" cy="14" r="2.2" fill="#fff6c8"/></svg>`;
 }
 function spawnPlayer() {
   playerMarker?.remove();
@@ -532,6 +617,7 @@ function tick(ts: number) {
   }
 
   renderGuidance(progressMi, mph);
+  updateDriveMeta(route, progressMi);
 
   ghosts.forEach((g, i) => { const s = stepGhost(g, dt); ghostMarkers[i]?.setLngLat([s.lon, s.lat]); ghostMarkers[i]?.setRotation(s.bearing); });
   if (ghosts.length) {
@@ -545,6 +631,13 @@ function tick(ts: number) {
     $("#ghost-delta").textContent = "NO GHOSTS";
   }
   raf = requestAnimationFrame(tick);
+}
+function updateDriveMeta(route: SlideRoute | undefined, mi: number) {
+  if (hudMode !== "drive" || !route) return;
+  const remainMi = Math.max(0, route.distanceMi - mi);
+  const remainSec = route.durationSec * (remainMi / Math.max(route.distanceMi, 0.01));
+  $("#drive-eta").textContent = formatDuration(remainSec);
+  $("#drive-remain").textContent = `${formatMiles(remainMi)} · ${arrivalClock(remainSec)}`;
 }
 function setOffRoute(off: boolean) {
   maneuverEl.classList.toggle("off-route", off);

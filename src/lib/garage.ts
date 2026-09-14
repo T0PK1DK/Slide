@@ -10,6 +10,8 @@ export type GarageConfig = {
   showGhosts: boolean;
   showBuildings: boolean;
   shareGhost: boolean;
+  /** First-run “How to Slide” was dismissed. Help still reopens it. */
+  coachDismissed: boolean;
 };
 
 const KEY = "slide.garage.v1";
@@ -30,6 +32,7 @@ export const DEFAULT_GARAGE: GarageConfig = {
   showGhosts: true,
   showBuildings: true,
   shareGhost: true,
+  coachDismissed: false,
 };
 
 export function loadGarage(): GarageConfig {
