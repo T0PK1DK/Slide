@@ -1,6 +1,8 @@
 export type CameraMode = "cinematic" | "chase" | "top";
 export type TrailStyle = "plasma" | "ember" | "ice" | "volt";
 
+export type SavedPlace = { label: string; lon: number; lat: number };
+
 export type GarageConfig = {
   tag: string;
   carColor: string;
@@ -10,6 +12,11 @@ export type GarageConfig = {
   showGhosts: boolean;
   showBuildings: boolean;
   shareGhost: boolean;
+  /** First-run “How to Slide” was dismissed. Help still reopens it. */
+  coachDismissed: boolean;
+  home: SavedPlace | null;
+  work: SavedPlace | null;
+  recents: SavedPlace[];
 };
 
 const KEY = "slide.garage.v1";
@@ -30,6 +37,10 @@ export const DEFAULT_GARAGE: GarageConfig = {
   showGhosts: true,
   showBuildings: true,
   shareGhost: true,
+  coachDismissed: false,
+  home: null,
+  work: null,
+  recents: [],
 };
 
 export function loadGarage(): GarageConfig {

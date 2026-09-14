@@ -9,6 +9,7 @@ Work top-down. Check the box in the same PR.
 - [x] Fit camera to route on first plan (cinematic), then allow Chase
 - [x] Real GPS speed in the speedo when Locate is active (`watchPosition`)
 - [x] Upcoming posted-speed chip: “Hold 45 → 30 in 0.4 mi”
+- [x] Phone Drive Mode: readable night map + route ribbon, CarPlay-simple HUD, first-run coach (native CarPlay is a later iOS app)
 - [ ] GitHub Pages (or Cloudflare Pages) so the owner can open it on a phone
 
 ## P1 — navigation that feels finished
