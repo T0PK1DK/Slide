@@ -104,15 +104,12 @@ export function scoreTrip(
   const stopDensity = (turns + signals) / Math.max(distanceMi, 0.2);
 
   const why = explain({
-    slideScore,
     turns,
     lefts,
     uturns,
     signals,
     classScore,
     postedCoverage,
-    distanceMi,
-    durationSec,
   });
 
   return {
@@ -234,15 +231,12 @@ function titleCase(s: string): string {
 }
 
 function explain(input: {
-  slideScore: number;
   turns: number;
   lefts: number;
   uturns: number;
   signals: number;
   classScore: number;
   postedCoverage: number;
-  distanceMi: number;
-  durationSec: number;
 }): string {
   const bits: string[] = [];
   if (input.classScore > 0.75) bits.push("stays on higher-class roads");
