@@ -44,6 +44,7 @@ src/lib/smooth.ts      Slide score + speed bands
 src/lib/polyline.ts    precision-6 decode
 src/lib/garage.ts      customization persist
 src/lib/ghosts.ts      ghost replay along a line
+src/lib/mapready.ts    style-ready guards for MapLibre sources/layers
 docs/PRODUCT.md        scoring contract
 HANDOFF.md             this file
 TASKS.md               ordered work
@@ -90,3 +91,4 @@ Read `TASKS.md` top unchecked item. Do not rebase history. Do not rename the pro
 
 - 2026-09-13 Grok: repo created, routing + Slide score + speed bands, then 3D HUD / garage / seeded ghosts. Handoff files added for Cursor + Claude.
 - 2026-09-14 Owner asked for handoffs so other agents can finish alongside Grok.
+- 2026-09-14 Cursor: P0 `npm run build` is clean. Fixed broken `esc()` (HTML-entity parse error), dropped unused search-highlight stub, enabled `noUnusedLocals` / `noUnusedParameters`. MapLibre `addSource` / `addLayer` / `getSource` now wait for `isStyleLoaded` via `src/lib/mapready.ts`. No product-contract change.
