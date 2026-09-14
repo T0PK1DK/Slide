@@ -20,6 +20,8 @@ export type SlideRoute = {
   label: "Slide" | "Faster" | "Alt";
   why: string;
   turns: number;
+  lefts: number;
+  uturns: number;
   signals: number;
   stopDensity: number;
   speedVariance: number;
@@ -59,6 +61,9 @@ export function scoreTrip(
   const durationSec = trip.summary.time;
   const maneuvers = trip.legs.flatMap((l) => l.maneuvers);
   const turns = maneuvers.filter((m) => isTurn(m)).length;
+  const lefts = maneuvers.filter((m) => LEFT_TURNS.has(m.type)).length;
+  const uturns = maneuvers.filter((m) => UTURNS.has(m.type)).length;
+  const turnLoad = maneuvers.reduce((a, m) => a + turnCost(m), 0);
 
   const signals = edges.filter((e) => e.traffic_signal).length;
   const lengths = edges.map((e) => e.length || 0);
@@ -77,7 +82,7 @@ export function scoreTrip(
       return acc + w * (e.length || 0);
     }, 0) / totalEdgeLen;
 
-  const turnPenalty = clamp(turns / Math.max(distanceMi, 0.5), 0, 8);
+  const turnPenalty = clamp(turnLoad / Math.max(distanceMi, 0.5), 0, 8);
   const signalPenalty = clamp(signals / Math.max(distanceMi, 0.5), 0, 6);
   const variancePenalty = clamp(speedVariance / 18, 0, 1);
   const coverageBonus = postedCoverage * 8;
@@ -100,6 +105,8 @@ export function scoreTrip(
 
   const why = explain({
     turns,
+    lefts,
+    uturns,
     signals,
     classScore,
     postedCoverage,
@@ -113,6 +120,8 @@ export function scoreTrip(
     slideScore,
     why,
     turns,
+    lefts,
+    uturns,
     signals,
     stopDensity,
     speedVariance,
@@ -122,13 +131,49 @@ export function scoreTrip(
   };
 }
 
+/**
+ * Valhalla maneuver types.
+ * 9 slight-right, 10 right, 11 sharp-right, 12 u-turn-right, 13 u-turn-left,
+ * 14 sharp-left, 15 left, 16 slight-left, 17-21 ramps/exits, 22-25 forks/merge,
+ * 26-27 roundabout.
+ */
+const RIGHT_TURNS = new Set([9, 10, 11]);
+const LEFT_TURNS = new Set([14, 15, 16]);
+const UTURNS = new Set([12, 13]);
+const RAMPS = new Set([17, 18, 19, 20, 21]);
+const FORKS = new Set([22, 23, 24, 25]);
+const ROUNDABOUTS = new Set([26, 27]);
+
 function isTurn(m: Maneuver): boolean {
   const t = m.type;
   return (
-    (t >= 9 && t <= 14) ||
-    (t >= 19 && t <= 27) ||
+    RIGHT_TURNS.has(t) ||
+    LEFT_TURNS.has(t) ||
+    UTURNS.has(t) ||
+    RAMPS.has(t) ||
+    FORKS.has(t) ||
+    ROUNDABOUTS.has(t) ||
     /turn|exit|ramp|fork|merge|uturn|bear/i.test(m.instruction || "")
   );
+}
+
+/**
+ * Not every turn costs the same ride. An unprotected left crosses oncoming
+ * traffic and usually waits on a gap; a right is a slow-and-go. Weighting them
+ * equally is what makes a "fewest turns" router pick a line that drives badly.
+ */
+export function turnCost(m: Maneuver): number {
+  const t = m.type;
+  if (UTURNS.has(t)) return 2.4;
+  if (LEFT_TURNS.has(t)) return 1.8;
+  if (RIGHT_TURNS.has(t)) return 1;
+  if (ROUNDABOUTS.has(t)) return 0.8;
+  if (RAMPS.has(t) || FORKS.has(t)) return 0.5;
+  return isTurn(m) ? 1 : 0;
+}
+
+export function isLeftTurn(m: Maneuver): boolean {
+  return LEFT_TURNS.has(m.type);
 }
 
 function stddev(values: number[]): number {
@@ -187,6 +232,8 @@ function titleCase(s: string): string {
 
 function explain(input: {
   turns: number;
+  lefts: number;
+  uturns: number;
   signals: number;
   classScore: number;
   postedCoverage: number;
@@ -195,7 +242,10 @@ function explain(input: {
   if (input.classScore > 0.75) bits.push("stays on higher-class roads");
   else if (input.classScore < 0.45) bits.push("more surface streets");
   if (input.turns <= 4) bits.push("few direction changes");
-  else bits.push(`${input.turns} turns`);
+  else bits.push(`${input.turns} turn${input.turns === 1 ? "" : "s"}`);
+  if (input.uturns > 0) bits.push(`${input.uturns} u-turn${input.uturns > 1 ? "s" : ""}`);
+  else if (input.lefts === 0 && input.turns > 0) bits.push("no left turns");
+  else if (input.lefts >= 3) bits.push(`${input.lefts} unprotected lefts`);
   if (input.signals <= 3) bits.push("low signal density");
   if (input.postedCoverage > 0.5) bits.push("strong posted-speed coverage");
   if (!bits.length) bits.push("balanced path");

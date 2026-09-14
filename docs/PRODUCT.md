@@ -17,12 +17,26 @@ Give a driver the line they would pick if they knew every street: fewest ugly mo
 score ≈ 38
       + 42 * road_class_weight
       + 8  * posted_speed_coverage
-      - 4.2 * turns_per_mile
+      - 4.2 * weighted_turns_per_mile
       - 3.1 * signals_per_mile
       - 10 * normalized_speed_variance
 ```
 
 Clamped 1–99. Displayed next to the route label.
+
+Turns are weighted by how they actually drive, not counted flat:
+
+| maneuver | weight |
+| --- | --- |
+| u-turn | 2.4 |
+| left / sharp left / slight left | 1.8 |
+| right / sharp right / slight right | 1.0 |
+| roundabout | 0.8 |
+| ramp, fork, merge | 0.5 |
+
+An unprotected left waits on a gap in oncoming traffic; a right is slow-and-go.
+Counting them equally is what makes a "fewest turns" router pick a line that
+drives badly, which is the opposite of the promise above.
 
 ## Timing contract
 

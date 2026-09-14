@@ -44,7 +44,8 @@ src/lib/smooth.ts      Slide score + speed bands
 src/lib/polyline.ts    precision-6 decode
 src/lib/garage.ts      customization persist
 src/lib/ghosts.ts      ghost replay along a line
-src/lib/mapready.ts    style-ready guards for MapLibre sources/layers
+src/lib/guidance.ts    next maneuver, posted-speed lookahead, turn arrows
+src/lib/tracking.ts    live GPS watch + snap-to-route progress
 docs/PRODUCT.md        scoring contract
 HANDOFF.md             this file
 TASKS.md               ordered work
@@ -65,13 +66,13 @@ AGENTS.md / CLAUDE.md  short agent rules
 - Ghosts are **simulated on the current route**, not live other drivers.
 - `shareGhost` is a flag only. No presence server.
 - Car marker is an SVG wedge, not a 3D model.
+- Snap-to-route is nearest-segment projection, not real map matching.
 - 3D buildings depend on OpenFreeMap `building` layer; fail soft if missing.
-- Valhalla `alternatives: true` can return 1 route. Need a second costing pass if so.
-- Speedo uses trip average mph, not live GPS speed.
 - `main.ts` is one file. Split when adding nav guidance / GPS follow.
 - Public Valhalla/Photon can rate-limit. Plan for self-host.
 - No GitHub Pages deploy yet.
-- No turn-by-turn voice, no leave-by target, no live traffic.
+- Turn-by-turn is the next-maneuver banner only; no full step list, no voice.
+- No leave-by target, no live traffic.
 
 ## Architecture next
 
@@ -91,4 +92,7 @@ Read `TASKS.md` top unchecked item. Do not rebase history. Do not rename the pro
 
 - 2026-09-13 Grok: repo created, routing + Slide score + speed bands, then 3D HUD / garage / seeded ghosts. Handoff files added for Cursor + Claude.
 - 2026-09-14 Owner asked for handoffs so other agents can finish alongside Grok.
-- 2026-09-14 Cursor: P0 `npm run build` is clean. Fixed broken `esc()` (HTML-entity parse error), dropped unused search-highlight stub, enabled `noUnusedLocals` / `noUnusedParameters`. MapLibre `addSource` / `addLayer` / `getSource` now wait for `isStyleLoaded` via `src/lib/mapready.ts`. No product-contract change.
+- 2026-09-14 Cursor: independently fixed the same P0 build break (PR #1, merged to `main`): broken `esc()` escape map, unused search-highlight stub, `noUnusedLocals`/`noUnusedParameters`, MapLibre calls gated on `isStyleLoaded` via a new `src/lib/mapready.ts`. No product-contract change.
+- 2026-09-14 Claude: P0#1 `npm run build` is clean, built in parallel with Cursor's session above before either saw the other's work — same root cause (`esc()` parse error), independently fixed with an inline `whenStyleReady()` queue instead of `mapready.ts`. Also imported the GeoJSON types from `geojson` instead of the global namespace, enabled the same unused-checks, and fixed a trail change only recoloring `route-glow` and not `route-line`.
+- 2026-09-14 Claude: UX pass grounded in Mobbin recon of Google/Apple Maps, Grab Driver, Tesla, Transit. Added the next-maneuver banner, a regulatory speed-limit sign, the posted-speed lookahead chip, tappable time chips on each line, camera fit on plan, and a live GPS watch that snaps the marker to the shape. New libs `guidance.ts` and `tracking.ts`. **Scoring contract changed** (see docs/PRODUCT.md): turns are now weighted by type — left 1.8, u-turn 2.4, right 1.0 — because the old `isTurn` range (9-14) silently excluded kLeft(15) and kSlightLeft(16), so left turns were only caught by an English-only regex. Slide scores will shift on left-heavy routes; that is intended.
+- 2026-09-14 Claude: merged Cursor's PR #1 (already on `main`) into this branch. Kept this branch's `main.ts`/`smooth.ts`/`tsconfig.json` — a strict superset that already covers Cursor's fixes plus the rest of P0 and the guidance/tracking work above — and dropped `src/lib/mapready.ts` as dead code once nothing referenced it, rather than leave two different style-ready mechanisms in the tree. Adopted Cursor's clean `package-lock.json` (this branch's own copy had been reverted earlier after a test-only dependency leaked into it).

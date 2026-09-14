@@ -1,5 +1,5 @@
-import type { Feature } from "geojson";
 import maplibregl from "maplibre-gl";
+import type { Feature, FeatureCollection } from "geojson";
 import "maplibre-gl/dist/maplibre-gl.css";
 import "./styles.css";
 import { decodePolyline6 } from "./lib/polyline";
@@ -7,7 +7,9 @@ import {
   collectTrips,
   requestRoutes,
   requestTraceAttributes,
+  sameTrip,
   searchPlaces,
+  tripShape,
   type LonLat,
   type SearchHit,
 } from "./lib/valhalla";
@@ -22,11 +24,14 @@ import {
 import { loadGarage, saveGarage, TRAILS, type GarageConfig } from "./lib/garage";
 import { chasePoint, seedGhosts, stepGhost, type GhostCar } from "./lib/ghosts";
 import {
-  emptyFeatureCollection,
-  getGeoJsonSource,
-  styleIsReady,
-  whenStyleReady,
-} from "./lib/mapready";
+  buildSteps,
+  formatShortDistance,
+  maneuverArrow,
+  nextMove,
+  postedOutlook,
+  type Step,
+} from "./lib/guidance";
+import { cumulativeMiles, snapToRoute, startTracking, type Fix, type TrackerHandle } from "./lib/tracking";
 
 const MIAMI: LonLat = { lon: -80.1918, lat: 25.7617 };
 const STYLE = "https://tiles.openfreemap.org/styles/dark";
@@ -53,6 +58,12 @@ app.innerHTML = `
       <div class="error" id="error" hidden></div>
     </div>
     <div class="panel status-pill" id="status">Locking a 3D line…</div>
+    <div class="panel maneuver" id="maneuver" hidden>
+      <svg class="arrow" viewBox="0 0 24 24" aria-hidden="true"><path id="man-arrow" d="" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <div class="man-text"><b id="man-dist">—</b><span id="man-instr">—</span></div>
+      <div class="man-bar"><i id="man-fill"></i></div>
+    </div>
+    <div class="panel posted-chip" id="posted" hidden></div>
     <div class="panel dash" id="dash" hidden>
       <div class="stat-row">
         <div class="stat"><span>Slide</span><b id="stat-score">—</b></div>
@@ -62,10 +73,17 @@ app.innerHTML = `
       </div>
       <div id="routes"></div>
     </div>
-    <div class="speedo" id="speedo" hidden><div class="n" id="speed-n">00</div><div class="u">MPH</div><div class="ghost-delta" id="ghost-delta">GHOST ±0.0s</div></div>
+    <div class="speedo" id="speedo" hidden>
+      <div class="cluster">
+        <div class="limit" id="limit" hidden><span>Limit</span><b id="limit-n">—</b></div>
+        <div class="live"><div class="n" id="speed-n">0</div><div class="u" id="speed-src">Est</div></div>
+      </div>
+      <div class="ghost-delta" id="ghost-delta">GHOST ±0.0s</div>
+    </div>
+    <button class="panel recenter" id="recenter" hidden>Recenter</button>
     <div class="panel speed-rail" id="speeds" hidden></div>
     <div class="panel garage" id="garage">
-      <h3>Garage</h3>
+      <div class="garage-head"><h3>Garage</h3><button class="close" id="g-close" aria-label="Close garage">×</button></div>
       <label>Tag</label><input id="g-tag" type="text" maxlength="12" />
       <label>Body</label><div class="swatches" id="g-body"></div>
       <label>Glow</label><div class="swatches" id="g-glow"></div>
@@ -104,6 +122,16 @@ let chaseT = 0;
 let raf = 0;
 let lastTs = 0;
 let streak = 0;
+let styleReady = false;
+const styleQueue: Array<() => void> = [];
+let steps: Step[] = [];
+let cumulative: number[] = [];
+let progressMi = 0;
+let tracker: TrackerHandle | null = null;
+let liveFix: Fix | null = null;
+let followCamera = true;
+let planning = false;
+let routeChips: maplibregl.Marker[] = [];
 
 const fromInput = $("#from") as HTMLInputElement;
 const toInput = $("#to") as HTMLInputElement;
@@ -113,12 +141,16 @@ const dashEl = $("#dash");
 const routesEl = $("#routes");
 const speedsEl = $("#speeds");
 const garageEl = $("#garage");
+const maneuverEl = $("#maneuver");
+const postedEl = $("#posted");
+const recenterEl = $("#recenter");
 
 map.on("load", () => {
+  styleReady = true;
   ensure3DBuildings();
   addRouteLayers();
   applyCamera(garage.camera);
-  if (routes.length) paintRoutes();
+  styleQueue.splice(0).forEach((fn) => fn());
 });
 
 bindSearch(fromInput, $("#from-suggest"), (hit) => {
@@ -134,10 +166,22 @@ bindSearch(toInput, $("#to-suggest"), (hit) => {
 $("#locate").addEventListener("click", locateMe);
 $("#go").addEventListener("click", plan);
 $("#tune").addEventListener("click", () => garageEl.classList.toggle("open"));
+$("#g-close").addEventListener("click", () => garageEl.classList.remove("open"));
+recenterEl.addEventListener("click", () => { followCamera = true; recenterEl.setAttribute("hidden", ""); applyCamera(garage.camera); });
+map.on("dragstart", () => { if (garage.camera === "chase") { followCamera = false; recenterEl.removeAttribute("hidden"); } });
+document.addEventListener("click", (e) => {
+  const t = e.target as HTMLElement;
+  if (!t.closest(".field")) document.querySelectorAll<HTMLElement>(".suggest").forEach((b) => { b.hidden = true; });
+});
 toInput.addEventListener("keydown", (e) => { if (e.key === "Enter") plan(); });
 wireGarage();
 
 function $(sel: string): HTMLElement { return document.querySelector(sel)!; }
+/** Run map work that touches sources/layers, deferring until the style has loaded. */
+function whenStyleReady(fn: () => void) {
+  if (styleReady) fn();
+  else styleQueue.push(fn);
+}
 function applyTheme(cfg: GarageConfig) {
   document.documentElement.style.setProperty("--glow", cfg.glow);
   document.documentElement.style.setProperty("--mint", TRAILS[cfg.trail].line);
@@ -181,123 +225,208 @@ function applyCamera(mode: GarageConfig["camera"]) {
   else map.easeTo({ pitch: 56, zoom: 14.6, duration: 700 });
 }
 function ensure3DBuildings() {
-  whenStyleReady(map, () => {
-    if (map.getLayer("slide-buildings")) {
-      toggleBuildings(garage.showBuildings);
-      return;
-    }
-    const sources = map.getStyle().sources || {};
-    const sourceId = map.getSource("openmaptiles") ? "openmaptiles" : Object.keys(sources)[0];
-    if (!sourceId) return;
-    try {
-      map.addLayer({
-        id: "slide-buildings",
-        source: sourceId,
-        "source-layer": "building",
-        type: "fill-extrusion",
-        minzoom: 13,
-        paint: {
-          "fill-extrusion-color": ["interpolate", ["linear"], ["coalesce", ["get", "render_height"], ["get", "height"], 12], 0, "#141c28", 40, "#1b2736", 120, "#243246"],
-          "fill-extrusion-height": ["coalesce", ["get", "render_height"], ["get", "height"], 14],
-          "fill-extrusion-base": ["coalesce", ["get", "render_min_height"], ["get", "min_height"], 0],
-          "fill-extrusion-opacity": 0.72,
-        },
-      });
-    } catch {
-      // OpenFreeMap styles without a building source-layer fail soft.
-    }
-    toggleBuildings(garage.showBuildings);
-  });
+  if (map.getLayer("slide-buildings")) return;
+  const sourceId = map.getSource("openmaptiles") ? "openmaptiles" : Object.keys(map.getStyle().sources || {})[0];
+  if (!sourceId) return;
+  try {
+    map.addLayer({
+      id: "slide-buildings",
+      source: sourceId,
+      "source-layer": "building",
+      type: "fill-extrusion",
+      minzoom: 13,
+      paint: {
+        "fill-extrusion-color": ["interpolate", ["linear"], ["coalesce", ["get", "render_height"], ["get", "height"], 12], 0, "#141c28", 40, "#1b2736", 120, "#243246"],
+        "fill-extrusion-height": ["coalesce", ["get", "render_height"], ["get", "height"], 14],
+        "fill-extrusion-base": ["coalesce", ["get", "render_min_height"], ["get", "min_height"], 0],
+        "fill-extrusion-opacity": 0.72,
+      },
+    });
+  } catch {}
+  toggleBuildings(garage.showBuildings);
 }
 function toggleBuildings(on: boolean) {
-  whenStyleReady(map, () => {
-    if (map.getLayer("slide-buildings")) {
-      map.setLayoutProperty("slide-buildings", "visibility", on ? "visible" : "none");
-    }
-  });
+  if (map.getLayer("slide-buildings")) map.setLayoutProperty("slide-buildings", "visibility", on ? "visible" : "none");
 }
+function emptyFc(): FeatureCollection { return { type: "FeatureCollection", features: [] }; }
 function addRouteLayers() {
-  if (!styleIsReady(map)) {
-    whenStyleReady(map, addRouteLayers);
-    return;
-  }
   if (map.getSource("routes")) return;
-  const empty = emptyFeatureCollection();
-  map.addSource("routes", { type: "geojson", data: empty });
-  map.addSource("ghost-trails", { type: "geojson", data: empty });
+  map.addSource("routes", { type: "geojson", data: emptyFc() });
+  map.addSource("ghost-trails", { type: "geojson", data: emptyFc() });
   map.addLayer({ id: "route-glow", type: "line", source: "routes", paint: { "line-color": TRAILS[garage.trail].line, "line-width": 14, "line-opacity": 0.18, "line-blur": 8 } });
   map.addLayer({ id: "route-case", type: "line", source: "routes", paint: { "line-color": "#061016", "line-width": 8, "line-opacity": 0.85 } });
   map.addLayer({ id: "route-line", type: "line", source: "routes", paint: { "line-color": ["case", ["==", ["get", "selected"], true], TRAILS[garage.trail].line, "#4c5d68"], "line-width": ["case", ["==", ["get", "selected"], true], 4.5, 2.5], "line-opacity": ["case", ["==", ["get", "selected"], true], 0.98, 0.35] } });
   map.addLayer({ id: "ghost-trails", type: "line", source: "ghost-trails", paint: { "line-color": ["get", "color"], "line-width": 2, "line-opacity": 0.35, "line-dasharray": [1, 1.4] } });
 }
 function bindSearch(input: HTMLInputElement, box: HTMLElement, onPick: (hit: SearchHit) => void) {
-  let timer = 0;
+  let timer = 0; let items: SearchHit[] = []; let active = -1;
+  const close = () => { box.hidden = true; active = -1; };
+  const draw = () => renderSuggest(box, items, active, (hit) => { onPick(hit); close(); });
+
   input.addEventListener("input", () => {
     window.clearTimeout(timer);
     timer = window.setTimeout(async () => {
       try {
-        const items = await searchPlaces(input.value, origin ?? MIAMI);
-        renderSuggest(box, items, onPick);
+        items = await searchPlaces(input.value, origin ?? MIAMI);
+        active = -1;
+        draw();
         box.hidden = items.length === 0;
-      } catch {
-        box.hidden = true;
-      }
+      } catch { close(); }
     }, 200);
   });
+
+  input.addEventListener("keydown", (e) => {
+    if (box.hidden || !items.length) return;
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      active = e.key === "ArrowDown"
+        ? Math.min(active + 1, items.length - 1)
+        : Math.max(active - 1, 0);
+      draw();
+    } else if (e.key === "Enter" && active >= 0) {
+      // Beat the To-field Enter handler, which would otherwise plan a route
+      // using the previous pin while the driver is still choosing one.
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      onPick(items[active]);
+      close();
+    } else if (e.key === "Escape") {
+      close();
+    }
+  });
 }
-function renderSuggest(box: HTMLElement, items: SearchHit[], onPick: (hit: SearchHit) => void) {
+function renderSuggest(box: HTMLElement, items: SearchHit[], active: number, onPick: (hit: SearchHit) => void) {
   box.innerHTML = "";
-  items.forEach((hit) => {
+  items.forEach((hit, i) => {
     const btn = document.createElement("button");
     btn.textContent = hit.label;
+    btn.type = "button";
+    if (i === active) { btn.classList.add("active"); btn.scrollIntoView({ block: "nearest" }); }
     btn.onclick = () => { onPick(hit); box.hidden = true; };
     box.appendChild(btn);
   });
 }
-async function locateMe() {
-  if (!navigator.geolocation) return showError("Location unavailable.");
+function stopTracking() {
+  tracker?.stop();
+  tracker = null;
+  liveFix = null;
+  $("#locate").classList.remove("on");
+  $("#locate").textContent = "Locate";
+}
+/** Toggles a live GPS watch — the speedo reads real mph while this is on. */
+function locateMe() {
+  if (tracker) { stopTracking(); setStatus(""); return; }
   setStatus("Finding you…");
-  navigator.geolocation.getCurrentPosition((pos) => {
-    origin = { lon: pos.coords.longitude, lat: pos.coords.latitude };
-    originLabel = "Current location"; fromInput.value = "Current location";
-    map.easeTo({ center: [origin.lon, origin.lat], zoom: 15.4, pitch: 60, duration: 900 });
-    setStatus("");
-  }, () => { showError("Allow location or type an address."); setStatus(""); }, { enableHighAccuracy: true, timeout: 8000 });
+  $("#locate").classList.add("on");
+  $("#locate").textContent = "Tracking";
+  let first = true;
+  tracker = startTracking(
+    (fix) => {
+      liveFix = fix;
+      if (!first) return;
+      first = false;
+      origin = fix.pos;
+      originLabel = "Current location";
+      fromInput.value = "Current location";
+      setStatus("");
+      map.easeTo({ center: [fix.pos.lon, fix.pos.lat], zoom: 15.4, pitch: 60, duration: 900 });
+    },
+    (message) => { showError(message); setStatus(""); stopTracking(); }
+  );
 }
 async function plan() {
+  if (planning) return;
   showError("");
   if (!origin) return showError("Set a start point.");
   if (!dest) return showError("Set a destination.");
+  planning = true;
+  const goBtn = $("#go") as HTMLButtonElement;
+  goBtn.disabled = true;
   setStatus("Scoring the smoothest 3D line…");
   try {
     const raw = await requestRoutes(origin, dest);
-    const trips = collectTrips(raw);
+    let trips = collectTrips(raw);
     if (!trips.length) throw new Error("No routes returned.");
+    if (trips.length < 2) {
+      // `alternatives: true` frequently answers with a single trip, which
+      // leaves "smoothest" with nothing to be smoother than. Ask again with
+      // the costing pushed the other way and keep it if it is a real detour.
+      try {
+        const fast = collectTrips(await requestRoutes(origin, dest, "miles", "fast"));
+        trips = trips.concat(fast.filter((t) => !trips.some((seen) => sameTrip(seen, t))).slice(0, 1));
+      } catch {
+        // One good line still answers the question.
+      }
+    }
     const scored = [];
     for (const trip of trips) {
-      const shape = trip.legs.map((l) => l.shape).join("");
-      const attrs = await requestTraceAttributes(shape);
+      const attrs = await requestTraceAttributes(tripShape(trip));
       scored.push(scoreTrip(trip, attrs.edges ?? [], "miles"));
     }
     routes = rankRoutes(scored);
     selectedId = routes[0]?.id ?? "";
-    paintRoutes(); renderDash(); renderSpeedRail(); bootDrive();
+    paintRoutes(); renderDash(); renderSpeedRail(); bootDrive(); fitToRoute();
     setStatus(""); streak += 1; $("#stat-streak").textContent = String(streak);
   } catch (err) {
     showError(err instanceof Error ? err.message : "Routing failed."); setStatus("");
+  } finally {
+    planning = false;
+    goBtn.disabled = false;
   }
 }
+function fitToRoute() {
+  if (!selectedCoords.length) return;
+  whenStyleReady(() => {
+    const bounds = new maplibregl.LngLatBounds(selectedCoords[0], selectedCoords[0]);
+    for (const c of selectedCoords) bounds.extend(c);
+    followCamera = true;
+    map.fitBounds(bounds, {
+      padding: { top: 130, bottom: 210, left: 60, right: 60 },
+      pitch: 52,
+      bearing: -18,
+      maxZoom: 15.4,
+      duration: 1100,
+    });
+  });
+}
+function selectRoute(id: string) {
+  selectedId = id;
+  paintRoutes(); renderDash(); renderSpeedRail(); bootDrive();
+}
 function paintRoutes() {
-  whenStyleReady(map, () => {
+  whenStyleReady(() => {
     addRouteLayers();
     const features = routes.map((r) => ({
       type: "Feature" as const,
       properties: { id: r.id, selected: r.id === selectedId },
       geometry: { type: "LineString" as const, coordinates: decodePolyline6(r.trip.legs.map((l) => l.shape).join("")) },
     }));
-    getGeoJsonSource(map, "routes")?.setData({ type: "FeatureCollection", features });
+    (map.getSource("routes") as maplibregl.GeoJSONSource)?.setData({ type: "FeatureCollection", features });
     if (map.getLayer("route-glow")) map.setPaintProperty("route-glow", "line-color", TRAILS[garage.trail].line);
+    if (map.getLayer("route-line")) {
+      map.setPaintProperty("route-line", "line-color", ["case", ["==", ["get", "selected"], true], TRAILS[garage.trail].line, "#4c5d68"]);
+    }
   });
+  paintRouteChips();
+}
+/** Tappable time chips sitting on each line, the way every map app labels alternatives. */
+function paintRouteChips() {
+  routeChips.forEach((m) => m.remove());
+  routeChips = [];
+  if (routes.length < 2) return;
+  for (const r of routes) {
+    const coords = decodePolyline6(tripShape(r.trip));
+    if (!coords.length) continue;
+    const el = document.createElement("button");
+    el.className = "route-chip" + (r.id === selectedId ? " on" : "");
+    el.innerHTML = `<b>${formatDuration(r.durationSec)}</b><span>${r.label}</span>`;
+    el.onclick = (ev) => { ev.stopPropagation(); selectRoute(r.id); };
+    routeChips.push(
+      new maplibregl.Marker({ element: el, anchor: "center" })
+        .setLngLat(coords[Math.floor(coords.length * 0.55)])
+        .addTo(map)
+    );
+  }
 }
 function renderDash() {
   dashEl.removeAttribute("hidden");
@@ -305,10 +434,10 @@ function renderDash() {
   if (sel) { $("#stat-score").textContent = String(sel.slideScore); $("#stat-eta").textContent = arrivalClock(sel.durationSec); }
   routesEl.innerHTML = routes.map((r) => {
     const on = r.id === selectedId ? " selected" : "";
-    return `<button class="route-option${on}" data-id="${r.id}"><div class="row"><span class="tag">${r.label} · ${r.slideScore}</span><b>${formatDuration(r.durationSec)}</b></div><div class="why">${formatMiles(r.distanceMi)} · ${r.turns} turns · ${r.why}</div></button>`;
+    return `<button class="route-option${on}" data-id="${r.id}"><div class="row"><span class="tag">${r.label} · ${r.slideScore}</span><b>${formatDuration(r.durationSec)}</b></div><div class="why">${formatMiles(r.distanceMi)} · ${r.turns} turn${r.turns === 1 ? "" : "s"} · ${r.why}</div></button>`;
   }).join("");
   routesEl.querySelectorAll<HTMLButtonElement>(".route-option").forEach((btn) => {
-    btn.onclick = () => { selectedId = btn.dataset.id || selectedId; paintRoutes(); renderDash(); renderSpeedRail(); bootDrive(); };
+    btn.onclick = () => selectRoute(btn.dataset.id || selectedId);
   });
 }
 function renderSpeedRail() {
@@ -320,8 +449,11 @@ function renderSpeedRail() {
 function bootDrive() {
   const route = routes.find((r) => r.id === selectedId);
   if (!route) return;
-  selectedCoords = decodePolyline6(route.trip.legs.map((l) => l.shape).join(""));
+  selectedCoords = decodePolyline6(tripShape(route.trip));
   if (!selectedCoords.length) return;
+  cumulative = cumulativeMiles(selectedCoords);
+  steps = buildSteps(route.maneuvers);
+  progressMi = 0;
   chaseT = 0; spawnPlayer(); spawnGhosts();
   $("#speedo").removeAttribute("hidden");
   if (!raf) { lastTs = performance.now(); raf = requestAnimationFrame(tick); }
@@ -354,8 +486,9 @@ function spawnGhosts() {
     ghostMarkers.push(new maplibregl.Marker({ element: el, anchor: "center", pitchAlignment: "map", rotationAlignment: "map" }).setLngLat([g.samples[0].lon, g.samples[0].lat]).addTo(map));
     trails.push({ type: "Feature", properties: { color: g.color }, geometry: { type: "LineString", coordinates: g.samples.map((s) => [s.lon, s.lat]) } });
   }
-  whenStyleReady(map, () => {
-    getGeoJsonSource(map, "ghost-trails")?.setData({ type: "FeatureCollection", features: garage.showGhosts ? trails : [] });
+  whenStyleReady(() => {
+    addRouteLayers();
+    (map.getSource("ghost-trails") as maplibregl.GeoJSONSource)?.setData({ type: "FeatureCollection", features: garage.showGhosts ? trails : [] });
   });
 }
 function setGhostVisibility(show: boolean) {
@@ -363,32 +496,102 @@ function setGhostVisibility(show: boolean) {
 }
 function tick(ts: number) {
   const dt = Math.min(0.05, (ts - lastTs) / 1000); lastTs = ts;
-  if (selectedCoords.length) {
+  if (!selectedCoords.length) { raf = requestAnimationFrame(tick); return; }
+
+  const route = routes.find((r) => r.id === selectedId);
+  const totalMi = cumulative[cumulative.length - 1] || route?.distanceMi || 0;
+  let you: { pos: LonLat; bearing: number };
+  let mph: number;
+  const live = Boolean(liveFix);
+
+  if (liveFix) {
+    // Real position wins: snap the fix to the planned line so the marker tracks
+    // the road rather than drifting into the buildings beside it.
+    const snap = snapToRoute(selectedCoords, cumulative, liveFix.pos);
+    if (snap) {
+      progressMi = snap.alongMi;
+      you = { pos: snap.snapped, bearing: liveFix.headingDeg ?? snap.bearing };
+      setOffRoute(snap.offRouteM > 60);
+    } else {
+      you = { pos: liveFix.pos, bearing: liveFix.headingDeg ?? 0 };
+    }
+    mph = Math.round(liveFix.speedMph);
+  } else {
     chaseT = (chaseT + dt * 0.015) % 1;
-    const you = chasePoint(selectedCoords, chaseT);
-    playerMarker?.setLngLat([you.pos.lon, you.pos.lat]);
-    playerMarker?.setRotation(you.bearing);
-    const route = routes.find((r) => r.id === selectedId);
-    const mph = route ? Math.round(route.distanceMi / Math.max(route.durationSec / 3600, 0.01)) : 0;
-    $("#speed-n").textContent = String(mph).padStart(2, "0");
-    if (garage.camera === "chase") map.jumpTo({ center: [you.pos.lon, you.pos.lat], bearing: you.bearing, pitch: 64, zoom: 16.4 });
-    ghosts.forEach((g, i) => { const s = stepGhost(g, dt); ghostMarkers[i]?.setLngLat([s.lon, s.lat]); ghostMarkers[i]?.setRotation(s.bearing); });
-    const lead = ghosts.length ? ((ghosts[0].t - chaseT) * (route?.durationSec ?? 0)).toFixed(1) : "0.0";
-    $("#ghost-delta").textContent = ghosts.length ? `GHOST ${Number(lead) >= 0 ? "+" : ""}${lead}s` : "NO GHOSTS";
+    you = chasePoint(selectedCoords, chaseT);
+    progressMi = chaseT * totalMi;
+    mph = route ? Math.round(route.distanceMi / Math.max(route.durationSec / 3600, 0.01)) : 0;
+  }
+
+  playerMarker?.setLngLat([you.pos.lon, you.pos.lat]);
+  playerMarker?.setRotation(you.bearing);
+  $("#speed-n").textContent = String(mph);
+  $("#speed-src").textContent = live ? "MPH" : "Est";
+  if (garage.camera === "chase" && followCamera) {
+    map.jumpTo({ center: [you.pos.lon, you.pos.lat], bearing: you.bearing, pitch: 64, zoom: 16.4 });
+  }
+
+  renderGuidance(progressMi, mph);
+
+  ghosts.forEach((g, i) => { const s = stepGhost(g, dt); ghostMarkers[i]?.setLngLat([s.lon, s.lat]); ghostMarkers[i]?.setRotation(s.bearing); });
+  if (ghosts.length) {
+    // Both clocks wrap at the end of the lap, so take the shortest signed gap
+    // instead of letting the delta jump by a whole trip duration.
+    const selfT = totalMi > 0 ? Math.min(1, progressMi / totalMi) : chaseT;
+    const wrapped = ((ghosts[0].t - selfT + 0.5) % 1 + 1) % 1 - 0.5;
+    const lead = (wrapped * (route?.durationSec ?? 0)).toFixed(1);
+    $("#ghost-delta").textContent = `GHOST ${Number(lead) >= 0 ? "+" : ""}${lead}s`;
+  } else {
+    $("#ghost-delta").textContent = "NO GHOSTS";
   }
   raf = requestAnimationFrame(tick);
 }
+function setOffRoute(off: boolean) {
+  maneuverEl.classList.toggle("off-route", off);
+}
+/** Next maneuver + what the signs are about to do. Posted is the sign, never a target. */
+function renderGuidance(mi: number, mph: number) {
+  const route = routes.find((r) => r.id === selectedId);
+  if (!route || !steps.length) {
+    maneuverEl.setAttribute("hidden", "");
+    postedEl.setAttribute("hidden", "");
+    return;
+  }
+  const move = nextMove(steps, mi);
+  if (move) {
+    maneuverEl.removeAttribute("hidden");
+    $("#man-arrow").setAttribute("d", maneuverArrow(move.type));
+    $("#man-dist").textContent = formatShortDistance(move.distanceMi);
+    $("#man-instr").textContent = move.instruction;
+    $("#man-fill").style.width = `${Math.round(move.proximity * 100)}%`;
+    maneuverEl.classList.toggle("imminent", move.distanceMi < 0.08);
+  } else {
+    maneuverEl.setAttribute("hidden", "");
+  }
+
+  const outlook = postedOutlook(route.bands, mi);
+  const limitEl = $("#limit");
+  if (outlook?.currentMph) {
+    limitEl.removeAttribute("hidden");
+    $("#limit-n").textContent = String(outlook.currentMph);
+    // Flag the driver only against the sign, never nudge them toward it.
+    limitEl.classList.toggle("over", mph > outlook.currentMph + 2);
+  } else {
+    limitEl.setAttribute("hidden", "");
+  }
+
+  if (outlook && outlook.nextMph && outlook.changeInMi != null && outlook.changeInMi < 1.2) {
+    postedEl.removeAttribute("hidden");
+    postedEl.classList.toggle("drop", outlook.dropping);
+    postedEl.textContent = outlook.currentMph
+      ? `Hold ${outlook.currentMph} → ${outlook.nextMph} in ${formatShortDistance(outlook.changeInMi)}`
+      : `${outlook.nextMph} in ${formatShortDistance(outlook.changeInMi)}`;
+  } else {
+    postedEl.setAttribute("hidden", "");
+  }
+}
 function setStatus(text: string) { statusEl.textContent = text; statusEl.classList.toggle("show", Boolean(text)); }
 function showError(text: string) { errorEl.textContent = text; errorEl.toggleAttribute("hidden", !text); }
-function esc(s: string): string {
-  return s.replace(/[&<>"']/g, (c) => {
-    switch (c) {
-      case "&": return "\u0026amp;";
-      case "<": return "\u0026lt;";
-      case ">": return "\u0026gt;";
-      case '"': return "\u0026quot;";
-      default: return "\u0026#39;";
-    }
-  });
-}
+const ESCAPES: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
+function esc(s: string): string { return s.replace(/[&<>"']/g, (c) => ESCAPES[c]); }
 persist();
