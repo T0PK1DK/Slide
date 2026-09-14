@@ -80,6 +80,9 @@ export type TraceAttributes = {
   matched_points?: unknown[];
 };
 
+export type RouteProfile = "smooth" | "fast";
+
+/** The default line: penalise ugly moves, stay off alleys and service roads. */
 const SMOOTH_COSTING = {
   costing: "auto",
   costing_options: {
@@ -94,6 +97,31 @@ const SMOOTH_COSTING = {
       use_ferry: 0.2,
       use_tracks: 0,
       use_living_streets: 0.1,
+      top_speed: 130,
+      shortest: false,
+    },
+  },
+};
+
+/**
+ * The explicit "just get me there" line. Valhalla's `alternatives` often comes
+ * back with a single trip, which leaves nothing to compare the smooth route
+ * against — so we ask again with the costing pushed the other way (cheap
+ * maneuvers, highways welcome) and keep it when it is genuinely different.
+ */
+const FAST_COSTING = {
+  costing: "auto",
+  costing_options: {
+    auto: {
+      maneuver_penalty: 2,
+      alley_penalty: 2,
+      gate_penalty: 30,
+      service_penalty: 6,
+      service_factor: 1,
+      use_highways: 1,
+      use_tolls: 0.8,
+      use_ferry: 0.2,
+      use_living_streets: 0.4,
       top_speed: 130,
       shortest: false,
     },
@@ -131,14 +159,15 @@ export async function searchPlaces(query: string, bias?: LonLat): Promise<Search
 export async function requestRoutes(
   origin: LonLat,
   dest: LonLat,
-  units: "miles" | "kilometers" = "miles"
+  units: "miles" | "kilometers" = "miles",
+  profile: RouteProfile = "smooth"
 ): Promise<RouteResponse> {
   const body = {
     locations: [
       { lon: origin.lon, lat: origin.lat, type: "break" },
       { lon: dest.lon, lat: dest.lat, type: "break" },
     ],
-    ...SMOOTH_COSTING,
+    ...(profile === "fast" ? FAST_COSTING : SMOOTH_COSTING),
     units,
     alternatives: true,
     directions_options: { units, language: "en-US" },
@@ -205,4 +234,20 @@ export function collectTrips(response: RouteResponse): ValhallaTrip[] {
     if (alt.trip) trips.push(alt.trip);
   }
   return trips;
+}
+
+export function tripShape(trip: ValhallaTrip): string {
+  return trip.legs.map((l) => l.shape).join("");
+}
+
+/**
+ * True when two trips are the same line. Valhalla can answer a second costing
+ * pass with the identical geometry, and showing the driver "Slide" and "Faster"
+ * as the same road is worse than showing one option.
+ */
+export function sameTrip(a: ValhallaTrip, b: ValhallaTrip): boolean {
+  if (tripShape(a) === tripShape(b)) return true;
+  const dt = Math.abs(a.summary.time - b.summary.time);
+  const dl = Math.abs(a.summary.length - b.summary.length);
+  return dt < 25 && dl < 0.06;
 }

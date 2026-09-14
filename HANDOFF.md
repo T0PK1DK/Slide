@@ -44,6 +44,8 @@ src/lib/smooth.ts      Slide score + speed bands
 src/lib/polyline.ts    precision-6 decode
 src/lib/garage.ts      customization persist
 src/lib/ghosts.ts      ghost replay along a line
+src/lib/guidance.ts    next maneuver, posted-speed lookahead, turn arrows
+src/lib/tracking.ts    live GPS watch + snap-to-route progress
 docs/PRODUCT.md        scoring contract
 HANDOFF.md             this file
 TASKS.md               ordered work
@@ -64,13 +66,13 @@ AGENTS.md / CLAUDE.md  short agent rules
 - Ghosts are **simulated on the current route**, not live other drivers.
 - `shareGhost` is a flag only. No presence server.
 - Car marker is an SVG wedge, not a 3D model.
+- Snap-to-route is nearest-segment projection, not real map matching.
 - 3D buildings depend on OpenFreeMap `building` layer; fail soft if missing.
-- Valhalla `alternatives: true` can return 1 route. Need a second costing pass if so.
-- Speedo uses trip average mph, not live GPS speed.
 - `main.ts` is one file. Split when adding nav guidance / GPS follow.
 - Public Valhalla/Photon can rate-limit. Plan for self-host.
 - No GitHub Pages deploy yet.
-- No turn-by-turn voice, no leave-by target, no live traffic.
+- Turn-by-turn is the next-maneuver banner only; no full step list, no voice.
+- No leave-by target, no live traffic.
 
 ## Architecture next
 
@@ -90,4 +92,5 @@ Read `TASKS.md` top unchecked item. Do not rebase history. Do not rename the pro
 
 - 2026-09-13 Grok: repo created, routing + Slide score + speed bands, then 3D HUD / garage / seeded ghosts. Handoff files added for Cursor + Claude.
 - 2026-09-14 Owner asked for handoffs so other agents can finish alongside Grok.
+- 2026-09-14 Claude: UX pass grounded in Mobbin recon of Google/Apple Maps, Grab Driver, Tesla, Transit. Added the next-maneuver banner, a regulatory speed-limit sign, the posted-speed lookahead chip, tappable time chips on each line, camera fit on plan, and a live GPS watch that snaps the marker to the shape. New libs `guidance.ts` and `tracking.ts`. **Scoring contract changed** (see docs/PRODUCT.md): turns are now weighted by type — left 1.8, u-turn 2.4, right 1.0 — because the old `isTurn` range (9-14) silently excluded kLeft(15) and kSlightLeft(16), so left turns were only caught by an English-only regex. Slide scores will shift on left-heavy routes; that is intended.
 - 2026-09-14 Claude: P0#1 `npm run build` is clean. Fixed a broken `esc()` escape map (unterminated string literal — the entities had been un-escaped, so `tsc` could not parse `main.ts` at all), imported the GeoJSON types from `geojson` instead of the global namespace (`types: ["vite/client"]` excluded it), and gated every source/layer write behind a new `whenStyleReady()` queue that drains on map `load`. Planning a route before the tile style finished loading previously threw "Style is not done loading." and left the dash, speed rail, and speedo permanently hidden. Also enabled `noUnusedLocals` / `noUnusedParameters` so "unused" stays enforced, and made a trail change recolor `route-line` (it only recolored `route-glow` before). No contract changes.
