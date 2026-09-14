@@ -1,13 +1,13 @@
 import type { Map as MapLibreMap, PaddingOptions } from "maplibre-gl";
 
 /** Night palette tuned toward a readable phone map (blue water, green parks, gold roads). */
-const LAND = "#17202c";
-const WATER = "#1b4f86";
-const ROAD = "#d2c37a";
-const ROAD_CASE = "#8a7a48";
-const MOTORWAY = "#e0c35c";
-const MINOR = "#b9a96a";
-const PARK = "#1b5c3c";
+const LAND = "#1a2738";
+const WATER = "#1a4e8a";
+const ROAD = "#c4b56a";
+const ROAD_CASE = "#5c5530";
+const MOTORWAY = "#d7c05a";
+const MINOR = "#8f8350";
+const PARK = "#18563a";
 const BUILDING = "#2a3a4e";
 const LABEL = "#e6eef6";
 const HALO = "#121820";
@@ -34,12 +34,18 @@ export function liftNightBasemap(map: MapLibreMap): void {
   paint(map, "building", "fill-color", BUILDING);
   paint(map, "building", "fill-outline-color", "#3d536c");
   paint(map, "highway_path", "line-color", "#6d6240");
+  paint(map, "highway_path", "line-width", ["interpolate", ["linear"], ["zoom"], 13, 0.4, 16, 0.9]);
   paint(map, "highway_minor", "line-color", MINOR);
+  paint(map, "highway_minor", "line-width", ["interpolate", ["linear"], ["zoom"], 12, 0.5, 15, 1.2, 18, 2.4]);
   paint(map, "highway_major_casing", "line-color", ROAD_CASE);
+  paint(map, "highway_major_casing", "line-width", ["interpolate", ["linear"], ["zoom"], 10, 1.6, 15, 3.2, 18, 6]);
   paint(map, "highway_major_inner", "line-color", ROAD);
+  paint(map, "highway_major_inner", "line-width", ["interpolate", ["linear"], ["zoom"], 10, 1, 15, 2.2, 18, 4.5]);
   paint(map, "highway_major_subtle", "line-color", ROAD);
   paint(map, "highway_motorway_casing", "line-color", ROAD_CASE);
+  paint(map, "highway_motorway_casing", "line-width", ["interpolate", ["linear"], ["zoom"], 8, 2, 12, 3.2, 16, 5.4]);
   paint(map, "highway_motorway_inner", "line-color", MOTORWAY);
+  paint(map, "highway_motorway_inner", "line-width", ["interpolate", ["linear"], ["zoom"], 8, 1.2, 12, 2.2, 16, 4]);
   paint(map, "highway_motorway_subtle", "line-color", MOTORWAY);
   paint(map, "aeroway-taxiway", "line-color", ROAD);
   paint(map, "aeroway-runway-casing", "line-color", ROAD_CASE);
@@ -148,14 +154,23 @@ export function hudFitPadding(): PaddingOptions {
   const vh = window.innerHeight;
   const vw = window.innerWidth;
   const cap = (n: number, max: number) => Math.max(24, Math.min(Math.round(n), max));
-  const topBox = visibleBox("#maneuver") || visibleBox("#search-card");
+  const search = visibleBox("#search-card");
+  const maneuver = visibleBox("#maneuver");
+  const menu = visibleBox("#menu-fab");
   const chip = visibleBox("#posted");
-  const bottomBox = visibleBox("#drive-bar") || visibleBox("#speed-rail");
-  let top = topBox ? topBox.bottom + 14 : 88;
-  if (chip) top = Math.max(top, chip.bottom + 10);
-  let bottom = bottomBox ? vh - bottomBox.top + 14 : 96;
+  const driveBar = visibleBox("#drive-bar");
+  const rail = visibleBox("#speed-rail");
   const instruments = visibleBox("#speedo");
+  let top = 24;
+  if (maneuver) top = Math.max(top, maneuver.bottom + 14);
+  else if (search && search.top < vh * 0.45) top = Math.max(top, search.bottom + 14);
+  else if (menu) top = Math.max(top, menu.bottom + 10);
+  if (chip) top = Math.max(top, chip.bottom + 10);
+  let bottom = 24;
+  if (driveBar) bottom = Math.max(bottom, vh - driveBar.top + 14);
+  if (rail) bottom = Math.max(bottom, vh - rail.top + 14);
   if (instruments) bottom = Math.max(bottom, vh - instruments.top + 10);
+  if (search && search.top >= vh * 0.45) bottom = Math.max(bottom, vh - search.top + 14);
   return {
     top: cap(top, vh * 0.42),
     bottom: cap(bottom, vh * 0.42),

@@ -16,17 +16,32 @@
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 html, body, #app { margin: 0; height: 100%; background: #1b2838; color: var(--text); overflow: hidden; }
-#app { display: grid; }
-#map { width: 100%; height: 100%; filter: brightness(1.16) saturate(1.08); }
+#app { position: relative; }
+#map { position: absolute; inset: 0; filter: brightness(1.16) saturate(1.08); }
 .vignette { pointer-events: none; position: absolute; inset: 0; z-index: 1; background: radial-gradient(ellipse at 50% 48%, transparent 42%, rgba(8, 14, 22, .32) 100%); }
 .hud { position: absolute; inset: 0; pointer-events: none; z-index: 2; }
 .hud > * { pointer-events: auto; }
 .panel { background: var(--glass); backdrop-filter: blur(22px) saturate(1.2); border: 1px solid var(--line); box-shadow: var(--shadow), inset 0 1px 0 rgba(255,255,255,.06); }
+.search-card {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  width: min(360px, calc(100vw - 32px));
+  border-radius: 22px;
+  padding: 14px;
+  z-index: 5;
+}
+.search-card .actions { flex-wrap: wrap; }
 .desktop-only { display: flex; }
+.menu-fab, .compass-fab, .locate-fab { display: none; }
 .where-row { position: relative; }
+.where-icon {
+  position: absolute; left: 12px; top: 13px;
+  width: 18px; height: 18px; color: var(--muted); pointer-events: none;
+}
 .where-row input {
   width: 100%; border: 1px solid var(--line); background: rgba(255,255,255,.03);
-  color: var(--text); border-radius: 12px; padding: 12px 14px; font-size: 16px; outline: none;
+  color: var(--text); border-radius: 12px; padding: 12px 14px 12px 38px; font-size: 16px; outline: none;
 }
 .recents { margin-top: 8px; display: grid; gap: 4px; }
 .recents-label { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); padding: 4px 2px; }
@@ -35,8 +50,8 @@ html, body, #app { margin: 0; height: 100%; background: #1b2838; color: var(--te
 .menu-fab { top: calc(12px + env(safe-area-inset-top)); left: 12px; right: auto; bottom: auto; }
 .compass-fab { left: 12px; right: auto; bottom: calc(96px + env(safe-area-inset-bottom)); }
 .locate-fab { right: 12px; left: auto; bottom: calc(96px + env(safe-area-inset-bottom)); }
-.place-chips { display: flex; gap: 8px; margin-top: 10px; }
-.place-chip { flex: 1; background: rgba(255,255,255,.04); color: var(--text); border: 1px solid var(--line); border-radius: 999px; padding: 8px 10px; font-size: 12px; cursor: pointer; }
+.place-chips { display: flex; gap: 8px; margin-top: 10px; overflow-x: auto; }
+.place-chip { flex: 1; min-width: 0; background: rgba(255,255,255,.04); color: var(--text); border: 1px solid var(--line); border-radius: 999px; padding: 8px 10px; font-size: 12px; cursor: pointer; white-space: nowrap; }
 .place-chip.empty { color: var(--muted); }
 .map-fab {
   position: absolute; right: 16px; bottom: 24px; z-index: 3;
@@ -151,9 +166,6 @@ button.icon { background: rgba(255,255,255,.04); color: var(--text); border: 1px
 .coach-card ol { margin: 0 0 14px; padding-left: 1.2em; color: var(--text); }
 .coach-card li { margin: 8px 0; font-size: 15px; line-height: 1.4; }
 .coach-card li span { display: block; color: var(--muted); font-size: 13px; margin-top: 2px; }
-  body[data-mode="drive"] .menu-fab,
-  body[data-mode="drive"] .compass-fab,
-  body[data-mode="drive"] .map-fab,
 body[data-mode="plan"] .drive-only { display: none !important; }
 body[data-mode="drive"] .plan-only { display: none !important; }
 body[data-mode="drive"] .search-card,
@@ -177,29 +189,46 @@ button.ghost.on { color: var(--glow); border-color: color-mix(in srgb, var(--glo
   .search-card, .maneuver, .posted-chip, .dash, .speedo, .speed-rail, .status-pill, .recenter, .drive-bar {
     left: 12px; right: 12px; width: auto; max-width: none; transform: none;
   }
-  .search-card { top: calc(12px + env(safe-area-inset-top)); }
+  body:not([data-mode="plan"]) .search-card { top: calc(12px + env(safe-area-inset-top)); }
   body[data-mode="plan"] .search-card {
-    top: auto;
-    bottom: calc(12px + env(safe-area-inset-bottom));
-    padding: 8px 10px 10px;
+    position: absolute !important;
+    top: auto !important;
+    left: 12px;
+    right: 12px;
+    bottom: calc(12px + env(safe-area-inset-bottom)) !important;
+    width: auto;
+    max-width: none;
+    transform: none;
+    padding: 6px 10px;
     border-radius: 28px;
+    overflow: visible;
   }
   body[data-mode="plan"] .search-card:not(.open) .brand,
   body[data-mode="plan"] .search-card:not(.open) .sheet-more,
   body[data-mode="plan"] .desktop-only { display: none !important; }
   body[data-mode="plan"] .where-row input {
-    border: 0; background: transparent; font-size: 18px; padding: 12px 14px;
+    border: 0; background: transparent; font-size: 18px; padding: 14px 14px 14px 40px;
   }
+  body[data-mode="plan"] .where-icon { left: 14px; top: 16px; width: 20px; height: 20px; }
   body[data-mode="plan"] .search-card.open { padding: 12px 12px 14px; border-radius: 22px; }
+  body[data-mode="plan"] .search-card.open .sheet-more {
+    max-height: min(42vh, 380px);
+    overflow-y: auto;
+  }
   body[data-mode="plan"] .search-card .suggest {
-    top: auto; bottom: calc(100% + 8px); max-height: 40vh;
+    top: auto;
+    bottom: calc(100% + 8px);
+    max-height: 38vh;
   }
   body[data-mode="plan"] #locate { display: none; }
-  body[data-mode="plan"] .menu-fab { top: calc(12px + env(safe-area-inset-top)); left: 12px; }
-  body[data-mode="plan"] .compass-fab { top: auto; left: 12px; bottom: calc(92px + env(safe-area-inset-bottom)); }
+  body[data-mode="plan"] .menu-fab,
+  body[data-mode="plan"] .compass-fab,
+  body[data-mode="plan"] .locate-fab { display: grid; place-items: center; }
+  body[data-mode="plan"] .menu-fab { top: calc(12px + env(safe-area-inset-top)); left: 12px; right: auto; bottom: auto; }
+  body[data-mode="plan"] .compass-fab { top: auto; left: 12px; right: auto; bottom: calc(92px + env(safe-area-inset-bottom)); }
   body[data-mode="plan"] .locate-fab { top: auto; right: 12px; left: auto; bottom: calc(92px + env(safe-area-inset-bottom)); }
   body[data-mode="plan"] .overflow.from-plan {
-    top: calc(64px + env(safe-area-inset-top)); left: 12px; right: auto; bottom: auto;
+    top: calc(64px + env(safe-area-inset-top)); left: 12px; right: auto; bottom: auto; width: min(220px, calc(100vw - 32px));
   }
   .maneuver { top: calc(12px + env(safe-area-inset-top)); left: 12px; right: 12px; }
   .posted-chip { top: calc(108px + env(safe-area-inset-top)); left: 50%; right: auto; width: auto; transform: translateX(-50%); }

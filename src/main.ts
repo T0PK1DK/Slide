@@ -59,6 +59,7 @@ app.innerHTML = `
     <div class="panel search-card plan-only" id="search-card">
       <div class="brand desktop-only"><h1>Slide</h1><span class="chip" id="rank-chip">GARAGE</span><button class="icon" id="help" type="button" aria-label="How to Slide">?</button></div>
       <div class="where-row">
+        <svg class="where-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M16 16l5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
         <input id="to" placeholder="Where to?" autocomplete="off" />
         <div class="suggest" id="to-suggest" hidden></div>
       </div>
@@ -69,6 +70,7 @@ app.innerHTML = `
         <div class="place-chips" id="place-chips">
           <button type="button" class="place-chip" id="chip-home">Home</button>
           <button type="button" class="place-chip" id="chip-work">Work</button>
+          <button type="button" class="place-chip" id="chip-saved" hidden></button>
         </div>
         <div class="recents" id="recents" hidden></div>
         <div class="actions">
@@ -254,6 +256,21 @@ $("#ov-home").addEventListener("click", () => { overflowEl.classList.remove("ope
 $("#ov-work").addEventListener("click", () => { overflowEl.classList.remove("open"); savePlace("work"); });
 $("#chip-home").addEventListener("click", () => useOrSavePlace("home"));
 $("#chip-work").addEventListener("click", () => useOrSavePlace("work"));
+$("#chip-saved").addEventListener("click", () => {
+  const saved = savedChipPlace();
+  if (!saved) return;
+  dest = { lon: saved.lon, lat: saved.lat };
+  destLabel = saved.label;
+  toInput.value = saved.label;
+  showError("");
+  ensureOrigin();
+  plan();
+});
+$("#search-card").addEventListener("click", (e) => {
+  const t = e.target as HTMLElement;
+  if (t.closest("button") || t.closest("input") || t.closest(".suggest")) return;
+  toInput.focus();
+});
 window.addEventListener("resize", () => {
   map.resize();
   if (hudMode === "drive") fitToRoute();
@@ -352,6 +369,10 @@ function useOrSavePlace(slot: "home" | "work") {
   }
   savePlace(slot);
 }
+function savedChipPlace() {
+  const skip = new Set([garage.home?.label, garage.work?.label].filter(Boolean) as string[]);
+  return (garage.recents ?? []).find((r) => !skip.has(r.label)) ?? null;
+}
 function refreshPlaceChips() {
   for (const slot of ["home", "work"] as const) {
     const btn = $(`#chip-${slot}`);
@@ -359,6 +380,10 @@ function refreshPlaceChips() {
     btn.classList.toggle("empty", !saved);
     btn.textContent = saved ? slot[0].toUpperCase() + slot.slice(1) : `Set ${slot}`;
   }
+  const extra = $("#chip-saved");
+  const saved = savedChipPlace();
+  extra.toggleAttribute("hidden", !saved);
+  extra.textContent = saved ? saved.label.split(",")[0] : "";
 }
 function wireGarage() {
   const tag = $("#g-tag") as HTMLInputElement;
@@ -523,7 +548,14 @@ function locateMe() {
       originLabel = "Current location";
       fromInput.value = "Current location";
       setStatus("");
-      map.easeTo({ center: [fix.pos.lon, fix.pos.lat], zoom: 15.4, pitch: 60, duration: 900 });
+      const phonePlan = window.innerWidth < 820 && hudMode === "plan";
+      map.easeTo({
+        center: [fix.pos.lon, fix.pos.lat],
+        zoom: phonePlan ? 13.6 : 15.4,
+        pitch: phonePlan ? 8 : 60,
+        bearing: phonePlan ? 0 : map.getBearing(),
+        duration: 900,
+      });
     },
     (message) => { showError(message); setStatus(""); stopTracking(); }
   );
