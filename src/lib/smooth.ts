@@ -285,6 +285,22 @@ export function formatDuration(sec: number): string {
   return `${m} min`;
 }
 
+/** Longest named streets on the trip — “via Collins Avenue”, not a turn list. */
+export function viaLine(maneuvers: Maneuver[]): string {
+  const named = new Map<string, number>();
+  for (const m of maneuvers) {
+    const name = (m.street_names ?? []).find((n) => n && !/^(ramp|to )\b/i.test(n.trim()));
+    if (!name) continue;
+    named.set(name, (named.get(name) ?? 0) + (m.length || 0));
+  }
+  const top = [...named.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 2)
+    .map(([n]) => n);
+  if (!top.length) return "via the scored line";
+  return `via ${top.join(" · ")}`;
+}
+
 export function formatMiles(mi: number): string {
   if (mi < 0.15) return `${Math.round(mi * 5280)} ft`;
   return `${mi.toFixed(mi >= 10 ? 0 : 1)} mi`;

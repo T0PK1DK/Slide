@@ -159,6 +159,7 @@ export function hudFitPadding(): PaddingOptions {
   const menu = visibleBox("#menu-fab");
   const chip = visibleBox("#posted");
   const driveBar = visibleBox("#drive-bar");
+  const review = visibleBox("#review-sheet");
   const rail = visibleBox("#speed-rail");
   const instruments = visibleBox("#speedo");
   let top = 24;
@@ -168,6 +169,7 @@ export function hudFitPadding(): PaddingOptions {
   if (chip) top = Math.max(top, chip.bottom + 10);
   let bottom = 24;
   if (driveBar) bottom = Math.max(bottom, vh - driveBar.top + 14);
+  if (review) bottom = Math.max(bottom, vh - review.top + 16);
   if (rail) bottom = Math.max(bottom, vh - rail.top + 14);
   if (instruments) bottom = Math.max(bottom, vh - instruments.top + 10);
   if (search && search.top >= vh * 0.45) bottom = Math.max(bottom, vh - search.top + 14);

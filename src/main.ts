@@ -19,6 +19,7 @@ import {
   formatMiles,
   rankRoutes,
   scoreTrip,
+  viaLine,
   type SlideRoute,
 } from "./lib/smooth";
 import { loadGarage, saveGarage, TRAILS, type GarageConfig } from "./lib/garage";
@@ -88,6 +89,18 @@ app.innerHTML = `
       <div class="man-bar"><i id="man-fill"></i></div>
     </div>
     <div class="panel posted-chip drive-only" id="posted" hidden></div>
+    <div class="panel review-sheet review-only" id="review-sheet" hidden>
+      <div class="review-head">
+        <b id="review-eta">—</b>
+        <span id="review-dist">—</span>
+      </div>
+      <p class="review-via" id="review-via">—</p>
+      <p class="review-tag" id="review-tag">—</p>
+      <div class="review-actions">
+        <button class="ghost" id="review-back" type="button">Where to?</button>
+        <button class="primary" id="review-go" type="button">Go now</button>
+      </div>
+    </div>
     <div class="panel dash plan-only" id="dash" hidden>
       <div class="stat-row">
         <div class="stat"><span>Slide</span><b id="stat-score">—</b></div>
@@ -123,7 +136,7 @@ app.innerHTML = `
         <h2>How to Slide</h2>
         <ol>
           <li>Type <b>Where to?</b><span>Or tap Home / Work. Locate sets From.</span></li>
-          <li>Slide drops the smoothest line<span>Not the fastest — that’s an explicit pick.</span></li>
+          <li>Slide drops the smoothest line<span>Tap <b>Go now</b>. Fastest is an explicit pick on the map.</span></li>
           <li>Follow the banner<span>Posted limit is the sign. Never a target to beat.</span></li>
         </ol>
         <button class="primary" id="coach-ok" type="button">Got it</button>
@@ -192,10 +205,11 @@ const maneuverEl = $("#maneuver");
 const postedEl = $("#posted");
 const recenterEl = $("#recenter");
 const driveBarEl = $("#drive-bar");
+const reviewEl = $("#review-sheet");
 const coachEl = $("#coach");
 const overflowEl = $("#overflow");
 const moreBtn = $("#more");
-let hudMode: "plan" | "drive" = "plan";
+let hudMode: "plan" | "review" | "drive" = "plan";
 
 map.on("load", () => {
   styleReady = true;
@@ -238,6 +252,8 @@ $("#go").addEventListener("click", plan);
 $("#tune").addEventListener("click", () => garageEl.classList.toggle("open"));
 $("#g-close").addEventListener("click", () => garageEl.classList.remove("open"));
 recenterEl.addEventListener("click", () => { followCamera = true; recenterEl.setAttribute("hidden", ""); fitToRoute(); });
+$("#review-go").addEventListener("click", startDrive);
+$("#review-back").addEventListener("click", backToSearch);
 $("#end-drive").addEventListener("click", endDrive);
 $("#help").addEventListener("click", () => showCoach(true));
 $("#coach-ok").addEventListener("click", () => {
@@ -413,11 +429,13 @@ function paintSwatches(el: HTMLElement, colors: string[], current: string, onPic
     el.appendChild(b);
   });
 }
-function setHudMode(mode: "plan" | "drive") {
+function setHudMode(mode: "plan" | "review" | "drive") {
   hudMode = mode;
   document.body.dataset.mode = mode;
   const driving = mode === "drive";
+  const reviewing = mode === "review";
   driveBarEl.toggleAttribute("hidden", !driving);
+  reviewEl.toggleAttribute("hidden", !reviewing);
   if (driving) {
     speedsEl.setAttribute("hidden", "");
     toggleBuildings(garage.showBuildings);
@@ -431,15 +449,45 @@ function setHudMode(mode: "plan" | "drive") {
     recenterEl.setAttribute("hidden", "");
     speedsEl.setAttribute("hidden", "");
   }
+  paintRouteChips();
   requestAnimationFrame(() => {
     map.resize();
-    if (driving) fitToRoute();
+    if (driving || reviewing) fitToRoute();
     else applyPlanView();
   });
 }
+function startDrive() {
+  if (!routes.length) return;
+  renderSpeedRail();
+  bootDrive();
+  setHudMode("drive");
+  streak += 1;
+  $("#stat-streak").textContent = String(streak);
+}
+function stopDriveLoop() {
+  if (raf) cancelAnimationFrame(raf);
+  raf = 0;
+  playerMarker?.remove();
+  playerMarker = null;
+  ghostMarkers.forEach((m) => m.remove());
+  ghostMarkers = [];
+}
 function endDrive() {
-  setHudMode("plan");
+  stopDriveLoop();
   followCamera = true;
+  if (routes.length) {
+    loadSelectedRoute();
+    paintRouteChips();
+    renderReview();
+    setHudMode("review");
+  } else {
+    setHudMode("plan");
+  }
+}
+function backToSearch() {
+  followCamera = true;
+  $("#search-card").classList.add("open");
+  setHudMode("plan");
 }
 function applyCamera(mode: GarageConfig["camera"]) {
   if (mode === "top") map.easeTo({ pitch: 0, zoom: Math.max(map.getZoom(), 13), duration: 700 });
@@ -548,7 +596,7 @@ function locateMe() {
       originLabel = "Current location";
       fromInput.value = "Current location";
       setStatus("");
-      const phonePlan = window.innerWidth < 820 && hudMode === "plan";
+      const phonePlan = window.innerWidth < 820 && hudMode !== "drive";
       map.easeTo({
         center: [fix.pos.lon, fix.pos.lat],
         zoom: phonePlan ? 13.6 : 15.4,
@@ -592,8 +640,12 @@ async function plan() {
     }
     routes = rankRoutes(scored);
     selectedId = routes[0]?.id ?? "";
-    paintRoutes(); renderDash(); renderSpeedRail(); bootDrive(); setHudMode("drive"); fitToRoute();
-    setStatus(""); streak += 1; $("#stat-streak").textContent = String(streak);
+    loadSelectedRoute();
+    paintRoutes();
+    renderDash();
+    renderReview();
+    setHudMode("review");
+    setStatus("");
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Routing failed.";
     showError(/failed|network|fetch|load/i.test(msg) ? "Can't reach routing right now. Check your connection and try again." : msg);
@@ -609,19 +661,30 @@ function fitToRoute() {
     const bounds = new maplibregl.LngLatBounds(selectedCoords[0], selectedCoords[0]);
     for (const c of selectedCoords) bounds.extend(c);
     followCamera = true;
+    const phone = window.innerWidth < 820;
+    const reviewing = hudMode === "review";
     map.fitBounds(bounds, {
       padding: hudFitPadding(),
-      pitch: window.innerWidth < 820 ? 48 : 52,
-      bearing: -18,
-      maxZoom: window.innerWidth < 820 ? 15.2 : 15.4,
+      pitch: reviewing ? (phone ? 8 : 18) : phone ? 48 : 52,
+      bearing: reviewing ? 0 : -18,
+      maxZoom: reviewing ? (phone ? 13.6 : 14.2) : phone ? 15.2 : 15.4,
       duration: 1100,
     });
   });
 }
 function selectRoute(id: string) {
   selectedId = id;
-  paintRoutes(); renderDash(); renderSpeedRail(); bootDrive();
-  if (hudMode === "drive") fitToRoute();
+  loadSelectedRoute();
+  paintRoutes();
+  renderDash();
+  renderReview();
+  if (hudMode === "drive") {
+    renderSpeedRail();
+    bootDrive();
+    fitToRoute();
+  } else if (hudMode === "review") {
+    fitToRoute();
+  }
 }
 function paintRoutes() {
   whenStyleReady(() => {
@@ -643,20 +706,34 @@ function paintRoutes() {
 function paintRouteChips() {
   routeChips.forEach((m) => m.remove());
   routeChips = [];
-  if (routes.length < 2) return;
-  for (const r of routes) {
+  if (hudMode === "drive" || routes.length < 2) return;
+  routes.forEach((r, i) => {
     const coords = decodePolyline6(tripShape(r.trip));
-    if (!coords.length) continue;
+    if (!coords.length) return;
     const el = document.createElement("button");
     el.className = "route-chip" + (r.id === selectedId ? " on" : "");
+    el.type = "button";
     el.innerHTML = `<b>${formatDuration(r.durationSec)}</b><span>${r.label}</span>`;
     el.onclick = (ev) => { ev.stopPropagation(); selectRoute(r.id); };
+    const along = Math.min(0.78, 0.38 + i * 0.16);
     routeChips.push(
       new maplibregl.Marker({ element: el, anchor: "center" })
-        .setLngLat(coords[Math.floor(coords.length * 0.55)])
+        .setLngLat(coords[Math.floor(coords.length * along)])
         .addTo(map)
     );
+  });
+}
+function renderReview() {
+  const sel = routes.find((r) => r.id === selectedId);
+  if (!sel) {
+    reviewEl.setAttribute("hidden", "");
+    return;
   }
+  $("#review-eta").textContent = formatDuration(sel.durationSec);
+  $("#review-dist").textContent = formatMiles(sel.distanceMi);
+  $("#review-via").textContent = viaLine(sel.maneuvers);
+  const shortWhy = sel.why.split(" · ")[0] || sel.label;
+  $("#review-tag").textContent = sel.label === shortWhy ? sel.label : `${sel.label} · ${shortWhy}`;
 }
 function renderDash() {
   dashEl.removeAttribute("hidden");
@@ -674,13 +751,17 @@ function renderSpeedRail() {
   const route = routes.find((r) => r.id === selectedId);
   if (!route) { speedsEl.setAttribute("hidden", ""); return; }
   speedsEl.innerHTML = `<h2>${originLabel || "Start"} → ${destLabel || "End"} · posted ${Math.round(route.postedCoverage * 100)}%</h2><div class="bands">${route.bands.map((b) => `<div class="band"><div class="name">${esc(b.name)}</div><div class="spd">${b.postedMph ?? "—"} <small>posted</small></div><div class="sub">expect ${b.expectedMph || "—"} · ${formatMiles(b.toMi - b.fromMi)}</div></div>`).join("")}</div>`;
-  if (hudMode !== "drive") speedsEl.removeAttribute("hidden");
+  if (hudMode === "plan") speedsEl.removeAttribute("hidden");
+  else speedsEl.setAttribute("hidden", "");
+}
+function loadSelectedRoute() {
+  const route = routes.find((r) => r.id === selectedId);
+  selectedCoords = route ? decodePolyline6(tripShape(route.trip)) : [];
+  return route;
 }
 function bootDrive() {
-  const route = routes.find((r) => r.id === selectedId);
-  if (!route) return;
-  selectedCoords = decodePolyline6(tripShape(route.trip));
-  if (!selectedCoords.length) return;
+  const route = loadSelectedRoute();
+  if (!route || !selectedCoords.length) return;
   cumulative = cumulativeMiles(selectedCoords);
   steps = buildSteps(route.maneuvers);
   progressMi = 0;
