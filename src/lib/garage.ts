@@ -1,7 +1,12 @@
 export type CameraMode = "cinematic" | "chase" | "top";
 export type TrailStyle = "plasma" | "ember" | "ice" | "volt";
+export type MapSkin = "cinematic" | "apple" | "waze";
 
-export type SavedPlace = { label: string; lon: number; lat: number };
+export const MAP_STYLES: Record<MapSkin, string> = {
+  cinematic: "https://tiles.openfreemap.org/styles/dark",
+  apple: "https://tiles.openfreemap.org/styles/liberty",
+  waze: "https://tiles.openfreemap.org/styles/dark",
+};
 
 export type GarageConfig = {
   tag: string;
@@ -9,14 +14,10 @@ export type GarageConfig = {
   glow: string;
   trail: TrailStyle;
   camera: CameraMode;
+  mapSkin: MapSkin;
   showGhosts: boolean;
   showBuildings: boolean;
   shareGhost: boolean;
-  /** First-run “How to Slide” was dismissed. Help still reopens it. */
-  coachDismissed: boolean;
-  home: SavedPlace | null;
-  work: SavedPlace | null;
-  recents: SavedPlace[];
 };
 
 const KEY = "slide.garage.v1";
@@ -34,13 +35,10 @@ export const DEFAULT_GARAGE: GarageConfig = {
   glow: "#78e0c8",
   trail: "plasma",
   camera: "cinematic",
+  mapSkin: "cinematic",
   showGhosts: true,
   showBuildings: true,
   shareGhost: true,
-  coachDismissed: false,
-  home: null,
-  work: null,
-  recents: [],
 };
 
 export function loadGarage(): GarageConfig {
