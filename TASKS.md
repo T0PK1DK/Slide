@@ -14,6 +14,7 @@ Work top-down. Check the box in the same PR.
 
 ## P1 — navigation that feels finished
 
+- [x] Route overview bottom sheet after plan: big duration + distance + via + **Go now** (Drive waits for the tap)
 - [ ] Turn-by-turn list from Valhalla maneuvers, next instruction large
 - [x] Snap player marker to shape from live GPS (map matching later)
 - [ ] Leave-by: user sets arrival clock → show depart time + 3 min buffer (`leaveByForTarget` already exists)
@@ -38,6 +39,18 @@ Work top-down. Check the box in the same PR.
 - [ ] Document how to self-host Valhalla for Florida extract
 - [ ] Hook for FDOT / 511 speeds into `expectedMph` (`min(posted, live)`)
 - [ ] School-zone time window penalty in `smooth.ts`
+
+## Claude follow-up (do not steal this slice)
+
+Cursor shipped the post-plan **route overview sheet + Go now**. Leave these for Claude.
+
+- [ ] Preferred / usual-route badge + preferred-route stickiness UX (Maps-style)
+- [ ] Avoid filters sheet (tolls / ferries / etc.) — UI + Valhalla costing hooks
+- [ ] Leave later / depart-at time picker (hook: `leaveByForTarget` already exists; overlaps the P1 leave-by item)
+- [ ] Multi-stop / Add stop
+- [ ] Transport mode switcher chrome (car-only can stay selected; UI scaffold only if cheap — full modes later)
+- [ ] Finer traffic-on-ribbon if/when a traffic source exists (do not fake live traffic colors)
+- [ ] Native CarPlay / iOS app track (document only — web cannot do native CarPlay; Drive Mode stays the phone stand-in)
 
 ## Out of scope until asked
 
