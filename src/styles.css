@@ -152,7 +152,7 @@ button.icon { background: rgba(255,255,255,.04); color: var(--text); border: 1px
 .review-head b { font-size: 34px; font-weight: 750; letter-spacing: -0.04em; line-height: 1; }
 .review-head span { font-size: 15px; color: var(--muted); }
 .review-via { margin: 8px 0 4px; font-size: 14px; color: var(--text); }
-.review-tag { margin: 0 0 14px; font-size: 13px; color: var(--muted); }
+.review-tag { margin: 0 0 14px; font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .review-actions { display: flex; gap: 10px; }
 .review-actions .ghost { border-radius: 999px; padding: 14px 16px; }
 .review-actions .primary { flex: 1; border-radius: 999px; padding: 14px 18px; font-size: 17px; }

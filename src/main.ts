@@ -732,7 +732,8 @@ function renderReview() {
   $("#review-eta").textContent = formatDuration(sel.durationSec);
   $("#review-dist").textContent = formatMiles(sel.distanceMi);
   $("#review-via").textContent = viaLine(sel.maneuvers);
-  $("#review-tag").textContent = `${sel.label} · ${sel.why}`;
+  const shortWhy = sel.why.split(" · ")[0] || sel.label;
+  $("#review-tag").textContent = sel.label === shortWhy ? sel.label : `${sel.label} · ${shortWhy}`;
 }
 function renderDash() {
   dashEl.removeAttribute("hidden");
