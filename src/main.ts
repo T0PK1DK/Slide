@@ -32,11 +32,13 @@ import {
   type Step,
 } from "./lib/guidance";
 import { cumulativeMiles, snapToRoute, startTracking, type Fix, type TrackerHandle } from "./lib/tracking";
+import { loadRecord, registerScore } from "./lib/records";
 
 const MIAMI: LonLat = { lon: -80.1918, lat: 25.7617 };
 const STYLE = "https://tiles.openfreemap.org/styles/dark";
 
 let garage = loadGarage();
+let record = loadRecord();
 applyTheme(garage);
 
 const app = document.querySelector("#app")!;
@@ -45,7 +47,7 @@ app.innerHTML = `
   <div class="vignette"></div>
   <div class="hud">
     <div class="panel search-card">
-      <div class="brand"><h1>Slide</h1><span class="chip" id="rank-chip">GARAGE</span></div>
+      <div class="brand"><h1>Slide</h1><div class="brand-meta"><span class="best" id="best-chip">BEST —</span><span class="chip" id="rank-chip">GARAGE</span></div></div>
       <div class="fields">
         <div class="field"><label>From</label><input id="from" placeholder="Current location or address" autocomplete="off" /><div class="suggest" id="from-suggest" hidden></div></div>
         <div class="field"><label>To</label><input id="to" placeholder="Where are you going?" autocomplete="off" /><div class="suggest" id="to-suggest" hidden></div></div>
@@ -65,8 +67,11 @@ app.innerHTML = `
     </div>
     <div class="panel posted-chip" id="posted" hidden></div>
     <div class="panel dash" id="dash" hidden>
+      <div class="hero-score">
+        <div class="hero-num"><b id="stat-score">—</b><span>Slide score</span></div>
+        <div class="hero-badge" id="score-badge" hidden></div>
+      </div>
       <div class="stat-row">
-        <div class="stat"><span>Slide</span><b id="stat-score">—</b></div>
         <div class="stat"><span>Arrive</span><b id="stat-eta">—</b></div>
         <div class="stat"><span>Ghosts</span><b id="stat-ghosts">0</b></div>
         <div class="stat"><span>Streak</span><b id="stat-streak">0</b></div>
@@ -78,7 +83,7 @@ app.innerHTML = `
         <div class="limit" id="limit" hidden><span>Limit</span><b id="limit-n">—</b></div>
         <div class="live"><div class="n" id="speed-n">0</div><div class="u" id="speed-src">Est</div></div>
       </div>
-      <div class="ghost-delta" id="ghost-delta">GHOST ±0.0s</div>
+      <div class="rival" id="rival" hidden><span class="rival-dot"></span><b id="rival-label">—</b></div>
     </div>
     <button class="panel recenter" id="recenter" hidden>Recenter</button>
     <div class="panel speed-rail" id="speeds" hidden></div>
@@ -190,6 +195,7 @@ function persist() {
   saveGarage(garage);
   applyTheme(garage);
   $("#rank-chip").textContent = garage.tag;
+  $("#best-chip").textContent = record.bestScore != null ? `BEST ${record.bestScore}` : "BEST —";
 }
 function wireGarage() {
   const tag = $("#g-tag") as HTMLInputElement;
@@ -455,8 +461,33 @@ function bootDrive() {
   steps = buildSteps(route.maneuvers);
   progressMi = 0;
   chaseT = 0; spawnPlayer(); spawnGhosts();
+  renderScoreBadge(route.slideScore);
   $("#speedo").removeAttribute("hidden");
   if (!raf) { lastTs = performance.now(); raf = requestAnimationFrame(tick); }
+}
+/**
+ * The score is a hit against your own history, not a number nobody reacts
+ * to. Fires once per drive actually started (bootDrive), not on every route
+ * preview, so switching between Slide/Faster while deciding doesn't bank a
+ * "best" for a line you never drove.
+ */
+function renderScoreBadge(score: number) {
+  const { isNewBest, delta } = registerScore(score);
+  record = loadRecord();
+  $("#best-chip").textContent = record.bestScore != null ? `BEST ${record.bestScore}` : "BEST —";
+  const badge = $("#score-badge");
+  if (isNewBest) {
+    badge.hidden = false;
+    badge.textContent = delta === null ? "First drive" : `New best +${delta}`;
+    badge.className = "hero-badge new-best";
+  } else if (record.bestScore != null) {
+    const gap = score - record.bestScore;
+    badge.hidden = false;
+    badge.textContent = gap === 0 ? "Matched your best" : `${gap} vs your best`;
+    badge.className = "hero-badge" + (gap < 0 ? " behind" : " tie");
+  } else {
+    badge.hidden = true;
+  }
 }
 function carSvg(color: string, glow: string, ghost = false): string {
   const opacity = ghost ? 0.55 : 1;
@@ -534,17 +565,28 @@ function tick(ts: number) {
   renderGuidance(progressMi, mph);
 
   ghosts.forEach((g, i) => { const s = stepGhost(g, dt); ghostMarkers[i]?.setLngLat([s.lon, s.lat]); ghostMarkers[i]?.setRotation(s.bearing); });
-  if (ghosts.length) {
-    // Both clocks wrap at the end of the lap, so take the shortest signed gap
-    // instead of letting the delta jump by a whole trip duration.
-    const selfT = totalMi > 0 ? Math.min(1, progressMi / totalMi) : chaseT;
-    const wrapped = ((ghosts[0].t - selfT + 0.5) % 1 + 1) % 1 - 0.5;
-    const lead = (wrapped * (route?.durationSec ?? 0)).toFixed(1);
-    $("#ghost-delta").textContent = `GHOST ${Number(lead) >= 0 ? "+" : ""}${lead}s`;
-  } else {
-    $("#ghost-delta").textContent = "NO GHOSTS";
-  }
+  renderRival(progressMi, totalMi, route);
   raf = requestAnimationFrame(tick);
+}
+/**
+ * "2.3s ahead of NOVA", not "GHOST +2.3s" — the old label required doing the
+ * sign math in your head while driving. Framed from the driver's side and
+ * colored, the way a leaderboard shows you climbing or slipping in real time.
+ */
+function renderRival(mi: number, totalMi: number, route: SlideRoute | undefined) {
+  const rivalEl = $("#rival");
+  if (!ghosts.length) { rivalEl.setAttribute("hidden", ""); return; }
+  rivalEl.removeAttribute("hidden");
+  // Both clocks wrap at the end of the lap, so take the shortest signed gap
+  // instead of letting the delta jump by a whole trip duration.
+  const selfT = totalMi > 0 ? Math.min(1, mi / totalMi) : chaseT;
+  const wrapped = ((ghosts[0].t - selfT + 0.5) % 1 + 1) % 1 - 0.5;
+  const aheadSec = -wrapped * (route?.durationSec ?? 0);
+  const label = $("#rival-label");
+  label.textContent = aheadSec >= 0
+    ? `${aheadSec.toFixed(1)}s ahead of ${ghosts[0].tag}`
+    : `${Math.abs(aheadSec).toFixed(1)}s behind ${ghosts[0].tag}`;
+  rivalEl.classList.toggle("behind", aheadSec < 0);
 }
 function setOffRoute(off: boolean) {
   maneuverEl.classList.toggle("off-route", off);

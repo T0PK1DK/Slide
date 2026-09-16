@@ -32,7 +32,8 @@ Units are **miles / mph**. First proving ground is **Miami**.
 - Pitched MapLibre map, extruded buildings when the style exposes `building`
 - Glowing route ribbon, player car marker, chase / cinematic / top cameras
 - Garage in localStorage (`slide.garage.v1`): tag, body, glow, trail, camera, ghosts, buildings, share
-- Seeded ghost cars on the chosen line + ghost delta HUD
+- Seeded ghost cars on the chosen line + a rival readout ("Xs ahead/behind NAME")
+- Personal-best record in localStorage (`slide.record.v1`): the Slide score you're chasing exists even solo
 
 ## Layout
 
@@ -44,6 +45,7 @@ src/lib/smooth.ts      Slide score + speed bands
 src/lib/polyline.ts    precision-6 decode
 src/lib/garage.ts      customization persist
 src/lib/ghosts.ts      ghost replay along a line
+src/lib/records.ts     personal-best Slide score, kept on-device
 src/lib/guidance.ts    next maneuver, posted-speed lookahead, turn arrows
 src/lib/tracking.ts    live GPS watch + snap-to-route progress
 docs/PRODUCT.md        scoring contract
@@ -96,3 +98,4 @@ Read `TASKS.md` top unchecked item. Do not rebase history. Do not rename the pro
 - 2026-09-14 Claude: P0#1 `npm run build` is clean, built in parallel with Cursor's session above before either saw the other's work — same root cause (`esc()` parse error), independently fixed with an inline `whenStyleReady()` queue instead of `mapready.ts`. Also imported the GeoJSON types from `geojson` instead of the global namespace, enabled the same unused-checks, and fixed a trail change only recoloring `route-glow` and not `route-line`.
 - 2026-09-14 Claude: UX pass grounded in Mobbin recon of Google/Apple Maps, Grab Driver, Tesla, Transit. Added the next-maneuver banner, a regulatory speed-limit sign, the posted-speed lookahead chip, tappable time chips on each line, camera fit on plan, and a live GPS watch that snaps the marker to the shape. New libs `guidance.ts` and `tracking.ts`. **Scoring contract changed** (see docs/PRODUCT.md): turns are now weighted by type — left 1.8, u-turn 2.4, right 1.0 — because the old `isTurn` range (9-14) silently excluded kLeft(15) and kSlightLeft(16), so left turns were only caught by an English-only regex. Slide scores will shift on left-heavy routes; that is intended.
 - 2026-09-14 Claude: merged Cursor's PR #1 (already on `main`) into this branch. Kept this branch's `main.ts`/`smooth.ts`/`tsconfig.json` — a strict superset that already covers Cursor's fixes plus the rest of P0 and the guidance/tracking work above — and dropped `src/lib/mapready.ts` as dead code once nothing referenced it, rather than leave two different style-ready mechanisms in the tree. Adopted Cursor's clean `package-lock.json` (this branch's own copy had been reverted earlier after a test-only dependency leaked into it).
+- 2026-09-16 Claude: identity pass, asked to think about what actually makes this a hit rather than just polish the look. The honest read: Slide can't out-data Google/Waze/Apple on live traffic or coverage, so chasing nav-parity features (which the previous session did — turn-by-turn banner, speed-limit disc, live GPS) closes a gap that never fully closes. The thing nobody else has is scoring the drive and giving you a rival to beat, and that was hidden behind a completed plan — a first-time visitor saw a generic From/To box with no signal this isn't Google Maps. Grounded the fix in Mobbin recon of score-reveal and rival/leaderboard patterns (Runna's post-run card, Bump's "Climb the leaderboard", Fi's rank badge). Changes: new `src/lib/records.ts` tracks a personal-best Slide score in localStorage (no backend, same constraint ghosts already live under); the dash's flat 4-tile stat row is now a hero score card (big number, "New best" / "vs your best" badge) with Arrive/Ghosts/Streak demoted to a secondary row; the header shows a `BEST` chip beside the garage tag **before any route is planned**, so the identity is visible on first paint, not after a successful plan; the ghost-delta line ("GHOST +152.5s", ambiguous sign) is now a colored rival readout framed from the driver's side ("112.5s behind NOVA"). Verified: record persists across reload, badge states (first drive / new best / tie / behind) all render correctly, no overflow down to 360px. Deliberately did not touch turn-by-turn/voice/live-traffic — that's the trap the diagnosis warns against. Deploy (P0's last box) is still the other big unshipped lever; flagged but out of scope for this pass.
