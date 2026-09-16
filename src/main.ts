@@ -32,9 +32,11 @@ import {
   type Step,
 } from "./lib/guidance";
 import { cumulativeMiles, snapToRoute, startTracking, type Fix, type TrackerHandle } from "./lib/tracking";
+import { hasWebGL } from "./lib/maphealth";
 
 const MIAMI: LonLat = { lon: -80.1918, lat: 25.7617 };
 const STYLE = "https://tiles.openfreemap.org/styles/dark";
+const MAP_LOAD_TIMEOUT_MS = 9000;
 
 let garage = loadGarage();
 applyTheme(garage);
@@ -44,6 +46,11 @@ app.innerHTML = `
   <div id="map"></div>
   <div class="vignette"></div>
   <div class="hud">
+    <div class="panel map-fallback" id="map-fallback" hidden>
+      <b>Map didn't load</b>
+      <p id="map-fallback-msg">Checking your connection…</p>
+      <button class="primary" id="map-retry" type="button">Retry</button>
+    </div>
     <div class="panel search-card">
       <div class="brand"><h1>Slide</h1><span class="chip" id="rank-chip">GARAGE</span></div>
       <div class="fields">
@@ -96,17 +103,36 @@ app.innerHTML = `
   </div>
 `;
 
-const map = new maplibregl.Map({
-  container: "map",
-  style: STYLE,
-  center: [MIAMI.lon, MIAMI.lat],
-  zoom: 14.2,
-  pitch: 58,
-  bearing: -18,
-  attributionControl: false,
-  maxPitch: 75,
-});
-map.addControl(new maplibregl.AttributionControl({ compact: true }), "top-right");
+/**
+ * MapLibre needs WebGL and throws *synchronously* when it can't get a
+ * context (locked-down browser, enterprise policy, an ancient device).
+ * Uncaught, that used to take the whole app down with it: everything below
+ * this line — every button's click handler, `wireGarage()`, `persist()` —
+ * runs as one synchronous script and would never execute. Degrade instead:
+ * every function that touches `map` is guarded by `mapAvailable`, so a
+ * dead map leaves a dark canvas but a working app underneath it.
+ */
+let mapAvailable = true;
+let map: maplibregl.Map;
+try {
+  map = new maplibregl.Map({
+    container: "map",
+    style: STYLE,
+    center: [MIAMI.lon, MIAMI.lat],
+    zoom: 14.2,
+    pitch: 58,
+    bearing: -18,
+    attributionControl: false,
+    maxPitch: 75,
+  });
+  map.addControl(new maplibregl.AttributionControl({ compact: true }), "top-right");
+} catch (err) {
+  mapAvailable = false;
+  console.error("Slide: map failed to initialize.", err);
+  // Never called once mapAvailable is false — every call site below checks
+  // the flag first — but the binding still needs a real instance for TS.
+  map = Object.create(maplibregl.Map.prototype);
+}
 
 let origin: LonLat | null = null;
 let dest: LonLat | null = null;
@@ -145,13 +171,40 @@ const maneuverEl = $("#maneuver");
 const postedEl = $("#posted");
 const recenterEl = $("#recenter");
 
-map.on("load", () => {
-  styleReady = true;
-  ensure3DBuildings();
-  addRouteLayers();
-  applyCamera(garage.camera);
-  styleQueue.splice(0).forEach((fn) => fn());
-});
+let mapLoadWatchdog = 0;
+let needsReload = false;
+
+if (!mapAvailable) {
+  showMapFallback(
+    hasWebGL()
+      ? "The 3D map couldn't start. Reload the page to try again."
+      : "This browser can't run the 3D map (no WebGL). You can still search, plan, and see your Slide score below.",
+    "Reload page"
+  );
+  needsReload = true;
+} else {
+  armMapWatchdog();
+  map.on("load", () => {
+    window.clearTimeout(mapLoadWatchdog);
+    hideMapFallback();
+    styleReady = true;
+    ensure3DBuildings();
+    addRouteLayers();
+    applyCamera(garage.camera);
+    styleQueue.splice(0).forEach((fn) => fn());
+  });
+  // A single bad tile at the edge of coverage fires this constantly and is
+  // normal; only the watchdog below decides whether the map has actually
+  // failed, so this exists for diagnostics rather than to react per-error.
+  map.on("error", (e) => {
+    if (!styleReady) console.warn("Slide: map resource failed to load.", e.error?.message);
+  });
+  map.on("webglcontextlost", () => {
+    window.clearTimeout(mapLoadWatchdog);
+    needsReload = true;
+    showMapFallback("The map's 3D view was lost. Reload the page to restore it.", "Reload page");
+  });
+}
 
 bindSearch(fromInput, $("#from-suggest"), (hit) => {
   origin = { lon: hit.lon, lat: hit.lat };
@@ -168,7 +221,15 @@ $("#go").addEventListener("click", plan);
 $("#tune").addEventListener("click", () => garageEl.classList.toggle("open"));
 $("#g-close").addEventListener("click", () => garageEl.classList.remove("open"));
 recenterEl.addEventListener("click", () => { followCamera = true; recenterEl.setAttribute("hidden", ""); applyCamera(garage.camera); });
-map.on("dragstart", () => { if (garage.camera === "chase") { followCamera = false; recenterEl.removeAttribute("hidden"); } });
+if (mapAvailable) {
+  map.on("dragstart", () => { if (garage.camera === "chase") { followCamera = false; recenterEl.removeAttribute("hidden"); } });
+}
+$("#map-retry").addEventListener("click", () => {
+  if (needsReload) { window.location.reload(); return; }
+  hideMapFallback();
+  armMapWatchdog();
+  map.setStyle(STYLE);
+});
 document.addEventListener("click", (e) => {
   const t = e.target as HTMLElement;
   if (!t.closest(".field")) document.querySelectorAll<HTMLElement>(".suggest").forEach((b) => { b.hidden = true; });
@@ -181,6 +242,21 @@ function $(sel: string): HTMLElement { return document.querySelector(sel)!; }
 function whenStyleReady(fn: () => void) {
   if (styleReady) fn();
   else styleQueue.push(fn);
+}
+function showMapFallback(message: string, retryLabel = "Retry") {
+  $("#map-fallback-msg").textContent = message;
+  ($("#map-retry") as HTMLButtonElement).textContent = retryLabel;
+  $("#map-fallback").removeAttribute("hidden");
+}
+function hideMapFallback() {
+  $("#map-fallback").setAttribute("hidden", "");
+}
+/** If `load` hasn't fired by the time this expires, the style host is unreachable. */
+function armMapWatchdog() {
+  window.clearTimeout(mapLoadWatchdog);
+  mapLoadWatchdog = window.setTimeout(() => {
+    if (!styleReady) showMapFallback("The map tiles didn't load. Check your connection or an ad-blocker, then retry.");
+  }, MAP_LOAD_TIMEOUT_MS);
 }
 function applyTheme(cfg: GarageConfig) {
   document.documentElement.style.setProperty("--glow", cfg.glow);
@@ -220,11 +296,13 @@ function paintSwatches(el: HTMLElement, colors: string[], current: string, onPic
   });
 }
 function applyCamera(mode: GarageConfig["camera"]) {
+  if (!mapAvailable) return;
   if (mode === "top") map.easeTo({ pitch: 0, zoom: Math.max(map.getZoom(), 13), duration: 700 });
   else if (mode === "chase") map.easeTo({ pitch: 62, zoom: 16.2, duration: 700 });
   else map.easeTo({ pitch: 56, zoom: 14.6, duration: 700 });
 }
 function ensure3DBuildings() {
+  if (!mapAvailable) return;
   if (map.getLayer("slide-buildings")) return;
   const sourceId = map.getSource("openmaptiles") ? "openmaptiles" : Object.keys(map.getStyle().sources || {})[0];
   if (!sourceId) return;
@@ -246,11 +324,12 @@ function ensure3DBuildings() {
   toggleBuildings(garage.showBuildings);
 }
 function toggleBuildings(on: boolean) {
+  if (!mapAvailable) return;
   if (map.getLayer("slide-buildings")) map.setLayoutProperty("slide-buildings", "visibility", on ? "visible" : "none");
 }
 function emptyFc(): FeatureCollection { return { type: "FeatureCollection", features: [] }; }
 function addRouteLayers() {
-  if (map.getSource("routes")) return;
+  if (!mapAvailable || map.getSource("routes")) return;
   map.addSource("routes", { type: "geojson", data: emptyFc() });
   map.addSource("ghost-trails", { type: "geojson", data: emptyFc() });
   map.addLayer({ id: "route-glow", type: "line", source: "routes", paint: { "line-color": TRAILS[garage.trail].line, "line-width": 14, "line-opacity": 0.18, "line-blur": 8 } });
@@ -329,7 +408,7 @@ function locateMe() {
       originLabel = "Current location";
       fromInput.value = "Current location";
       setStatus("");
-      map.easeTo({ center: [fix.pos.lon, fix.pos.lat], zoom: 15.4, pitch: 60, duration: 900 });
+      if (mapAvailable) map.easeTo({ center: [fix.pos.lon, fix.pos.lat], zoom: 15.4, pitch: 60, duration: 900 });
     },
     (message) => { showError(message); setStatus(""); stopTracking(); }
   );
@@ -413,7 +492,7 @@ function paintRoutes() {
 function paintRouteChips() {
   routeChips.forEach((m) => m.remove());
   routeChips = [];
-  if (routes.length < 2) return;
+  if (!mapAvailable || routes.length < 2) return;
   for (const r of routes) {
     const coords = decodePolyline6(tripShape(r.trip));
     if (!coords.length) continue;
@@ -464,6 +543,8 @@ function carSvg(color: string, glow: string, ghost = false): string {
 }
 function spawnPlayer() {
   playerMarker?.remove();
+  playerMarker = null;
+  if (!mapAvailable) return;
   const el = document.createElement("div");
   el.className = "car-marker";
   el.innerHTML = carSvg(garage.carColor, garage.glow);
@@ -480,10 +561,12 @@ function spawnGhosts() {
   $("#stat-ghosts").textContent = String(ghosts.length);
   const trails: Feature[] = [];
   for (const g of ghosts) {
-    const el = document.createElement("div");
-    el.className = "ghost-marker"; el.style.color = g.color;
-    el.innerHTML = `<div class="ghost-label">${g.tag}</div>${carSvg(g.color, g.color, true)}`;
-    ghostMarkers.push(new maplibregl.Marker({ element: el, anchor: "center", pitchAlignment: "map", rotationAlignment: "map" }).setLngLat([g.samples[0].lon, g.samples[0].lat]).addTo(map));
+    if (mapAvailable) {
+      const el = document.createElement("div");
+      el.className = "ghost-marker"; el.style.color = g.color;
+      el.innerHTML = `<div class="ghost-label">${g.tag}</div>${carSvg(g.color, g.color, true)}`;
+      ghostMarkers.push(new maplibregl.Marker({ element: el, anchor: "center", pitchAlignment: "map", rotationAlignment: "map" }).setLngLat([g.samples[0].lon, g.samples[0].lat]).addTo(map));
+    }
     trails.push({ type: "Feature", properties: { color: g.color }, geometry: { type: "LineString", coordinates: g.samples.map((s) => [s.lon, s.lat]) } });
   }
   whenStyleReady(() => {
@@ -527,7 +610,7 @@ function tick(ts: number) {
   playerMarker?.setRotation(you.bearing);
   $("#speed-n").textContent = String(mph);
   $("#speed-src").textContent = live ? "MPH" : "Est";
-  if (garage.camera === "chase" && followCamera) {
+  if (mapAvailable && garage.camera === "chase" && followCamera) {
     map.jumpTo({ center: [you.pos.lon, you.pos.lat], bearing: you.bearing, pitch: 64, zoom: 16.4 });
   }
 
