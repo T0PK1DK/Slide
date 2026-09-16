@@ -80,9 +80,6 @@ export type TraceAttributes = {
   matched_points?: unknown[];
 };
 
-export type RouteProfile = "smooth" | "fast";
-
-/** The default line: penalise ugly moves, stay off alleys and service roads. */
 const SMOOTH_COSTING = {
   costing: "auto",
   costing_options: {
@@ -103,87 +100,97 @@ const SMOOTH_COSTING = {
   },
 };
 
-/**
- * The explicit "just get me there" line. Valhalla's `alternatives` often comes
- * back with a single trip, which leaves nothing to compare the smooth route
- * against — so we ask again with the costing pushed the other way (cheap
- * maneuvers, highways welcome) and keep it when it is genuinely different.
- */
-const FAST_COSTING = {
-  costing: "auto",
-  costing_options: {
-    auto: {
-      maneuver_penalty: 2,
-      alley_penalty: 2,
-      gate_penalty: 30,
-      service_penalty: 6,
-      service_factor: 1,
-      use_highways: 1,
-      use_tolls: 0.8,
-      use_ferry: 0.2,
-      use_living_streets: 0.4,
-      top_speed: 130,
-      shortest: false,
-    },
-  },
-};
+async function fetchJson(url: string, init: RequestInit = {}, ms = 8000): Promise<any> {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), ms);
+  try {
+    const res = await fetch(url, { ...init, signal: ctrl.signal });
+    if (!res.ok) throw new Error(`${res.status}`);
+    return await res.json();
+  } finally {
+    clearTimeout(t);
+  }
+}
 
 export async function searchPlaces(query: string, bias?: LonLat): Promise<SearchHit[]> {
-  if (!query.trim()) return [];
+  const q = query.trim();
+  if (q.length < 2) return [];
   const url = new URL(PHOTON_URL);
-  url.searchParams.set("q", query);
-  url.searchParams.set("limit", "6");
+  url.searchParams.set("q", q);
+  url.searchParams.set("limit", "8");
   url.searchParams.set("lang", "en");
-  if (bias) {
-    url.searchParams.set("lon", String(bias.lon));
-    url.searchParams.set("lat", String(bias.lat));
-  }
-  const res = await fetch(url.toString());
-  if (!res.ok) throw new Error(`Search failed (${res.status})`);
-  const data = await res.json();
-  return (data.features ?? []).map((f: any) => {
+  url.searchParams.set("lon", String(bias?.lon ?? -80.13));
+  url.searchParams.set("lat", String(bias?.lat ?? 25.89));
+  const data = await fetchJson(url.toString());
+  const seen = new Set<string>();
+  const hits: SearchHit[] = [];
+  for (const f of data.features ?? []) {
     const p = f.properties ?? {};
     const [lon, lat] = f.geometry.coordinates;
-    const parts = [p.name, p.street, p.city || p.county, p.state, p.country]
+    const key = `${lon.toFixed(5)},${lat.toFixed(5)}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const parts = [p.housenumber, p.name, p.street, p.city || p.county, p.state]
       .filter(Boolean)
       .filter((v: string, i: number, a: string[]) => a.indexOf(v) === i);
-    return {
+    hits.push({
       label: parts.join(", "),
       lon,
       lat,
       kind: p.osm_value || p.type || "place",
-    } as SearchHit;
-  });
+    });
+  }
+  return hits;
 }
 
 export async function requestRoutes(
   origin: LonLat,
   dest: LonLat,
-  units: "miles" | "kilometers" = "miles",
-  profile: RouteProfile = "smooth"
+  units: "miles" | "kilometers" = "miles"
 ): Promise<RouteResponse> {
   const body = {
     locations: [
       { lon: origin.lon, lat: origin.lat, type: "break" },
       { lon: dest.lon, lat: dest.lat, type: "break" },
     ],
-    ...(profile === "fast" ? FAST_COSTING : SMOOTH_COSTING),
+    ...SMOOTH_COSTING,
     units,
     alternatives: true,
     directions_options: { units, language: "en-US" },
     id: "slide",
   };
 
-  const res = await fetch(`${VALHALLA_URL}/route`, {
+  return fetchJson(`${VALHALLA_URL}/route`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Routing failed (${res.status}): ${text.slice(0, 180)}`);
-  }
-  return res.json();
+  }, 12000);
+}
+
+export async function requestFastRoute(
+  origin: LonLat,
+  dest: LonLat,
+  units: "miles" | "kilometers" = "miles"
+): Promise<RouteResponse> {
+  const body = {
+    locations: [
+      { lon: origin.lon, lat: origin.lat, type: "break" },
+      { lon: dest.lon, lat: dest.lat, type: "break" },
+    ],
+    costing: "auto",
+    costing_options: {
+      auto: { maneuver_penalty: 3, use_highways: 0.85, use_living_streets: 0.2 },
+    },
+    units,
+    alternatives: true,
+    directions_options: { units, language: "en-US" },
+    id: "slide-fast",
+  };
+  return fetchJson(`${VALHALLA_URL}/route`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  }, 12000);
 }
 
 export async function requestTraceAttributes(
@@ -234,20 +241,4 @@ export function collectTrips(response: RouteResponse): ValhallaTrip[] {
     if (alt.trip) trips.push(alt.trip);
   }
   return trips;
-}
-
-export function tripShape(trip: ValhallaTrip): string {
-  return trip.legs.map((l) => l.shape).join("");
-}
-
-/**
- * True when two trips are the same line. Valhalla can answer a second costing
- * pass with the identical geometry, and showing the driver "Slide" and "Faster"
- * as the same road is worse than showing one option.
- */
-export function sameTrip(a: ValhallaTrip, b: ValhallaTrip): boolean {
-  if (tripShape(a) === tripShape(b)) return true;
-  const dt = Math.abs(a.summary.time - b.summary.time);
-  const dl = Math.abs(a.summary.length - b.summary.length);
-  return dt < 25 && dl < 0.06;
 }
