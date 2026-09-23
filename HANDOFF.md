@@ -107,6 +107,28 @@ Read `TASKS.md` top unchecked item. Do not rebase history. Do not rename the pro
 - 2026-09-23 Claude: Phase 0–1 docs only. Added `docs/STRATEGY.md`: day-1/day-30 framing, measurable Effort (weighted lefts, signals, merges, speed drops, lane changes), the proposed contract "Slide = least Effort within +10% of fastest" (lands in Phase 3 with a PRODUCT.md update), and a Borrowed / Rejected / Unique table. Found: `npm run build` fails on this branch (13 TS errors: `recents`/`home`/`work` missing from `GarageConfig`, 4-arg call at `main.ts:630`); `rankRoutes()` has no time bound, so a much slower route can win. No scoring-contract change yet.
 - 2026-09-23 Claude: owner added a Snap Map / Waze CarPlay direction: a 3D living map with *cars* instead of avatars, Forza vibe. Captured in `docs/STRATEGY.md` ("3D living map layer"): garage car in 3D on Explore, "Miami driven %" glowing driven roads (on-device; now the proposed Phase 5 surprise feature), Effort events drawn on the route, friends' cars deferred to an opt-in presence design. No sponsored pins.
 
+## Next for Nard (start here)
+
+Claude did Phases 0–1 (docs only, PR #8). Read `docs/STRATEGY.md` first; it defines the core idea
+and the Effort metric the later phases build on. Then work through the phases in order, one PR per phase.
+
+**Phase 2: loading + stability (do first)**
+- [ ] Apply the VIA patch. It never reached Claude's session, so the owner has it.
+- [ ] Fix the 13 TS errors so `npm run build` passes. `GarageConfig` is missing `recents` / `home` / `work` (used at `main.ts:334–395`), and there's a 4-arg call at `main.ts:630`. Add those fields to `garage.ts` with defaults and merge old `slide.garage.v1` data safely.
+- [ ] Measure the live site on a phone over 4G *before* changing anything, and record the numbers in the session log. Check for a blank/black map, the style-load race, Valhalla/Photon timeouts, OpenFreeMap tile failures, fonts, and bundle size.
+- [ ] Fixes: a skeleton HUD that shows instantly, map fade-in when the style is ready, fetch timeout + one retry, offline and no-route states, `font-display: swap`, lazy-load ghosts and 3D, split `main.ts` into `hud/ drive/ plan/ map/`, and in-memory route/style cache. Target: a usable HUD in under 2 s.
+- [ ] Deploy to Cloudflare Pages (`kings-slide`) and verify on https://kings-slide.pages.dev.
+
+**Phase 3: routing brain.** Slide route = least Effort within +10% of fastest (the window is configurable; the proposed clamp is 1–6 min). Today `rankRoutes()` in `src/lib/smooth.ts` has no time bound, so a much slower route can win. Put ranking in one pure, tested module that returns an event list per route. Put every data source behind `src/lib/sources/*`. Update `docs/PRODUCT.md`. Use legal/open data only; never scrape Google or Waze.
+
+**Phase 4: UI clarity.** VIA look: Explore, search, place, route overview, drive, arrival, garage. Add a trip timeline, onboarding, and offline/no-route states. It must be glanceable in 1.5 s with 4.5:1 contrast, 44 px touch targets and one accent color. Use Snap's street-level map as the reference for the night basemap (see STRATEGY).
+
+**Phase 5: 3D HUD + ghosts.** Chase cam, lane ribbon, 3D car models, glowing ghost cars, and your own pace ghost. Hold 60 fps with a quality toggle. The surprise feature is **Miami driven %**: roads you've driven glow, stored on-device only. Also draw the garage car on Explore and the Pain points heat.
+
+**Phase 6: TapN stub.** Add `src/lib/sources/tapn.ts` as a typed interface, with mock data behind a flag that's off by default.
+
+**Waiting on the owner:** whether friends' cars on the map are a real goal (if so, write a presence/privacy design before any backend), and approval of the 1–6 min clamp.
+
 ## Claude follow-up
 
 Do not pick these up in a Cursor drive-mode / overview PR. They are Claude’s next slice — see unchecked items under **Claude follow-up** in `TASKS.md`.

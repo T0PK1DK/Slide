@@ -4,6 +4,8 @@ Work top-down. Check the box in the same PR.
 
 ## Strategy
 
+> Handed to Nard on 2026-09-23. Full phase checklist: **Next for Nard** in `HANDOFF.md`.
+
 - [x] Phase 0–1: `docs/STRATEGY.md` (Magi pass + design recon)
 - [ ] Phase 4/5: 3D living map — garage car on Explore, "Miami driven %" (on-device), Effort icons on the route
 - [ ] Presence design (friends' cars, opt-in) before any backend
