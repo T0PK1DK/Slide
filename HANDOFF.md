@@ -57,6 +57,7 @@ src/lib/tracking.ts    live GPS watch + snap-to-route progress
 src/lib/maplook.ts     night basemap lift, route ribbon, HUD fit padding
 docs/PRODUCT.md        scoring contract
 docs/STRATEGY.md       why Slide wins, Effort metric, design recon (Borrowed / Rejected / Unique)
+docs/DESIGN.md         VIA skin contract (tokens, type, screen spec)
 HANDOFF.md             this file
 TASKS.md               ordered work
 AGENTS.md / CLAUDE.md  short agent rules
@@ -115,7 +116,7 @@ Read `TASKS.md` top unchecked item. Do not rebase history. Do not rename the pro
 
 - 2026-09-23 Claude: Phase 0–1 docs only. Added `docs/STRATEGY.md`: day-1/day-30 framing, measurable Effort (weighted lefts, signals, merges, speed drops, lane changes), the proposed contract "Slide = least Effort within +10% of fastest" (lands in Phase 3 with a PRODUCT.md update), and a Borrowed / Rejected / Unique table. Found: `npm run build` fails on this branch (13 TS errors: `recents`/`home`/`work` missing from `GarageConfig`, 4-arg call at `main.ts:630`); `rankRoutes()` has no time bound, so a much slower route can win. No scoring-contract change yet.
 - 2026-09-23 Claude: owner added a Snap Map / Waze CarPlay direction: a 3D living map with *cars* instead of avatars, Forza vibe. Captured in `docs/STRATEGY.md` ("3D living map layer"): garage car in 3D on Explore, "Miami driven %" glowing driven roads (on-device; now the proposed Phase 5 surprise feature), Effort events drawn on the route, friends' cars deferred to an opt-in presence design. No sponsored pins.
-- 2026-09-23 Nard / Phase 2: VIA skin **skipped** (owner dismissed; Phase 4 owns VIA look). No `0001-VIA-skin*.patch` applied. PR #7's TS/garage fix is re-implemented here — **PR #7 can close as superseded** for the build fix once this lands. `npm run build` is clean. No scoring-contract change.
+- 2026-09-23 Nard / Phase 2: VIA skin **applied** from `claude/slide-app-completion-e4sn59` patch `patches/0001-VIA-skin-premium-night-HUD-tokens-type-maneuver-tile.patch` (`git am`; index.html / main.ts hunks conflicted with the loading split — resolved by keeping skeleton HUD + split, applying VIA look to `index.html` / `src/app.ts` glow swatches / `styles.css` / copper default). `docs/DESIGN.md` is the style contract. Geist Google Fonts URL uses `display=swap`. `patches/` removed after apply. PR #7 can close as superseded for the TS fix. `npm run build` is clean. No scoring-contract change.
 - 2026-09-23 Phase 2 **before** metrics for https://kings-slide.pages.dev (Nard's box ~19:06 EDT; **datacenter, not physical 4G**): critical path wire ~304 KiB (HTML 456 + CSS 13.3 KiB + JS 298 KiB); uncompressed JS ~1.05 MiB single bundle `index-CTynPrYV.js`; CSS ~85 KiB; no UI web fonts (system stack); OpenFreeMap style ~3 KiB gz; Valhalla TTFB ~0.6–0.7s; Photon Wynwood ~0.77s. Risks: blank map until remote style+tiles; style-load race; one mega MapLibre bundle; Pages `must-revalidate` on hashed assets.
 - 2026-09-23 Phase 2 **after** (this branch `npm run build`, datacenter): first paint is the HTML HUD (Where to? + skeleton wash). Critical path ≈ **HTML 2.6 KiB gz + app CSS 4.0 KiB gz + boot JS 2.2 KiB gz ≈ 8.8 KiB gz** vs 304 KiB before. MapLibre is a later chunk (JS 1.05 MiB / 285 KiB gz; CSS 10 KiB gz). App chunk 13.8 KiB gz. Ghosts 0.66 KiB gz, loaded after Go. Hashed `/assets/*` get `Cache-Control: public, max-age=31536000, immutable`. Estimated mid-range 4G usable HUD **under ~2 s** (HTML skeleton, not waiting on MapLibre). Map still waits on the 285 KiB gz MapLibre chunk + remote style/tiles. **Pages deploy not done from this agent** — no Cloudflare login. Nard should deploy `dist` to project `kings-slide` after merge.
 
@@ -125,7 +126,7 @@ Claude did Phases 0–1 (docs only, PR #8). Read `docs/STRATEGY.md` first; it de
 and the Effort metric the later phases build on. Then work through the phases in order, one PR per phase.
 
 **Phase 2: loading + stability (do first)**
-- [x] VIA skin **skipped** (owner; Phase 4). Do not invent a VIA look.
+- [x] VIA skin **applied** from Claude branch patch (`claude/slide-app-completion-e4sn59`). Look from the patch; Phase 2 loading split kept.
 - [x] Fix the 13 TS errors so `npm run build` passes. `GarageConfig` has `recents` / `home` / `work` / `coachDismissed`; old `slide.garage.v1` merges safely; `requestFastRoute` replaces the 4-arg call; `tripShape` / `sameTrip` re-exported. PR #7 can close as superseded for this TS fix.
 - [x] Before metrics recorded in the session log (datacenter sample from Nard's box, not physical 4G).
 - [x] Skeleton HUD in `index.html`, map fade-in, fetch timeout + one retry, offline / no-route copy, `font-display: swap`, lazy ghosts + 3D after first paint, `hud/` `drive/` `plan/` `map/` split, in-memory route/style cache.
