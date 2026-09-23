@@ -41,6 +41,9 @@ import {
 } from "./lib/maplook";
 import { ensureSignedIn, lockApp } from "./hud/login";
 import { createYouMarker } from "./map/you";
+import { mountCommand } from "./hud/command";
+import { recordTrip } from "./lib/history";
+import { loadProfile } from "./lib/profile";
 import { cumulativeMiles, snapToRoute, startTracking, type Fix, type TrackerHandle } from "./lib/tracking";
 
 const MIAMI: LonLat = { lon: -80.1918, lat: 25.7617 };
@@ -132,6 +135,7 @@ app.innerHTML = `
       <button type="button" id="ov-rail">Speed rail</button>
       <button type="button" id="ov-home">Save To as Home</button>
       <button type="button" id="ov-work">Save To as Work</button>
+      <button type="button" id="ov-insights">Drive insights</button>
       <button type="button" id="ov-lock">Lock Slide</button>
     </div>
     <div class="coach" id="coach" hidden>
@@ -170,6 +174,8 @@ const map = new maplibregl.Map({
   maxPitch: 75,
 });
 const you = createYouMarker(map);
+/** Recorded into on-device history only when the drive ran on live GPS (never the preview car). */
+let driveLog = { startedAt: 0, live: false, offRouteEvents: 0, wasOff: false };
 map.addControl(new maplibregl.AttributionControl({ compact: true }), "top-right");
 
 let origin: LonLat | null = null;
@@ -275,6 +281,15 @@ $("#ov-rail").addEventListener("click", () => {
 $("#ov-home").addEventListener("click", () => { overflowEl.classList.remove("open"); savePlace("home"); });
 $("#ov-work").addEventListener("click", () => { overflowEl.classList.remove("open"); savePlace("work"); });
 $("#ov-lock").addEventListener("click", lockApp);
+const command = mountCommand({
+  map,
+  driverName: () => loadProfile()?.name ?? "",
+  onSearch: () => { $("#search-card").classList.add("open"); toInput.focus(); },
+  onGarage: () => garageEl.classList.add("open"),
+  onLocate: () => { if (!tracker) locateMe(); else if (liveFix) map.easeTo({ center: [liveFix.pos.lon, liveFix.pos.lat], zoom: 15, duration: 700 }); },
+  onSelectRoute: (id) => selectRoute(id),
+});
+$("#ov-insights").addEventListener("click", () => { overflowEl.classList.remove("open"); command.openSheet(true); });
 $("#chip-home").addEventListener("click", () => useOrSavePlace("home"));
 $("#chip-work").addEventListener("click", () => useOrSavePlace("work"));
 $("#chip-saved").addEventListener("click", () => {
@@ -318,6 +333,7 @@ ensureSignedIn(document.body, (driver) => {
     const tagInput = document.querySelector<HTMLInputElement>("#g-tag");
     if (tagInput) tagInput.value = garage.tag;
   }
+  command.refreshHistory();
   if (!garage.coachDismissed) showCoach(true);
   void autoLocate();
 });
@@ -484,6 +500,7 @@ function setHudMode(mode: "plan" | "review" | "drive") {
 }
 function startDrive() {
   if (!routes.length) return;
+  driveLog = { startedAt: Date.now(), live: false, offRouteEvents: 0, wasOff: false };
   renderSpeedRail();
   bootDrive();
   setHudMode("drive");
@@ -499,6 +516,7 @@ function stopDriveLoop() {
   ghostMarkers = [];
 }
 function endDrive() {
+  saveDriveToHistory();
   stopDriveLoop();
   followCamera = true;
   if (routes.length) {
@@ -509,6 +527,27 @@ function endDrive() {
   } else {
     setHudMode("plan");
   }
+}
+function saveDriveToHistory() {
+  const route = routes.find((r) => r.id === selectedId);
+  // Preview drives (the simulated car) and false starts are never recorded.
+  if (!route || !driveLog.live || progressMi < 0.2 || !driveLog.startedAt) return;
+  const step = Math.max(1, Math.floor(route.bands.length / 24));
+  recordTrip({
+    id: `t${driveLog.startedAt}`,
+    startedAt: driveLog.startedAt,
+    endedAt: Date.now(),
+    destLabel,
+    routeLabel: route.label,
+    distanceMi: Math.min(progressMi, route.distanceMi),
+    plannedSec: route.durationSec,
+    actualSec: Math.round((Date.now() - driveLog.startedAt) / 1000),
+    slideScore: route.slideScore,
+    lefts: route.lefts,
+    offRouteEvents: driveLog.offRouteEvents,
+    postedProfile: route.bands.filter((_, i) => i % step === 0).map((b) => b.postedMph ?? b.expectedMph),
+  });
+  command.refreshHistory();
 }
 function backToSearch() {
   followCamera = true;
@@ -715,6 +754,7 @@ function selectRoute(id: string) {
   }
 }
 function paintRoutes() {
+  command.setRoutes(routes, selectedId);
   whenStyleReady(() => {
     addRouteLayers();
     const features = routes.map((r) => ({
@@ -856,6 +896,7 @@ function tick(ts: number) {
       you = { pos: liveFix.pos, bearing: liveFix.headingDeg ?? 0 };
     }
     mph = Math.round(liveFix.speedMph);
+    driveLog.live = true;
   } else {
     chaseT = (chaseT + dt * 0.015) % 1;
     you = chasePoint(selectedCoords, chaseT);
@@ -896,6 +937,8 @@ function updateDriveMeta(route: SlideRoute | undefined, mi: number) {
 }
 function setOffRoute(off: boolean) {
   maneuverEl.classList.toggle("off-route", off);
+  if (off && !driveLog.wasOff) driveLog.offRouteEvents += 1;
+  driveLog.wasOff = off;
 }
 /** Next maneuver + what the signs are about to do. Posted is the sign, never a target. */
 function renderGuidance(mi: number, mph: number) {

@@ -158,7 +158,7 @@ It's a **look** reference; its layout is a fleet control room, not a phone in a 
 | **Do not take:** "Congestion Predicted · AI Analysis", the red congestion heat, "+18 min delay" | Predicted traffic with no data behind it is fake traffic (product rule). Only show it once a licensed live or historical speed source exists |
 | **Do not take:** the three-column desktop layout, fleet list, passenger-flow chart | Not a driver screen. A desktop "trip review" page could reuse the style later |
 
-**Built (2026-09-23):** basemap palette + route ribbon in `src/lib/maplook.ts`, the "you" marker in `src/map/you.ts`, glass / card / FAB / status-dot styles in the *Night network* block at the end of `src/styles.css`.
+**Built (2026-09-23):** the full dashboard as the **Command view** (`src/hud/command.ts`; every SEKAI panel mapped to real Slide data, see HANDOFF session log), plus the basemap palette + route ribbon in `src/lib/maplook.ts`, the "you" marker in `src/map/you.ts`, glass / card / FAB / status-dot styles in the *Night network* block at the end of `src/styles.css`.
 
 ### Missing from the canvas (design these next)
 - **Onboarding:** location permission with a reason line, then set Home / Work, then pick your car. Three screens, skippable.

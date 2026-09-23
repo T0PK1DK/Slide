@@ -50,6 +50,9 @@ src/lib/maplook.ts     night basemap lift, route ribbon, HUD fit padding
 src/lib/profile.ts     on-device driver profile, session, PIN hash, persistent storage
 src/hud/login.ts       login gate: set up driver / welcome back / lock
 src/map/you.ts         "you are here" marker: glow dot, pulse, heading cone, accuracy halo
+src/hud/command.ts     Command view: SEKAI-style dashboard (wide) / Insights sheet (phone)
+src/lib/history.ts     on-device trip history + overview stats (live-GPS drives only)
+src/lib/sources/weather.ts  Open-Meteo current conditions for the clock card (CC BY 4.0)
 public/                web manifest + icon (Add to Home Screen)
 docs/PRODUCT.md        scoring contract
 docs/DESIGN.md         VIA style contract + screen-by-screen build spec
@@ -119,6 +122,8 @@ Read `TASKS.md` top unchecked item. Do not rebase history. Do not rename the pro
 
 - 2026-09-23 Claude: **Night network look** from the owner's SEKAI reference (see DESIGN.md): warm city-light basemap palette, near-black water, route = wide soft glow + thin white line, alternates as grey hairlines, deeper glass panels, round glass FABs, route time pills as glowing glass cards, live-state dots. New `src/map/you.ts`: the driver now **sees themselves** (the Locate button used to recentre the map without drawing anything). It updates on every GPS fix, is hidden in Drive (the car takes over), greys out after 15 s without a fix, and auto-starts after sign-in only if location permission was already granted. **Fixed a pre-existing bug on `main`: the route line never drew.** All four route layers nested a zoom `interpolate` inside a `case`, which MapLibre rejects, so `route-glow/case/line/core` failed silently. Verified by rendering in headless Chromium. Navigation problems found (not fixed, for Nard): Drive runs a **simulated** car unless Locate was tapped first; the default `cinematic` camera **doesn't follow the car**; the start point falls back to **map center** instead of GPS; off-route only shows a banner, with **no reroute**.
 
+- 2026-09-23 Claude: **Command view**, rebuilt piece by piece from the owner's SEKAI dashboard with only real data. Wide screens (≥1100px): top bar (SLIDE, tabs, search, alerts bell, driver avatar), left rail (Drive overview: drives / off-route / miles over 24h·7d·30d; Smooth score + trend chart; Your trips with smooth % and posted-speed sparklines), a rounded map column (Map / 3D / Satellite switch, clock + Open-Meteo weather card, floating Slide route card, layers / zoom / locate stack), and a right rail (Route intelligence: Slide vs Fastest with the why-line, a Faster option card, arrival accuracy; Drive rhythm bars by hour). Phones: the same panels as a full-screen **Drive insights** sheet from the menu. Swapped out from the reference because they'd be fake data: "Congestion Predicted · AI Analysis", the red traffic map, fleet and passenger counts. **Satellite** is shown as disabled until a licensed imagery source is approved. New trip history (`slide.history.v1`) records a drive on End **only if it ran on live GPS** (≥0.2 mi); the preview car is never saved. Empty states show until then. Verified by rendering in headless Chromium at 1672×940 and 390×844 with a test-only seeded history.
+
 ## Next for Nard (start here)
 
 Claude did Phases 0–1 (docs only, PR #8). Read `docs/STRATEGY.md` first; it defines the core idea
@@ -134,6 +139,7 @@ and the Effort metric the later phases build on. Then work through the phases in
   5. **Arrival.** When within ~40 m of the destination (or progress ≥ 99%), stop tracking-driven guidance and show the Arrival screen (DESIGN.md 07).
   6. **Permission states.** Denied / unavailable / timeout each get a clear message plus "Search a start point instead". iOS needs HTTPS (pages.dev is fine; a LAN IP over http is not).
   7. The "you" dot (`src/map/you.ts`) and the drive car must never both show; `setHudMode` already hides the dot in Drive.
+- [ ] **Command view** (`src/hud/command.ts`) is built. After the app starts, check on a laptop (≥1100px wide): the three-column layout, the map column resizing correctly (`map.resize()`), and the existing plan search card not colliding with the Map/3D switch. On a phone, check menu → Drive insights opens the sheet and × closes it. Drive a real route with location on and End it: a trip appears in "Your trips".
 - [ ] Login is built (`src/hud/login.ts`). After the app starts, check: first visit shows "Set up your driver", the car tag seeds the garage tag, reload stays signed in, menu → Lock Slide shows "Welcome back", PIN works.
 - [x] VIA skin patch applied on this branch (commit `VIA skin: premium night HUD…`). `docs/DESIGN.md` is the style contract and now has a **screen-by-screen build spec** for all 10 canvas screens — build from that, not from the canvas directly.
 - [ ] VIA design canvas (reference only): https://claude.ai/artifact/3nbD5TfjZeoWbQEyf5yXu2. Where the canvas and `docs/DESIGN.md` disagree (traffic bars, crowd hazard reports, "Report a hazard", weather, "VIA" wordmark), **DESIGN.md wins**.
