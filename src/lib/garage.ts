@@ -1,11 +1,11 @@
 export type CameraMode = "cinematic" | "chase" | "top";
 export type TrailStyle = "plasma" | "ember" | "ice" | "volt";
-export type MapSkin = "cinematic" | "apple" | "waze";
+export type MapSkin = "cinematic" | "apple" | "slide";
 
 export const MAP_STYLES: Record<MapSkin, string> = {
   cinematic: "https://tiles.openfreemap.org/styles/dark",
   apple: "https://tiles.openfreemap.org/styles/liberty",
-  waze: "https://tiles.openfreemap.org/styles/dark",
+  slide: "https://tiles.openfreemap.org/styles/dark",
 };
 
 export type GarageConfig = {
@@ -45,7 +45,11 @@ export function loadGarage(): GarageConfig {
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return { ...DEFAULT_GARAGE };
-    return { ...DEFAULT_GARAGE, ...JSON.parse(raw) };
+    const saved = JSON.parse(raw) as Omit<Partial<GarageConfig>, "mapSkin"> & { mapSkin?: string };
+    // The flat night skin was once called "waze"; it's Slide's own look now.
+    if (saved.mapSkin === "waze") saved.mapSkin = "slide";
+    if (saved.mapSkin && !(saved.mapSkin in MAP_STYLES)) delete saved.mapSkin;
+    return { ...DEFAULT_GARAGE, ...(saved as Partial<GarageConfig>) };
   } catch {
     return { ...DEFAULT_GARAGE };
   }
