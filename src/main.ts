@@ -5,6 +5,7 @@ import "./styles.css";
 import { decodePolyline6 } from "./lib/polyline";
 import {
   collectTrips,
+  requestFastRoute,
   requestRoutes,
   requestTraceAttributes,
   sameTrip,
@@ -22,7 +23,7 @@ import {
   viaLine,
   type SlideRoute,
 } from "./lib/smooth";
-import { loadGarage, saveGarage, TRAILS, type GarageConfig } from "./lib/garage";
+import { loadGarage, saveGarage, TRAILS, type GarageConfig, type SavedPlace } from "./lib/garage";
 import { chasePoint, seedGhosts, stepGhost, type GhostCar } from "./lib/ghosts";
 import {
   buildSteps,
@@ -328,9 +329,13 @@ function persist() {
   if (chip) chip.textContent = garage.tag;
   refreshPlaceChips();
 }
+function asSavedPlace(hit: { label: string; lon: number; lat: number }, sub = ""): SavedPlace {
+  const inferred = hit.label.includes(",") ? hit.label.slice(hit.label.indexOf(",") + 1).trim() : "";
+  return { label: hit.label, sub: sub || inferred, lon: hit.lon, lat: hit.lat };
+}
 function rememberRecent(hit: { label: string; lon: number; lat: number }) {
   const recents = [
-    { label: hit.label, lon: hit.lon, lat: hit.lat },
+    asSavedPlace(hit),
     ...(garage.recents ?? []).filter((r) => r.label !== hit.label),
   ].slice(0, 4);
   garage.recents = recents;
@@ -368,7 +373,7 @@ function applyPlanView() {
 }
 function savePlace(slot: "home" | "work") {
   if (!dest) { showError("Set a destination first, then save it as Home or Work."); return; }
-  garage[slot] = { label: destLabel || toInput.value, lon: dest.lon, lat: dest.lat };
+  garage[slot] = asSavedPlace({ label: destLabel || toInput.value, lon: dest.lon, lat: dest.lat });
   persist();
   refreshPlaceChips();
 }
@@ -627,7 +632,7 @@ async function plan() {
       // leaves "smoothest" with nothing to be smoother than. Ask again with
       // the costing pushed the other way and keep it if it is a real detour.
       try {
-        const fast = collectTrips(await requestRoutes(origin, dest, "miles", "fast"));
+        const fast = collectTrips(await requestFastRoute(origin, dest, "miles"));
         trips = trips.concat(fast.filter((t) => !trips.some((seen) => sameTrip(seen, t))).slice(0, 1));
       } catch {
         // One good line still answers the question.

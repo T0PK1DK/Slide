@@ -242,3 +242,15 @@ export function collectTrips(response: RouteResponse): ValhallaTrip[] {
   }
   return trips;
 }
+
+export function tripShape(trip: ValhallaTrip): string {
+  return trip.legs.map((l) => l.shape).join("");
+}
+
+/** True when two trips are the same line (identical shape or near-identical time/length). */
+export function sameTrip(a: ValhallaTrip, b: ValhallaTrip): boolean {
+  if (tripShape(a) === tripShape(b)) return true;
+  const dt = Math.abs(a.summary.time - b.summary.time);
+  const dl = Math.abs(a.summary.length - b.summary.length);
+  return dt < 25 && dl < 0.06;
+}

@@ -4,7 +4,7 @@ Work top-down. Check the box in the same PR.
 
 ## P0 — make the demo reliable
 
-- [ ] `npm run build` is clean (fix TS, unused, layer add-before-style-load)
+- [x] `npm run build` is clean (fix TS, unused, layer add-before-style-load)
 - [x] If Valhalla returns one trip, fire a second `/route` with higher `use_highways` / lower `maneuver_penalty` so Faster exists (preview)
 - [ ] Fit camera to route on first plan (cinematic), then allow Chase
 - [ ] Real GPS speed in the speedo when Locate is active (`watchPosition`)

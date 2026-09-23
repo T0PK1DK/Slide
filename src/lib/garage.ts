@@ -8,6 +8,13 @@ export const MAP_STYLES: Record<MapSkin, string> = {
   waze: "https://tiles.openfreemap.org/styles/dark",
 };
 
+export type SavedPlace = {
+  label: string;
+  sub: string;
+  lon: number;
+  lat: number;
+};
+
 export type GarageConfig = {
   tag: string;
   carColor: string;
@@ -18,6 +25,11 @@ export type GarageConfig = {
   showGhosts: boolean;
   showBuildings: boolean;
   shareGhost: boolean;
+  /** First-run “How to Slide” was dismissed. Help still reopens it. */
+  coachDismissed: boolean;
+  recents: SavedPlace[];
+  home: SavedPlace | null;
+  work: SavedPlace | null;
 };
 
 const KEY = "slide.garage.v1";
@@ -39,13 +51,44 @@ export const DEFAULT_GARAGE: GarageConfig = {
   showGhosts: true,
   showBuildings: true,
   shareGhost: true,
+  coachDismissed: false,
+  recents: [],
+  home: null,
+  work: null,
 };
+
+function asPlace(value: unknown): SavedPlace | null {
+  if (!value || typeof value !== "object") return null;
+  const o = value as Record<string, unknown>;
+  const lon = Number(o.lon);
+  const lat = Number(o.lat);
+  if (!Number.isFinite(lon) || !Number.isFinite(lat)) return null;
+  const label = typeof o.label === "string" ? o.label : "";
+  const sub =
+    typeof o.sub === "string"
+      ? o.sub
+      : label.includes(",")
+        ? label.slice(label.indexOf(",") + 1).trim()
+        : "";
+  return { label, sub, lon, lat };
+}
 
 export function loadGarage(): GarageConfig {
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return { ...DEFAULT_GARAGE };
-    return { ...DEFAULT_GARAGE, ...JSON.parse(raw) };
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    const recents = Array.isArray(parsed.recents)
+      ? parsed.recents.map(asPlace).filter((p): p is SavedPlace => p !== null)
+      : [];
+    return {
+      ...DEFAULT_GARAGE,
+      ...parsed,
+      recents,
+      home: asPlace(parsed.home),
+      work: asPlace(parsed.work),
+      coachDismissed: Boolean(parsed.coachDismissed),
+    };
   } catch {
     return { ...DEFAULT_GARAGE };
   }
