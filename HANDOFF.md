@@ -48,6 +48,7 @@ src/lib/guidance.ts    next maneuver, posted-speed lookahead, turn arrows
 src/lib/tracking.ts    live GPS watch + snap-to-route progress
 src/lib/maplook.ts     night basemap lift, route ribbon, HUD fit padding
 docs/PRODUCT.md        scoring contract
+patches/               VIA skin patch (apply in Phase 2, then delete)
 docs/STRATEGY.md       why Slide wins, Effort metric, design recon (Borrowed / Rejected / Unique)
 HANDOFF.md             this file
 TASKS.md               ordered work
@@ -113,7 +114,8 @@ Claude did Phases 0–1 (docs only, PR #8). Read `docs/STRATEGY.md` first; it de
 and the Effort metric the later phases build on. Then work through the phases in order, one PR per phase.
 
 **Phase 2: loading + stability (do first)**
-- [ ] Apply the VIA patch. It never reached Claude's session, so the owner has it.
+- [ ] Apply the VIA patch: `git am patches/0001-VIA-skin-premium-night-HUD-tokens-type-maneuver-tile.patch` on a fresh branch off `main`. It's verified to apply cleanly to `main` @ `1e3eff0`. It adds `docs/DESIGN.md` (the style contract) plus tokens, type, a copper accent, the maneuver tile and a US limit sign. It's CSS/markup only and doesn't fix the 13 TS errors.
+- [ ] VIA design canvas (10 phone screens + CarPlay): https://claude.ai/artifact/3nbD5TfjZeoWbQEyf5yXu2 — Explore, Search, Place, Route preview, Active nav, Hazard reroute, Arrival, Daylight, Profile & vehicle, CarPlay. Build **Hazard reroute** only from real closure data (FL511 / FDOT); no user-reported hazards or police (product rule 3).
 - [ ] Fix the 13 TS errors so `npm run build` passes. `GarageConfig` is missing `recents` / `home` / `work` (used at `main.ts:334–395`), and there's a 4-arg call at `main.ts:630`. Add those fields to `garage.ts` with defaults and merge old `slide.garage.v1` data safely.
 - [ ] Measure the live site on a phone over 4G *before* changing anything, and record the numbers in the session log. Check for a blank/black map, the style-load race, Valhalla/Photon timeouts, OpenFreeMap tile failures, fonts, and bundle size.
 - [ ] Fixes: a skeleton HUD that shows instantly, map fade-in when the style is ready, fetch timeout + one retry, offline and no-route states, `font-display: swap`, lazy-load ghosts and 3D, split `main.ts` into `hud/ drive/ plan/ map/`, and in-memory route/style cache. Target: a usable HUD in under 2 s.
