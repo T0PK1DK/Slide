@@ -49,6 +49,7 @@ src/lib/tracking.ts    live GPS watch + snap-to-route progress
 src/lib/maplook.ts     night basemap lift, route ribbon, HUD fit padding
 src/lib/profile.ts     on-device driver profile, session, PIN hash, persistent storage
 src/hud/login.ts       login gate: set up driver / welcome back / lock
+src/map/you.ts         "you are here" marker: glow dot, pulse, heading cone, accuracy halo
 public/                web manifest + icon (Add to Home Screen)
 docs/PRODUCT.md        scoring contract
 docs/DESIGN.md         VIA style contract + screen-by-screen build spec
@@ -116,6 +117,8 @@ Read `TASKS.md` top unchecked item. Do not rebase history. Do not rename the pro
 
 - 2026-09-23 Claude: owner asked for a **login** so friends can test and always get back in. Built it on-device (no server, no accounts; HANDOFF rule 4 holds): `src/lib/profile.ts` + `src/hud/login.ts`. First visit: name, car tag, optional 4-digit PIN (SHA-256 hashed, a local lock, not security). Stays signed in across reloads; menu → **Lock Slide** shows "Welcome back"; "Start over" erases every `slide.*` key. Asks for persistent storage and suggests Add to Home Screen (new `public/manifest.webmanifest`), because iOS Safari clears site data after ~7 days unused otherwise. Verified in headless Chromium on an isolated page (create, validation, reload stays in, lock, wrong/right PIN, PIN not stored in plain text). **Found: the app can't start at all today.** `main.ts` imports `sameTrip` and `tripShape`, which `valhalla.ts` doesn't export, so the browser throws on load and nothing renders (blank screen). This is likely the live-site loading bug and is Nard's first fix.
 
+- 2026-09-23 Claude: **Night network look** from the owner's SEKAI reference (see DESIGN.md): warm city-light basemap palette, near-black water, route = wide soft glow + thin white line, alternates as grey hairlines, deeper glass panels, round glass FABs, route time pills as glowing glass cards, live-state dots. New `src/map/you.ts`: the driver now **sees themselves** (the Locate button used to recentre the map without drawing anything). It updates on every GPS fix, is hidden in Drive (the car takes over), greys out after 15 s without a fix, and auto-starts after sign-in only if location permission was already granted. **Fixed a pre-existing bug on `main`: the route line never drew.** All four route layers nested a zoom `interpolate` inside a `case`, which MapLibre rejects, so `route-glow/case/line/core` failed silently. Verified by rendering in headless Chromium. Navigation problems found (not fixed, for Nard): Drive runs a **simulated** car unless Locate was tapped first; the default `cinematic` camera **doesn't follow the car**; the start point falls back to **map center** instead of GPS; off-route only shows a banner, with **no reroute**.
+
 ## Next for Nard (start here)
 
 Claude did Phases 0–1 (docs only, PR #8). Read `docs/STRATEGY.md` first; it defines the core idea
@@ -123,6 +126,14 @@ and the Effort metric the later phases build on. Then work through the phases in
 
 **Phase 2: loading + stability (do first)**
 - [ ] **Make the app start.** Right now the browser throws `The requested module '/src/lib/valhalla.ts' does not provide an export named 'sameTrip'` and nothing renders. Restore `sameTrip` / `tripShape` in `valhalla.ts` (they were used by the dual-route code in commit `4c12d77`), then fix the rest of the 17 TS errors. Run `npm run dev` and confirm the map + login appear before anything else.
+- [ ] **Fix navigation so it uses real location** (owner: "it's not working, I can't see myself"):
+  1. **Start from GPS.** `ensureOrigin()` falls back to "Map center". When location is available, the From field should default to Current location, and planning should wait for the first fix (with a timeout) instead of using the map center.
+  2. **Go = real GPS.** `startDrive()` must start `locateMe()` / `startTracking` if it isn't running. The simulated `chaseT` car in `tick()` should run **only** from an explicit "Preview drive" button, labelled as a preview, never as a silent fallback.
+  3. **Camera follows the driver** in every camera mode while driving (today only `chase` follows; the default `cinematic` doesn't). Pause follow on user pan, and show a "Recenter" pill to resume.
+  4. **Reroute when off-route.** `setOffRoute(snap.offRouteM > 60)` only shows a banner. After ~8 s continuously off-route (and moving), re-plan from the current fix to the same destination with the same ranking, and keep the Slide contract.
+  5. **Arrival.** When within ~40 m of the destination (or progress ≥ 99%), stop tracking-driven guidance and show the Arrival screen (DESIGN.md 07).
+  6. **Permission states.** Denied / unavailable / timeout each get a clear message plus "Search a start point instead". iOS needs HTTPS (pages.dev is fine; a LAN IP over http is not).
+  7. The "you" dot (`src/map/you.ts`) and the drive car must never both show; `setHudMode` already hides the dot in Drive.
 - [ ] Login is built (`src/hud/login.ts`). After the app starts, check: first visit shows "Set up your driver", the car tag seeds the garage tag, reload stays signed in, menu → Lock Slide shows "Welcome back", PIN works.
 - [x] VIA skin patch applied on this branch (commit `VIA skin: premium night HUD…`). `docs/DESIGN.md` is the style contract and now has a **screen-by-screen build spec** for all 10 canvas screens — build from that, not from the canvas directly.
 - [ ] VIA design canvas (reference only): https://claude.ai/artifact/3nbD5TfjZeoWbQEyf5yXu2. Where the canvas and `docs/DESIGN.md` disagree (traffic bars, crowd hazard reports, "Report a hazard", weather, "VIA" wordmark), **DESIGN.md wins**.

@@ -40,6 +40,7 @@ import {
   routeLayerPaints,
 } from "./lib/maplook";
 import { ensureSignedIn, lockApp } from "./hud/login";
+import { createYouMarker } from "./map/you";
 import { cumulativeMiles, snapToRoute, startTracking, type Fix, type TrackerHandle } from "./lib/tracking";
 
 const MIAMI: LonLat = { lon: -80.1918, lat: 25.7617 };
@@ -168,6 +169,7 @@ const map = new maplibregl.Map({
   attributionControl: false,
   maxPitch: 75,
 });
+const you = createYouMarker(map);
 map.addControl(new maplibregl.AttributionControl({ compact: true }), "top-right");
 
 let origin: LonLat | null = null;
@@ -317,7 +319,18 @@ ensureSignedIn(document.body, (driver) => {
     if (tagInput) tagInput.value = garage.tag;
   }
   if (!garage.coachDismissed) showCoach(true);
+  void autoLocate();
 });
+
+/** Show the driver on the map at launch, but only if they've already allowed location — never a surprise prompt. */
+async function autoLocate() {
+  try {
+    const status = await navigator.permissions?.query({ name: "geolocation" as PermissionName });
+    if (status?.state === "granted" && !tracker) locateMe();
+  } catch {
+    // Permissions API missing (older Safari): wait for the Locate button.
+  }
+}
 
 function showCoach(on: boolean) {
   coachEl.toggleAttribute("hidden", !on);
@@ -445,6 +458,7 @@ function setHudMode(mode: "plan" | "review" | "drive") {
   hudMode = mode;
   document.body.dataset.mode = mode;
   const driving = mode === "drive";
+  you.setVisible(!driving);
   const reviewing = mode === "review";
   driveBarEl.toggleAttribute("hidden", !driving);
   reviewEl.toggleAttribute("hidden", !reviewing);
@@ -589,6 +603,7 @@ function stopTracking() {
   tracker?.stop();
   tracker = null;
   liveFix = null;
+  you.remove();
   $("#locate").classList.remove("on");
   $("#locate").textContent = "Locate";
 }
@@ -602,6 +617,7 @@ function locateMe() {
   tracker = startTracking(
     (fix) => {
       liveFix = fix;
+      you.update(fix);
       if (!first) return;
       first = false;
       origin = fix.pos;

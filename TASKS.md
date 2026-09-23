@@ -14,6 +14,9 @@ Work top-down. Check the box in the same PR.
 ## P0 — make the demo reliable
 
 - [ ] **App doesn't start**: `sameTrip` / `tripShape` missing from `valhalla.ts` (browser module error → blank screen)
+- [x] Route line draws again (MapLibre rejected zoom-inside-case expressions on all four route layers)
+- [x] "You are here" marker on the map whenever location is on
+- [ ] Navigation on real GPS: start from GPS, Go starts tracking, camera follows, reroute when off-route, arrival (HANDOFF → Next for Nard)
 - [x] On-device login: set up driver, stay signed in, lock, optional PIN, Add to Home Screen manifest
 
 - [ ] `npm run build` is clean (fix TS, unused, layer add-before-style-load)

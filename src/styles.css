@@ -422,3 +422,70 @@ body[data-mode="drive"] .limit b { font-size: 30px; }
 .login-go { min-height: 56px; border-radius: 18px; font-size: 17px; }
 .login-reset { min-height: 44px; border-radius: 16px; font-size: 14px; }
 .login-hint { margin: 0; font-size: 13px; line-height: 1.4; color: var(--faint); }
+
+/* ==========================================================================
+   Night network — premium layer from the owner's SEKAI reference (docs/DESIGN.md).
+   Deeper, more translucent glass; a hairline top highlight; warm light on the map;
+   glowing markers. Layered last so it wins over the VIA base without touching layout.
+   ========================================================================== */
+:root {
+  --glass: rgba(12, 13, 16, 0.72);
+  --glass-2: rgba(12, 13, 16, 0.86);
+  --line: rgba(255, 255, 255, 0.08);
+  --lift: inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  --shadow: 0 30px 60px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(0, 0, 0, 0.35);
+  --live: #3ecf8e;
+}
+html, body, #app { background: #05070a; }
+.vignette { background: radial-gradient(ellipse at 50% 42%, transparent 40%, rgba(5, 7, 10, .55) 100%); }
+.panel {
+  background: linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,0) 40%), var(--glass);
+  backdrop-filter: blur(26px) saturate(1.35);
+  -webkit-backdrop-filter: blur(26px) saturate(1.35);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow), var(--lift);
+}
+
+/* Round glass controls, like the map's zoom / locate stack */
+.map-fab {
+  border-radius: 50%; border: 1px solid var(--line);
+  background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,0)), rgba(14, 15, 18, .82);
+  backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+  box-shadow: 0 12px 28px rgba(0,0,0,.5), var(--lift); color: var(--text);
+}
+.map-fab:active { transform: scale(.96); }
+
+/* Route time pills → floating glass cards ("2.5 min · to next stop") */
+.route-chip {
+  border-radius: 16px; padding: 9px 14px 8px; min-width: 84px;
+  background: var(--glass-2); border: 1px solid var(--line);
+  backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+  box-shadow: 0 16px 36px rgba(0,0,0,.55), var(--lift);
+}
+.route-chip b { font-size: 20px; font-weight: 300; letter-spacing: -0.03em; color: var(--text); }
+.route-chip span { font-family: var(--mono); font-size: 9px; letter-spacing: .16em; color: var(--faint); }
+.route-chip.on { background: var(--glass-2); border-color: rgba(255,255,255,.22); color: var(--text); box-shadow: 0 16px 36px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.06), 0 0 28px color-mix(in srgb, var(--glow) 22%, transparent); }
+.route-chip.on b { color: #fff; }
+.route-chip.on span { color: var(--glow); }
+
+/* Live-state dots: only for real states (GPS locked, offline, off-route) */
+.status-pill::before { content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 8px; border-radius: 50%; background: var(--live); box-shadow: 0 0 10px var(--live); vertical-align: 1px; }
+
+/* You are here — white core, glow ring, slow pulses, heading cone, accuracy halo */
+.you { position: relative; width: 0; height: 0; pointer-events: none; }
+.you > span { position: absolute; left: 0; top: 0; transform: translate(-50%, -50%); border-radius: 50%; }
+.you-acc { width: 60px; height: 60px; background: color-mix(in srgb, var(--glow) 10%, transparent); border: 1px solid color-mix(in srgb, var(--glow) 22%, transparent); transition: width .4s ease, height .4s ease; }
+.you-dot { width: 18px; height: 18px; background: #fff; border: 3px solid var(--glow); box-shadow: 0 0 0 2px rgba(5,7,10,.6), 0 0 18px 4px color-mix(in srgb, var(--glow) 55%, transparent); }
+.you-pulse { width: 18px; height: 18px; border: 2px solid color-mix(in srgb, var(--glow) 70%, white); animation: you-pulse 2.4s cubic-bezier(.2,.6,.3,1) infinite; }
+.you-pulse-2 { animation-delay: 1.2s; }
+.you-cone {
+  width: 72px !important; height: 72px !important; border-radius: 0 !important;
+  transform: translate(-50%, -100%) !important; transform-origin: 50% 100%;
+  background: conic-gradient(from -28deg at 50% 100%, color-mix(in srgb, var(--glow) 55%, transparent) 0deg, transparent 56deg);
+  clip-path: polygon(50% 100%, 12% 0, 88% 0);
+  filter: blur(1px); opacity: .85;
+}
+.you.stale .you-dot { background: #a9a8ae; border-color: #6d6c72; box-shadow: 0 0 0 2px rgba(5,7,10,.6); }
+.you.stale .you-pulse, .you.stale .you-cone { display: none; }
+@keyframes you-pulse { 0% { width: 18px; height: 18px; opacity: .9; } 100% { width: 76px; height: 76px; opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .you-pulse { animation: none; opacity: 0; } }
