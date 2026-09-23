@@ -9,7 +9,7 @@ Work top-down. Check the box in the same PR.
 - [ ] Fit camera to route on first plan (cinematic), then allow Chase
 - [ ] Real GPS speed in the speedo when Locate is active (`watchPosition`)
 - [ ] Upcoming posted-speed chip: “Hold 45 → 30 in 0.4 mi”
-- [ ] GitHub Pages (or Cloudflare Pages) so the owner can open it on a phone
+- [x] GitHub Pages (or Cloudflare Pages) so the owner can open it on a phone
 
 ## P1 — navigation that feels finished
 
