@@ -142,6 +142,22 @@ The canvas version is a Waze pattern. Rebuild it so it complies with the product
 - Use this layout for **phone landscape in a mount**: maneuver on the left, map on the right, limit sign + ETA.
 - Remove its "Report a hazard" button, same as Drive.
 
+### Reference: "SEKAI" night-network look (owner, 2026-09-23)
+A desktop transit-ops dashboard the owner likes: a satellite night map with city lights, a thin white route line with a
+soft glow, circular glowing markers with pulse rings, glass cards with big thin numerals, and a Map / Satellite / Terrain switch.
+It's a **look** reference; its layout is a fleet control room, not a phone in a car mount.
+
+| Take | How it lands in Slide |
+| --- | --- |
+| Night map with warm city lights, water near-black, roads faint | Night basemap target (with the Snap street-level ref). Satellite imagery needs a licensed tile source; until then, get the feel from OpenFreeMap dark + a warm tint on roads and buildings |
+| Thin white route core + wide soft glow; the vehicle as a glowing circle with a pulse ring | Route ribbon and the player / ghost markers in Plan and Explore (Drive keeps the 3D car) |
+| Floating glass card: "2.5 min · to next stop" with a sparkline | The Route preview time pill and the Drive next-maneuver card; the sparkline becomes the posted-speed profile |
+| Big weight-200 numerals (78.3%), mono micro labels | Already in the VIA tokens; this confirms them |
+| Status dots (green active / red alert) | Only for real states: GPS locked, offline, off-route |
+| Map / Satellite / Terrain segmented switch | The existing 3D / FLAT skin toggle, restyled as this segmented control |
+| **Do not take:** "Congestion Predicted · AI Analysis", the red congestion heat, "+18 min delay" | Predicted traffic with no data behind it is fake traffic (product rule). Only show it once a licensed live or historical speed source exists |
+| **Do not take:** the three-column desktop layout, fleet list, passenger-flow chart | Not a driver screen. A desktop "trip review" page could reuse the style later |
+
 ### Missing from the canvas (design these next)
 - **Onboarding:** location permission with a reason line, then set Home / Work, then pick your car. Three screens, skippable.
 - **Offline / no-route:** a calm sheet "Can't reach the route engine — retrying" with the last cached route if one exists; "No smooth route inside +10% — showing fastest".
