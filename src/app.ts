@@ -175,7 +175,7 @@ export async function boot(): Promise<void> {
     paintSwatches($("#g-body"), ["#e8eef2", "#7cf0d8", "#b388ff", "#ff8a4c", "#8fd3ff", "#111318"], garage.carColor, (c) => {
       garage.carColor = c; persist(); drive.restylePlayer();
     });
-    paintSwatches($("#g-glow"), ["#78e0c8", "#b388ff", "#ffc857", "#8fd3ff", "#d6ff3c"], garage.glow, (c) => {
+    paintSwatches($("#g-glow"), ["#f0a04b", "#78e0c8", "#b388ff", "#8fd3ff", "#d6ff3c"], garage.glow, (c) => {
       garage.glow = c; persist();
     });
     tag.addEventListener("change", () => { garage.tag = tag.value.toUpperCase() || "SLIDE-01"; persist(); });

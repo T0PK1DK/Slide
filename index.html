@@ -4,10 +4,14 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>Slide</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@200;300;400;500;600&family=Geist+Mono:wght@400;500&display=swap" />
+    <meta name="theme-color" content="#07080a" />
     <meta name="description" content="Smoothest driving routes. Posted speeds. Precise timing." />
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%23070b10'/><path d='M12 40c8-18 32-18 40 0' stroke='%2378e0c8' stroke-width='4' fill='none' stroke-linecap='round'/><circle cx='32' cy='26' r='5' fill='%23f3c15a'/></svg>" />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%2307080a'/><path d='M12 40c8-18 32-18 40 0' stroke='%23f0a04b' stroke-width='4' fill='none' stroke-linecap='round'/><circle cx='32' cy='26' r='5' fill='%23f4f3ef'/></svg>" />
     <style>
-      html, body, #app { margin: 0; height: 100%; background: #1b2838; color: #eef6fb; overflow: hidden; font-family: "Slide UI", Bahnschrift, "Segoe UI Variable", "Segoe UI", sans-serif; }
+      html, body, #app { margin: 0; height: 100%; background: #07080a; color: #f4f3ef; overflow: hidden; font-family: Geist, "Slide UI", "Helvetica Neue", Helvetica, "Segoe UI", sans-serif; }
       #app { position: relative; }
       .skel-map { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 48%, #24344a 0%, #1b2838 70%); }
       .skel-map::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, rgba(255,255,255,.04), transparent); animation: skel 1.4s ease-in-out infinite; }
@@ -81,7 +85,7 @@
         </div>
         <div class="speedo drive-only" id="speedo" hidden>
           <div class="cluster">
-            <div class="limit" id="limit" hidden><span>Limit</span><b id="limit-n">—</b></div>
+            <div class="limit" id="limit" hidden><span>Speed limit</span><b id="limit-n">—</b></div>
             <div class="live"><div class="n" id="speed-n">0</div><div class="u" id="speed-src">Est</div></div>
           </div>
           <div class="ghost-delta" id="ghost-delta">GHOST ±0.0s</div>

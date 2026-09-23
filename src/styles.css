@@ -293,3 +293,119 @@ button.ghost.on { color: var(--glow); border-color: color-mix(in srgb, var(--glo
   .drive-bar, .review-sheet { left: 12px; right: auto; width: min(360px, 52vw); }
   body[data-mode="drive"] .speedo { left: auto; right: 16px; transform: none; bottom: calc(16px + env(safe-area-inset-bottom)); }
 }
+
+/* ==========================================================================
+   VIA skin — premium night HUD (see docs/DESIGN.md)
+   Layered on top of the base rules above: tokens, type, surfaces, and the
+   key driving components. No layout/logic changes. --glow stays the
+   Garage-chosen accent (default copper) so personalization still works.
+   ========================================================================== */
+:root {
+  --bg: #07080a;
+  --glass: rgba(15, 16, 18, 0.86);
+  --glass-2: rgba(15, 16, 18, 0.96);
+  --surface: #16171a;
+  --line: #26272b;
+  --line-soft: #1d1e21;
+  --text: #f4f3ef;
+  --muted: #a9a8ae;
+  --faint: #8c8b92;
+  --danger: #e5534b;
+  --amber: #f0a04b;
+  --shadow: 0 24px 50px rgba(0, 0, 0, 0.55);
+  --lift: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  --mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-family: "Geist", "Helvetica Neue", Helvetica, "Segoe UI", sans-serif;
+  font-feature-settings: "tnum" 1;
+}
+html, body, #app { background: var(--bg); }
+.vignette { background: radial-gradient(ellipse at 50% 45%, transparent 45%, rgba(7, 8, 10, .45) 100%); }
+.panel { background: var(--glass); backdrop-filter: blur(20px) saturate(1.1); border: 1px solid var(--line); box-shadow: var(--shadow), var(--lift); }
+
+/* Micro labels: mono, tracked, quiet */
+.recents-label, .field label, .stat span, .speedo .u, .route-chip span,
+.garage h3, .garage label, .speed-rail h2, .chip, .ghost-label, .limit span {
+  font-family: var(--mono); letter-spacing: .16em;
+}
+.chip { color: var(--glow); border-color: color-mix(in srgb, var(--glow) 35%, transparent); }
+.brand h1 { font-weight: 500; letter-spacing: .4em; }
+
+/* Big numerals: thin weight = instrument feel */
+.man-text b, .review-head b, .drive-bar .meta b, .speedo .n, .stat b, .route-chip b {
+  font-weight: 200; letter-spacing: -0.04em;
+}
+.speedo .n { text-shadow: none; font-family: var(--mono); font-weight: 400; letter-spacing: -0.03em; }
+
+/* Inputs + buttons */
+.where-row input, .field input, .garage input[type="text"], .garage select { background: var(--surface); border-color: var(--line); }
+button.primary {
+  background: var(--glow); color: #07080a; font-weight: 600;
+  box-shadow: 0 12px 30px color-mix(in srgb, var(--glow) 28%, transparent), inset 0 1px 0 rgba(255,255,255,.3);
+}
+button.ghost { color: var(--text); border-color: #34353a; }
+button.icon, .place-chip, .map-fab { background: var(--surface); border-color: var(--line); }
+.place-chip { min-height: 40px; }
+.map-fab { width: 48px; height: 48px; }
+
+/* Maneuver: copper tile + huge thin distance */
+.maneuver { border-radius: 24px; padding: 14px 16px; gap: 14px; }
+.maneuver .arrow {
+  width: 60px; height: 60px; padding: 12px; border-radius: 18px;
+  background: var(--glow); color: #07080a;
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--glow) 30%, transparent), inset 0 1px 0 rgba(255,255,255,.3);
+}
+.maneuver .arrow path { stroke-width: 2.6; }
+.maneuver.imminent .arrow { color: #07080a; background: #f4f3ef; }
+.maneuver.off-route .arrow { color: #fff; background: var(--danger); }
+.man-text span { color: var(--text); font-weight: 600; }
+.man-bar { height: 3px; background: var(--line); }
+body[data-mode="drive"] .man-text b { font-size: 44px; }
+body[data-mode="drive"] .man-text span { font-size: 19px; }
+body[data-mode="drive"] .maneuver .arrow { width: 72px; height: 72px; padding: 14px; border-radius: 20px; }
+
+/* US regulatory sign (Miami is the proving ground): white rectangle, black border */
+.limit {
+  width: 56px; height: 68px; border-radius: 10px; background: #fff; color: #07080a;
+  border: 2.5px solid #07080a; box-shadow: 0 0 0 2px #fff, 0 10px 26px rgba(0,0,0,.5);
+  text-align: center; gap: 2px;
+}
+.limit span { font-size: 7px; line-height: 1.15; color: #07080a; font-weight: 600; letter-spacing: .08em; max-width: 44px; }
+.limit b { font-size: 26px; font-weight: 700; font-family: var(--mono); }
+body[data-mode="drive"] .limit { width: 64px; height: 78px; border-width: 3px; }
+body[data-mode="drive"] .limit b { font-size: 30px; }
+.limit.over { animation: limit-pulse-via 1.1s ease-in-out infinite; }
+@keyframes limit-pulse-via { 50% { box-shadow: 0 0 0 2px #fff, 0 0 0 9px rgba(229,83,75,.4); } }
+.ghost-delta { font-family: var(--mono); font-size: 11px; letter-spacing: .12em; }
+
+/* Posted-speed chip */
+.posted-chip { font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; }
+.posted-chip.drop { color: var(--amber); border-color: color-mix(in srgb, var(--amber) 40%, transparent); }
+
+/* Route overview + chips */
+.review-sheet { border-radius: 30px; padding: 20px 18px 18px; }
+.review-head b { font-size: 52px; line-height: .9; }
+.review-via { font-size: 16px; font-weight: 500; }
+.review-actions .primary, .review-actions .ghost { border-radius: 18px; min-height: 56px; }
+.route-option { border-radius: 18px; background: var(--surface); border-color: var(--line); }
+.route-option.selected { background: color-mix(in srgb, var(--glow) 9%, var(--surface)); border-color: var(--glow); }
+.route-option .tag { font-family: var(--mono); letter-spacing: .14em; }
+.route-chip { border-radius: 14px; border-color: var(--line); background: var(--glass-2); }
+.route-chip.on { background: var(--glow); border-color: var(--glow); color: #07080a; }
+.route-chip.on b, .route-chip.on span { color: #07080a; }
+
+/* Drive bar: thin ETA, calm End */
+.drive-bar { border-radius: 26px; padding: 14px 16px; }
+.drive-bar .meta b { font-size: 34px; line-height: 1; }
+.drive-bar .end { background: #1e1212; color: #ff8a80; border: 1px solid #3a2a2a; border-radius: 999px; font-weight: 500; padding: 14px 22px; }
+.stat, .band { border-color: var(--line); background: var(--surface); border-radius: 16px; }
+.band .spd { color: var(--glow); font-weight: 300; font-family: var(--mono); }
+
+/* Garage + overflow + coach */
+.garage { border-radius: 26px; }
+.swatch.on { border-color: #f4f3ef; box-shadow: 0 0 0 2px #07080a inset; }
+.overflow { border-radius: 20px; }
+.coach { background: linear-gradient(180deg, transparent 0%, rgba(7,8,10,.25) 45%, rgba(7,8,10,.65) 100%); }
+.coach-card { border-radius: 26px; }
+.coach-card h2 { font-weight: 300; font-size: 24px; letter-spacing: -0.01em; }
+.status-pill { font-family: var(--mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; }
+.recenter { font-family: var(--mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; min-height: 44px; }
