@@ -112,7 +112,7 @@ app.innerHTML = `
     </div>
     <div class="speedo drive-only" id="speedo" hidden>
       <div class="cluster">
-        <div class="limit" id="limit" hidden><span>Limit</span><b id="limit-n">—</b></div>
+        <div class="limit" id="limit" hidden><span>Speed limit</span><b id="limit-n">—</b></div>
         <div class="live"><div class="n" id="speed-n">0</div><div class="u" id="speed-src">Est</div></div>
       </div>
       <div class="ghost-delta" id="ghost-delta">GHOST ±0.0s</div>
@@ -411,7 +411,7 @@ function wireGarage() {
   tag.value = garage.tag; trail.value = garage.trail; cam.value = garage.camera;
   build.checked = garage.showBuildings; ghostsBox.checked = garage.showGhosts; share.checked = garage.shareGhost;
   paintSwatches($("#g-body"), ["#e8eef2","#7cf0d8","#b388ff","#ff8a4c","#8fd3ff","#111318"], garage.carColor, (c) => { garage.carColor = c; persist(); restylePlayer(); });
-  paintSwatches($("#g-glow"), ["#78e0c8","#b388ff","#ffc857","#8fd3ff","#d6ff3c"], garage.glow, (c) => { garage.glow = c; persist(); });
+  paintSwatches($("#g-glow"), ["#f0a04b","#78e0c8","#b388ff","#8fd3ff","#d6ff3c"], garage.glow, (c) => { garage.glow = c; persist(); });
   tag.addEventListener("change", () => { garage.tag = tag.value.toUpperCase() || "SLIDE-01"; persist(); });
   trail.addEventListener("change", () => { garage.trail = trail.value as GarageConfig["trail"]; persist(); paintRoutes(); });
   cam.addEventListener("change", () => { garage.camera = cam.value as GarageConfig["camera"]; persist(); applyCamera(garage.camera); });

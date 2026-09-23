@@ -32,7 +32,7 @@ export const TRAILS: Record<TrailStyle, { line: string; ghost: string }> = {
 export const DEFAULT_GARAGE: GarageConfig = {
   tag: "SLIDE-01",
   carColor: "#e8eef2",
-  glow: "#78e0c8",
+  glow: "#f0a04b",
   trail: "plasma",
   camera: "cinematic",
   mapSkin: "cinematic",
