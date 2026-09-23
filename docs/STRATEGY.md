@@ -94,7 +94,7 @@ can win. That is the most serious gap in the current product, and fixing it is t
 ### The 3D "living map" layer (owner direction, 2026-09-23)
 
 The owner shared Snap Map screenshots (3D Bitmoji on a dark map, activity heat, Footsteps "2.4% Explored",
-a "Me 1m" trail) and Waze on CarPlay (other drivers as avatars on the route, signal icons, a speed bubble).
+a "Me 1m" trail) and a photo of Waze running on their car's CarPlay screen (other drivers as avatars on the route, signal icons, a speed bubble).
 The ask: **the same living-map feel, but with cars instead of avatars, so navigating feels like Forza.**
 
 This fits the core idea because it turns the day-30 habit into something you can see. Here's how it maps
@@ -109,6 +109,16 @@ without breaking the product rules:
 | Wazers on the road as avatars | **Ghost cars on the road around you**, simulated today and clearly labeled as such | No, until presence exists |
 | Waze signal icons on the route | **Signals, lefts and merges drawn on the route as small icons**: the Effort events made visible | No |
 | Friends' Bitmoji at their real locations | **Friends' cars, opt-in only**, deferred until presence is designed | Yes |
+
+A second batch of owner screenshots (Snap Map zoomed out, zoomed in to street level, and the growing
+"6.1% Explored") added four more things:
+
+| Snap detail | What Slide takes from it |
+| --- | --- |
+| Street-level dark map: slate-blue roads on navy, soft grey labels, calm and easy to read | **Reference for the Slide night basemap.** It fixes the "black map" complaint: never pure black, roads a step lighter than land, labels about 70% white |
+| Heat that runs blue → yellow → red where activity is densest | **"Pain points" heat**: where Effort events (lefts, stops, merges) cluster on *your* drives. Drawn in one accent hue at rising intensity, not rainbow, to keep the one-accent rule |
+| Explored % that visibly grows (2.4% → 6.1%) | Confirms "Miami driven %" as the hook: the number has to move after almost every drive, so it counts road *segments*, not whole neighborhoods |
+| Chip row (Memories · Top Visited · Trending · Footsteps) and a map / satellite / globe layer switcher | Explore chips: **Driven · Usual · Pain points** (on-device lenses, only when parked). Slide keeps its single 3D / FLAT skin toggle rather than adding satellite |
 
 Rules this layer must keep:
 - **Privacy:** driven roads, heat and trails stay on the device (HANDOFF rule 4). No uploads.
