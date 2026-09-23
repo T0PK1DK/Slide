@@ -1,3 +1,5 @@
+import { fetchJson } from "./net";
+
 export const VALHALLA_URL =
   "https://valhalla1.openstreetmap.de";
 export const PHOTON_URL = "https://photon.komoot.io/api";
@@ -99,18 +101,6 @@ const SMOOTH_COSTING = {
     },
   },
 };
-
-async function fetchJson(url: string, init: RequestInit = {}, ms = 8000): Promise<any> {
-  const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), ms);
-  try {
-    const res = await fetch(url, { ...init, signal: ctrl.signal });
-    if (!res.ok) throw new Error(`${res.status}`);
-    return await res.json();
-  } finally {
-    clearTimeout(t);
-  }
-}
 
 export async function searchPlaces(query: string, bias?: LonLat): Promise<SearchHit[]> {
   const q = query.trim();
@@ -223,15 +213,15 @@ export async function requestTraceAttributes(
     },
   };
 
-  const res = await fetch(`${VALHALLA_URL}/trace_attributes`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
+  try {
+    return await fetchJson<TraceAttributes>(`${VALHALLA_URL}/trace_attributes`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }, 12000);
+  } catch {
     return { edges: [] };
   }
-  return res.json();
 }
 
 export function collectTrips(response: RouteResponse): ValhallaTrip[] {
@@ -241,4 +231,16 @@ export function collectTrips(response: RouteResponse): ValhallaTrip[] {
     if (alt.trip) trips.push(alt.trip);
   }
   return trips;
+}
+
+export function tripShape(trip: ValhallaTrip): string {
+  return trip.legs.map((l) => l.shape).join("");
+}
+
+/** True when two trips are the same line (identical shape or near-identical time/length). */
+export function sameTrip(a: ValhallaTrip, b: ValhallaTrip): boolean {
+  if (tripShape(a) === tripShape(b)) return true;
+  const dt = Math.abs(a.summary.time - b.summary.time);
+  const dl = Math.abs(a.summary.length - b.summary.length);
+  return dt < 25 && dl < 0.06;
 }

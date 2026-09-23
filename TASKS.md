@@ -7,13 +7,14 @@ Work top-down. Check the box in the same PR.
 > Handed to Nard on 2026-09-23. Full phase checklist: **Next for Nard** in `HANDOFF.md`.
 
 - [x] Phase 0–1: `docs/STRATEGY.md` (Magi pass + design recon)
+- [x] Phase 2: loading + stability (build clean, skeleton HUD, map fade, retries, split modules). VIA skin skipped — Phase 4.
 - [ ] Phase 4/5: 3D living map — garage car on Explore, "Miami driven %" (on-device), Effort icons on the route
 - [ ] Presence design (friends' cars, opt-in) before any backend
 - [ ] Phase 3: `rankRoutes()` = least Effort within +10% of fastest (today it has no time bound)
 
 ## P0 — make the demo reliable
 
-- [ ] `npm run build` is clean (fix TS, unused, layer add-before-style-load)
+- [x] `npm run build` is clean (fix TS, unused, layer add-before-style-load)
 - [x] If Valhalla returns one trip, fire a second `/route` with higher `use_highways` / lower `maneuver_penalty` so Faster exists (preview)
 - [ ] Fit camera to route on first plan (cinematic), then allow Chase
 - [ ] Real GPS speed in the speedo when Locate is active (`watchPosition`)
@@ -26,7 +27,7 @@ Work top-down. Check the box in the same PR.
 - [ ] Snap player marker to shape from live GPS (map matching later)
 - [ ] Leave-by: user sets arrival clock → show depart time + 3 min buffer (`leaveByForTarget` already exists)
 - [ ] Door-level destination note in UI (entrance / garage) even if pin is still centroid
-- [ ] Offline message when Photon/Valhalla fail
+- [x] Offline message when Photon/Valhalla fail
 
 ## P2 — ghosts that can become real
 

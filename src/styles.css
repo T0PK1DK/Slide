@@ -1,3 +1,8 @@
+@font-face {
+  font-family: "Slide UI";
+  src: local("Bahnschrift"), local("Segoe UI Variable"), local("Segoe UI");
+  font-display: swap;
+}
 :root {
   --bg: #05070c;
   --glass: rgba(8, 12, 20, 0.62);
@@ -10,14 +15,23 @@
   --amber: #ffc857;
   --glow: #78e0c8;
   --shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
-  font-family: "Bahnschrift", "Segoe UI Variable", "Segoe UI", sans-serif;
+  font-family: "Slide UI", "Bahnschrift", "Segoe UI Variable", "Segoe UI", sans-serif;
 }
 
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 html, body, #app { margin: 0; height: 100%; background: #1b2838; color: var(--text); overflow: hidden; }
 #app { position: relative; }
-#map { position: absolute; inset: 0; filter: brightness(1.16) saturate(1.08); }
+#map { position: absolute; inset: 0; filter: brightness(1.16) saturate(1.08); opacity: 0; transition: opacity .45s ease; }
+#map.is-ready { opacity: 1; }
+#map.map-pending { opacity: 0; }
+.skel-map { z-index: 0; }
+body.map-ready .skel-map { display: none; }
+.net-banner {
+  position: absolute; top: calc(16px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%);
+  border-radius: 999px; padding: 8px 14px; font-size: 12px; z-index: 8; max-width: min(420px, calc(100vw - 32px));
+  color: var(--amber); border-color: rgba(255,200,87,.35);
+}
 .vignette { pointer-events: none; position: absolute; inset: 0; z-index: 1; background: radial-gradient(ellipse at 50% 48%, transparent 42%, rgba(8, 14, 22, .32) 100%); }
 .hud { position: absolute; inset: 0; pointer-events: none; z-index: 2; }
 .hud > * { pointer-events: auto; }
@@ -209,7 +223,7 @@ button.ghost.on { color: var(--glow); border-color: color-mix(in srgb, var(--glo
 
 /* Mobile: overlays, not a stacked column that eats the map. */
 @media (max-width: 820px) {
-  .search-card, .maneuver, .posted-chip, .dash, .speedo, .speed-rail, .status-pill, .recenter, .drive-bar, .review-sheet {
+  .search-card, .maneuver, .posted-chip, .dash, .speedo, .speed-rail, .status-pill, .recenter, .drive-bar, .review-sheet, .net-banner {
     left: 12px; right: 12px; width: auto; max-width: none; transform: none;
   }
   body:not([data-mode="plan"]) .search-card { top: calc(12px + env(safe-area-inset-top)); }

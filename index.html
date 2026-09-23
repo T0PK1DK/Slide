@@ -6,9 +6,124 @@
     <title>Slide</title>
     <meta name="description" content="Smoothest driving routes. Posted speeds. Precise timing." />
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%23070b10'/><path d='M12 40c8-18 32-18 40 0' stroke='%2378e0c8' stroke-width='4' fill='none' stroke-linecap='round'/><circle cx='32' cy='26' r='5' fill='%23f3c15a'/></svg>" />
+    <style>
+      html, body, #app { margin: 0; height: 100%; background: #1b2838; color: #eef6fb; overflow: hidden; font-family: "Slide UI", Bahnschrift, "Segoe UI Variable", "Segoe UI", sans-serif; }
+      #app { position: relative; }
+      .skel-map { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 48%, #24344a 0%, #1b2838 70%); }
+      .skel-map::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, rgba(255,255,255,.04), transparent); animation: skel 1.4s ease-in-out infinite; }
+      @keyframes skel { 50% { opacity: .45; } }
+    </style>
   </head>
-  <body>
-    <div id="app"></div>
+  <body data-mode="plan">
+    <div id="app">
+      <div class="skel-map" id="skel-map" aria-hidden="true"></div>
+      <div id="map" class="map-pending"></div>
+      <div class="vignette"></div>
+      <div class="hud">
+        <button class="map-fab menu-fab plan-only" id="menu-fab" type="button" aria-label="Menu">☰</button>
+        <button class="map-fab compass-fab plan-only" id="compass-fab" type="button" aria-label="North up">
+          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M12 3l4 14-4-2-4 2z" fill="currentColor"/></svg>
+        </button>
+        <button class="map-fab locate-fab plan-only" id="locate-fab" type="button" aria-label="Locate">⌖</button>
+        <div class="panel search-card plan-only" id="search-card">
+          <div class="brand desktop-only"><h1>Slide</h1><span class="chip" id="rank-chip">GARAGE</span><button class="icon" id="help" type="button" aria-label="How to Slide">?</button></div>
+          <div class="where-row">
+            <svg class="where-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M16 16l5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            <input id="to" placeholder="Where to?" autocomplete="off" />
+            <div class="suggest" id="to-suggest" hidden></div>
+          </div>
+          <div class="sheet-more">
+            <div class="fields">
+              <div class="field"><label>From</label><input id="from" placeholder="Current location or address" autocomplete="off" /><div class="suggest" id="from-suggest" hidden></div></div>
+            </div>
+            <div class="place-chips" id="place-chips">
+              <button type="button" class="place-chip" id="chip-home">Home</button>
+              <button type="button" class="place-chip" id="chip-work">Work</button>
+              <button type="button" class="place-chip" id="chip-saved" hidden></button>
+            </div>
+            <div class="recents" id="recents" hidden></div>
+            <div class="actions">
+              <button class="primary" id="go">Drop the line</button>
+              <button class="ghost" id="locate">Locate</button>
+              <button class="icon" id="tune">Tune</button>
+            </div>
+            <div class="error" id="error" hidden></div>
+          </div>
+        </div>
+        <div class="panel status-pill" id="status">Locking a 3D line…</div>
+        <div class="panel net-banner" id="net-banner" hidden></div>
+        <div class="panel maneuver drive-only" id="maneuver" hidden>
+          <svg class="arrow" viewBox="0 0 24 24" aria-hidden="true"><path id="man-arrow" d="" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <div class="man-text"><b id="man-dist">—</b><span id="man-instr">—</span></div>
+          <div class="man-bar"><i id="man-fill"></i></div>
+        </div>
+        <div class="panel posted-chip drive-only" id="posted" hidden></div>
+        <div class="panel review-sheet review-only" id="review-sheet" hidden>
+          <div class="review-head">
+            <b id="review-eta">—</b>
+            <span id="review-dist">—</span>
+          </div>
+          <p class="review-via" id="review-via">—</p>
+          <p class="review-tag" id="review-tag">—</p>
+          <div class="review-actions">
+            <button class="ghost" id="review-back" type="button">Where to?</button>
+            <button class="primary" id="review-go" type="button">Go now</button>
+          </div>
+        </div>
+        <div class="panel dash plan-only" id="dash" hidden>
+          <div class="stat-row">
+            <div class="stat"><span>Slide</span><b id="stat-score">—</b></div>
+            <div class="stat"><span>Arrive</span><b id="stat-eta">—</b></div>
+            <div class="stat"><span>Ghosts</span><b id="stat-ghosts">0</b></div>
+            <div class="stat"><span>Streak</span><b id="stat-streak">0</b></div>
+          </div>
+          <div id="routes"></div>
+        </div>
+        <div class="speedo drive-only" id="speedo" hidden>
+          <div class="cluster">
+            <div class="limit" id="limit" hidden><span>Limit</span><b id="limit-n">—</b></div>
+            <div class="live"><div class="n" id="speed-n">0</div><div class="u" id="speed-src">Est</div></div>
+          </div>
+          <div class="ghost-delta" id="ghost-delta">GHOST ±0.0s</div>
+        </div>
+        <button class="panel recenter drive-only" id="recenter" hidden>Recenter</button>
+        <div class="panel speed-rail" id="speeds" hidden></div>
+        <div class="panel drive-bar drive-only" id="drive-bar" hidden>
+          <div class="meta"><b id="drive-eta">—</b><span id="drive-remain">—</span></div>
+          <button class="icon" id="more" type="button" aria-label="More">⋯</button>
+          <button class="end" id="end-drive" type="button">End</button>
+        </div>
+        <div class="panel overflow" id="overflow">
+          <button type="button" id="ov-tune">Tune garage</button>
+          <button type="button" id="ov-help">How to Slide</button>
+          <button type="button" id="ov-rail">Speed rail</button>
+          <button type="button" id="ov-home">Save To as Home</button>
+          <button type="button" id="ov-work">Save To as Work</button>
+        </div>
+        <div class="coach" id="coach" hidden>
+          <div class="panel coach-card">
+            <h2>How to Slide</h2>
+            <ol>
+              <li>Type <b>Where to?</b><span>Or tap Home / Work. Locate sets From.</span></li>
+              <li>Slide drops the smoothest line<span>Tap <b>Go now</b>. Fastest is an explicit pick on the map.</span></li>
+              <li>Follow the banner<span>Posted limit is the sign. Never a target to beat.</span></li>
+            </ol>
+            <button class="primary" id="coach-ok" type="button">Got it</button>
+          </div>
+        </div>
+        <div class="panel garage" id="garage">
+          <div class="garage-head"><h3>Garage</h3><button class="close" id="g-close" aria-label="Close garage">×</button></div>
+          <label>Tag</label><input id="g-tag" type="text" maxlength="12" />
+          <label>Body</label><div class="swatches" id="g-body"></div>
+          <label>Glow</label><div class="swatches" id="g-glow"></div>
+          <label>Trail</label><select id="g-trail"><option value="plasma">Plasma</option><option value="ember">Ember</option><option value="ice">Ice</option><option value="volt">Volt</option></select>
+          <label>Camera</label><select id="g-cam"><option value="cinematic">Cinematic 3D</option><option value="chase">Chase</option><option value="top">Top-down</option></select>
+          <div class="toggle"><span>3D buildings</span><input id="g-build" type="checkbox" /></div>
+          <div class="toggle"><span>Show ghosts</span><input id="g-ghosts" type="checkbox" /></div>
+          <div class="toggle"><span>Share my ghost</span><input id="g-share" type="checkbox" /></div>
+        </div>
+      </div>
+    </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
