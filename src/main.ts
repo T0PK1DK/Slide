@@ -39,6 +39,7 @@ import {
   LINE_LAYOUT,
   routeLayerPaints,
 } from "./lib/maplook";
+import { ensureSignedIn, lockApp } from "./hud/login";
 import { cumulativeMiles, snapToRoute, startTracking, type Fix, type TrackerHandle } from "./lib/tracking";
 
 const MIAMI: LonLat = { lon: -80.1918, lat: 25.7617 };
@@ -130,6 +131,7 @@ app.innerHTML = `
       <button type="button" id="ov-rail">Speed rail</button>
       <button type="button" id="ov-home">Save To as Home</button>
       <button type="button" id="ov-work">Save To as Work</button>
+      <button type="button" id="ov-lock">Lock Slide</button>
     </div>
     <div class="coach" id="coach" hidden>
       <div class="panel coach-card">
@@ -270,6 +272,7 @@ $("#ov-rail").addEventListener("click", () => {
 });
 $("#ov-home").addEventListener("click", () => { overflowEl.classList.remove("open"); savePlace("home"); });
 $("#ov-work").addEventListener("click", () => { overflowEl.classList.remove("open"); savePlace("work"); });
+$("#ov-lock").addEventListener("click", lockApp);
 $("#chip-home").addEventListener("click", () => useOrSavePlace("home"));
 $("#chip-work").addEventListener("click", () => useOrSavePlace("work"));
 $("#chip-saved").addEventListener("click", () => {
@@ -305,7 +308,16 @@ wireGarage();
 refreshPlaceChips();
 renderRecents();
 setHudMode("plan");
-if (!garage.coachDismissed) showCoach(true);
+ensureSignedIn(document.body, (driver) => {
+  // A new driver's car tag seeds the garage; after that the garage tag is theirs to change.
+  if (garage.tag === "SLIDE-01" && driver.tag !== "SLIDE-01") {
+    garage.tag = driver.tag;
+    persist();
+    const tagInput = document.querySelector<HTMLInputElement>("#g-tag");
+    if (tagInput) tagInput.value = garage.tag;
+  }
+  if (!garage.coachDismissed) showCoach(true);
+});
 
 function showCoach(on: boolean) {
   coachEl.toggleAttribute("hidden", !on);

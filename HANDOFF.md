@@ -47,6 +47,9 @@ src/lib/ghosts.ts      ghost replay along a line
 src/lib/guidance.ts    next maneuver, posted-speed lookahead, turn arrows
 src/lib/tracking.ts    live GPS watch + snap-to-route progress
 src/lib/maplook.ts     night basemap lift, route ribbon, HUD fit padding
+src/lib/profile.ts     on-device driver profile, session, PIN hash, persistent storage
+src/hud/login.ts       login gate: set up driver / welcome back / lock
+public/                web manifest + icon (Add to Home Screen)
 docs/PRODUCT.md        scoring contract
 docs/DESIGN.md         VIA style contract + screen-by-screen build spec
 docs/STRATEGY.md       why Slide wins, Effort metric, design recon (Borrowed / Rejected / Unique)
@@ -111,12 +114,16 @@ Read `TASKS.md` top unchecked item. Do not rebase history. Do not rename the pro
 
 - 2026-09-23 Claude: applied the owner's VIA skin patch (rebuilt from the PDF export; CSS/markup only, adds no TS errors). Ran design recon on the 10-screen VIA canvas and merged it into `docs/DESIGN.md` as a build spec. Main corrections: traffic bars → Effort strips, crowd hazard reports → FL511/FDOT only, no "Report a hazard", Arrival "saved" → pace-ghost delta. Corrected the TS error count to 17 (an earlier note said 13 from truncated output).
 
+- 2026-09-23 Claude: owner asked for a **login** so friends can test and always get back in. Built it on-device (no server, no accounts; HANDOFF rule 4 holds): `src/lib/profile.ts` + `src/hud/login.ts`. First visit: name, car tag, optional 4-digit PIN (SHA-256 hashed, a local lock, not security). Stays signed in across reloads; menu → **Lock Slide** shows "Welcome back"; "Start over" erases every `slide.*` key. Asks for persistent storage and suggests Add to Home Screen (new `public/manifest.webmanifest`), because iOS Safari clears site data after ~7 days unused otherwise. Verified in headless Chromium on an isolated page (create, validation, reload stays in, lock, wrong/right PIN, PIN not stored in plain text). **Found: the app can't start at all today.** `main.ts` imports `sameTrip` and `tripShape`, which `valhalla.ts` doesn't export, so the browser throws on load and nothing renders (blank screen). This is likely the live-site loading bug and is Nard's first fix.
+
 ## Next for Nard (start here)
 
 Claude did Phases 0–1 (docs only, PR #8). Read `docs/STRATEGY.md` first; it defines the core idea
 and the Effort metric the later phases build on. Then work through the phases in order, one PR per phase.
 
 **Phase 2: loading + stability (do first)**
+- [ ] **Make the app start.** Right now the browser throws `The requested module '/src/lib/valhalla.ts' does not provide an export named 'sameTrip'` and nothing renders. Restore `sameTrip` / `tripShape` in `valhalla.ts` (they were used by the dual-route code in commit `4c12d77`), then fix the rest of the 17 TS errors. Run `npm run dev` and confirm the map + login appear before anything else.
+- [ ] Login is built (`src/hud/login.ts`). After the app starts, check: first visit shows "Set up your driver", the car tag seeds the garage tag, reload stays signed in, menu → Lock Slide shows "Welcome back", PIN works.
 - [x] VIA skin patch applied on this branch (commit `VIA skin: premium night HUD…`). `docs/DESIGN.md` is the style contract and now has a **screen-by-screen build spec** for all 10 canvas screens — build from that, not from the canvas directly.
 - [ ] VIA design canvas (reference only): https://claude.ai/artifact/3nbD5TfjZeoWbQEyf5yXu2. Where the canvas and `docs/DESIGN.md` disagree (traffic bars, crowd hazard reports, "Report a hazard", weather, "VIA" wordmark), **DESIGN.md wins**.
 - [ ] Fix the 17 TS errors so `npm run build` passes. `GarageConfig` is missing `recents` / `home` / `work` (used at `main.ts:334–395`), and there's a 4-arg call at `main.ts:630`. Add those fields to `garage.ts` with defaults and merge old `slide.garage.v1` data safely.
