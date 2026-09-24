@@ -269,6 +269,7 @@ type HudMode = "plan" | "review" | "drive" | "arrive";
 let hudMode: HudMode = "plan";
 
 map.on("load", () => {
+  performance.mark("slide-map-load");
   styleReady = true;
   liftNightBasemap(map);
   ensure3DBuildings();
@@ -277,6 +278,8 @@ map.on("load", () => {
   else applyPlanView();
   styleQueue.splice(0).forEach((fn) => fn());
 });
+// Timing marks read by the load-time check (and handy in DevTools): style loaded, first full render.
+map.once("idle", () => { performance.mark("slide-map-idle"); document.documentElement.dataset.map = "ready"; });
 map.on("error", () => {
   // Tiles / style can 429. Keep the HUD usable; route paint still applies on a lifted land color.
 });
