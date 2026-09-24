@@ -1299,3 +1299,7 @@ function showError(text: string) { errorEl.textContent = text; errorEl.toggleAtt
 const ESCAPES: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
 function esc(s: string): string { return s.replace(/[&<>"']/g, (c) => ESCAPES[c]); }
 persist();
+// Installable app shell (Add to Home Screen). Production only, so dev reloads stay uncached.
+if (import.meta.env.PROD && "serviceWorker" in navigator) {
+  window.addEventListener("load", () => { void navigator.serviceWorker.register("./sw.js").catch(() => {}); });
+}
