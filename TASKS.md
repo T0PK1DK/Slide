@@ -13,18 +13,24 @@ Work top-down. Check the box in the same PR.
 
 ## P0 — make the demo reliable
 
-- [ ] **App doesn't start**: `sameTrip` / `tripShape` missing from `valhalla.ts` (browser module error → blank screen)
+- [x] **App doesn't start**: `sameTrip` / `tripShape` missing from `valhalla.ts` (browser module error → blank screen)
 - [x] Route line draws again (MapLibre rejected zoom-inside-case expressions on all four route layers)
 - [x] "You are here" marker on the map whenever location is on
-- [ ] Navigation on real GPS: start from GPS, Go starts tracking, camera follows, reroute when off-route, arrival (HANDOFF → Next for Nard)
+- [x] Navigation on real GPS: start from GPS, Go starts tracking, camera follows, reroute when off-route, arrival (HANDOFF → Next for Nard)
 - [x] Command view (SEKAI dashboard, real data only) + phone Drive insights sheet + on-device trip history
 - [x] Satellite imagery: owner says optional — Satellite tab stays disabled, no paid source
 - [x] On-device login: set up driver, stay signed in, lock, optional PIN, Add to Home Screen manifest
+- [x] Installable PWA: PNG + maskable + apple-touch icons, shell-only service worker (Chrome reports no installability errors)
+- [x] Posted speed double-converted (30 mph showed as 19) — fixed in `buildBands()`
+- [ ] **Human device test:** real iPhone (Safari) + Android (Chrome) drive, and Add to Home Screen → opens full screen, stays signed in
+- [ ] Map under 3 s on Slow 4G (today ≈5.8 s; ≈3.0 s on good 4G): load HUD/login before MapLibre, pre-cache style
+- [ ] Faster alternative rarely exists on public Valhalla (same trip from both costings) — needs self-host or a real alternate strategy
+- [ ] Offline / no-route sheet + one fetch retry
 
-- [ ] `npm run build` is clean (fix TS, unused, layer add-before-style-load)
+- [x] `npm run build` is clean (fix TS, unused, layer add-before-style-load)
 - [x] If Valhalla returns one trip, fire a second `/route` with higher `use_highways` / lower `maneuver_penalty` so Faster exists (preview)
 - [ ] Fit camera to route on first plan (cinematic), then allow Chase
-- [ ] Real GPS speed in the speedo when Locate is active (`watchPosition`)
+- [x] Real GPS speed in the speedo when Locate is active (`watchPosition`)
 - [ ] Upcoming posted-speed chip: “Hold 45 → 30 in 0.4 mi”
 - [x] GitHub Pages (or Cloudflare Pages) so the owner can open it on a phone
 
