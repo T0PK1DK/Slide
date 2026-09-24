@@ -194,8 +194,11 @@ function buildBands(
   for (const edge of edges) {
     const lenMi = (edge.length || 0) * toMiles;
     const name = (edge.names && edge.names[0]) || titleCase(edge.road_class || "road");
-    const posted = edge.speed_limit ? Math.round(kphToMph(edge.speed_limit)) : null;
-    const expected = Math.round(kphToMph(edge.speed || edge.free_flow_speed || 0));
+    // Valhalla already answers in mph when asked for miles; converting again
+    // turned a posted 30 into a "19" sign. Only kilometre responses need it.
+    const toMph = (v: number) => (units === "miles" ? v : kphToMph(v));
+    const posted = edge.speed_limit ? Math.round(toMph(edge.speed_limit)) : null;
+    const expected = Math.round(toMph(edge.speed || edge.free_flow_speed || 0));
     const seconds =
       expected > 0 ? (lenMi / expected) * 3600 : (edge.length || 0) * 60;
 
