@@ -321,7 +321,11 @@ $("#loc-search").addEventListener("click", () => {
 });
 $("#review-preview").addEventListener("click", () => startDrive(true));
 $("#arr-done").addEventListener("click", finishArrival);
-$("#locate-fab").addEventListener("click", locateMe);
+// The round FAB is "show me": it starts location or recentres on it, never switches it off.
+$("#locate-fab").addEventListener("click", () => {
+  if (!tracker) return locateMe();
+  if (liveFix) map.easeTo({ center: [liveFix.pos.lon, liveFix.pos.lat], zoom: Math.max(map.getZoom(), 15), duration: 700 });
+});
 $("#menu-fab").addEventListener("click", () => {
   overflowEl.classList.toggle("open");
   overflowEl.classList.toggle("from-plan", overflowEl.classList.contains("open"));
@@ -582,7 +586,8 @@ function refreshPlaceChips() {
   const extra = $("#chip-saved");
   const saved = savedChipPlace();
   extra.toggleAttribute("hidden", !saved);
-  extra.textContent = saved ? saved.label.split(",")[0] : "";
+  // "401, Bayside Marketplace, …" → "Bayside Marketplace": skip a bare house number.
+  extra.textContent = saved ? (saved.label.split(",").map((x) => x.trim()).find((x) => x && !/^\d+[a-z]?$/i.test(x)) ?? saved.label) : "";
 }
 function wireGarage() {
   const tag = $("#g-tag") as HTMLInputElement;
