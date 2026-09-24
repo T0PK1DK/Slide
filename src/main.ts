@@ -5,6 +5,7 @@ import "./styles.css";
 import { decodePolyline6 } from "./lib/polyline";
 import {
   collectTrips,
+  requestFastRoute,
   requestRoutes,
   requestTraceAttributes,
   sameTrip,
@@ -694,7 +695,7 @@ async function plan() {
       // leaves "smoothest" with nothing to be smoother than. Ask again with
       // the costing pushed the other way and keep it if it is a real detour.
       try {
-        const fast = collectTrips(await requestRoutes(origin, dest, "miles", "fast"));
+        const fast = collectTrips(await requestFastRoute(origin, dest, "miles"));
         trips = trips.concat(fast.filter((t) => !trips.some((seen) => sameTrip(seen, t))).slice(0, 1));
       } catch {
         // One good line still answers the question.
