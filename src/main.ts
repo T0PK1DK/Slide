@@ -1043,7 +1043,8 @@ function paintRoutes() {
 function paintRouteChips() {
   routeChips.forEach((m) => m.remove());
   routeChips = [];
-  if (hudMode === "drive" || routes.length < 2) return;
+  // One chip even when Valhalla found a single line, so the time sits on the route like any alternative.
+  if (hudMode === "drive" || hudMode === "arrive" || !routes.length) return;
   routes.forEach((r, i) => {
     const coords = decodePolyline6(tripShape(r.trip));
     if (!coords.length) return;
@@ -1070,7 +1071,9 @@ function renderReview() {
   $("#review-dist").textContent = formatMiles(sel.distanceMi);
   $("#review-via").textContent = viaLine(sel.maneuvers);
   const shortWhy = sel.why.split(" · ")[0] || sel.label;
-  $("#review-tag").textContent = sel.label === shortWhy ? sel.label : `${sel.label} · ${shortWhy}`;
+  $("#review-tag").textContent = routes.length === 1
+    ? "Slide · Fastest is also the smoothest line we found"
+    : sel.label === shortWhy ? sel.label : `${sel.label} · ${shortWhy}`;
 }
 function renderDash() {
   dashEl.removeAttribute("hidden");
