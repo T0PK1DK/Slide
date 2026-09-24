@@ -1,0 +1,14 @@
+{
+  "name": "Slide",
+  "short_name": "Slide",
+  "description": "Smoothest driving routes. Posted speeds. Precise timing.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#07080a",
+  "theme_color": "#07080a",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

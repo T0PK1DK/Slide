@@ -13,6 +13,14 @@ Work top-down. Check the box in the same PR.
 
 ## P0 — make the demo reliable
 
+- [ ] **App doesn't start**: `sameTrip` / `tripShape` missing from `valhalla.ts` (browser module error → blank screen)
+- [x] Route line draws again (MapLibre rejected zoom-inside-case expressions on all four route layers)
+- [x] "You are here" marker on the map whenever location is on
+- [ ] Navigation on real GPS: start from GPS, Go starts tracking, camera follows, reroute when off-route, arrival (HANDOFF → Next for Nard)
+- [x] Command view (SEKAI dashboard, real data only) + phone Drive insights sheet + on-device trip history
+- [x] Satellite imagery: owner says optional — Satellite tab stays disabled, no paid source
+- [x] On-device login: set up driver, stay signed in, lock, optional PIN, Add to Home Screen manifest
+
 - [ ] `npm run build` is clean (fix TS, unused, layer add-before-style-load)
 - [x] If Valhalla returns one trip, fire a second `/route` with higher `use_highways` / lower `maneuver_penalty` so Faster exists (preview)
 - [ ] Fit camera to route on first plan (cinematic), then allow Chase
@@ -49,4 +57,4 @@ Work top-down. Check the box in the same PR.
 
 ## Out of scope until asked
 
-Native iOS/Android, CarPlay, ads, accounts, Google/Mapbox paid tiles, police alerts.
+Native iOS/Android, CarPlay, ads, server accounts (on-device login exists), Google/Mapbox paid tiles, police alerts.
