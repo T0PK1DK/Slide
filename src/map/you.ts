@@ -42,13 +42,12 @@ export function createYouMarker(map: maplibregl.Map): YouMarker {
     const px = Math.max(28, Math.min(220, (lastFix.accuracyM / mpp) * 2));
     acc.style.width = acc.style.height = `${px}px`;
   };
-  map.on("zoom", sizeAccuracy);
 
   return {
     update(fix) {
       lastFix = fix;
       marker.setLngLat([fix.pos.lon, fix.pos.lat]);
-      if (!added) { marker.addTo(map); added = true; }
+      if (!added) { marker.addTo(map); map.on("zoom", sizeAccuracy); added = true; }
       const moving = fix.headingDeg !== null && fix.speedMph > 2;
       cone.hidden = !moving;
       if (moving) marker.setRotation(fix.headingDeg!);
@@ -65,6 +64,7 @@ export function createYouMarker(map: maplibregl.Map): YouMarker {
       map.off("zoom", sizeAccuracy);
       marker.remove();
       added = false;
+      lastFix = null;
     },
   };
 }
