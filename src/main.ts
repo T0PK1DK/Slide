@@ -5,6 +5,7 @@ import "./styles.css";
 import { decodePolyline6, haversineMeters } from "./lib/polyline";
 import {
   requestRouteVariant,
+  type RouteResponse,
   requestTraceAttributes,
   searchPlaces,
   tripShape,
@@ -987,21 +988,29 @@ function locateMe() {
 }
 /** Ask Valhalla for lines between two points, score each one, and rank them (Slide first). */
 async function fetchRanked(from: LonLat, to: LonLat): Promise<SlideRoute[]> {
-  // Slide, Fastest and No-tolls costings in parallel, so there are real
-  // alternatives even when Valhalla returns only one line per request.
+  // One request at a time, and stop once there are enough distinct lines: the
+  // public Valhalla server rate-limits, and a burst of parallel calls is the
+  // fastest way to get every one of them refused.
   const points = [from, ...stops.map((s) => ({ lon: s.lon, lat: s.lat })), to];
-  const results = await Promise.allSettled(
-    variantsFor(garage.avoid.tolls).map((v) => requestRouteVariant(points, v, garage.avoid))
-  );
+  const results: Array<PromiseSettledResult<RouteResponse>> = [];
+  for (const v of variantsFor(garage.avoid.tolls)) {
+    try {
+      results.push({ status: "fulfilled", value: await requestRouteVariant(points, v, garage.avoid) });
+    } catch (reason) {
+      results.push({ status: "rejected", reason });
+    }
+    if (mergeVariantTrips(results).length >= 3) break;
+  }
   const trips = mergeVariantTrips(results);
   if (!trips.length) {
     const failed = results.find((r): r is PromiseRejectedResult => r.status === "rejected");
     throw failed ? failed.reason : new Error("No routes returned.");
   }
-  const scored = await Promise.all(trips.map(async (trip) => {
+  const scored = [];
+  for (const trip of trips) {
     const attrs = await requestTraceAttributes(tripShape(trip));
-    return scoreTrip(trip, attrs.edges ?? [], "miles");
-  }));
+    scored.push(scoreTrip(trip, attrs.edges ?? [], "miles"));
+  }
   return rankRoutes(scored);
 }
 async function plan() {

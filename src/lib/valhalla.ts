@@ -151,16 +151,36 @@ export async function requestRouteVariant(
   }, 12000);
 }
 
+/** Pure: is this failure worth one more try? Network drops, timeouts, rate limits and server errors — never a 4xx. */
+export function retryable(status: number | null): boolean {
+  return status === null || status === 429 || status >= 500;
+}
+
+/**
+ * Timed fetch with one retry after a short pause (ported from Cursor's PR #9
+ * `net.ts`). The public Valhalla/Photon servers rate-limit and blip; one
+ * polite retry turns most of those into a normal answer.
+ */
 async function fetchJson(url: string, init: RequestInit = {}, ms = 8000): Promise<any> {
-  const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), ms);
-  try {
-    const res = await fetch(url, { ...init, signal: ctrl.signal });
-    if (!res.ok) throw new Error(`${res.status}`);
-    return await res.json();
-  } finally {
-    clearTimeout(t);
+  let last: unknown;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    if (attempt) await new Promise((r) => setTimeout(r, 700));
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), ms);
+    let status: number | null = null;
+    try {
+      const res = await fetch(url, { ...init, signal: ctrl.signal });
+      status = res.status;
+      if (!res.ok) throw new Error(`${res.status}`);
+      return await res.json();
+    } catch (err) {
+      last = err;
+      if (!retryable(status)) break;
+    } finally {
+      clearTimeout(t);
+    }
   }
+  throw last;
 }
 
 export async function searchPlaces(query: string, bias?: LonLat): Promise<SearchHit[]> {
@@ -274,15 +294,16 @@ export async function requestTraceAttributes(
     },
   };
 
-  const res = await fetch(`${VALHALLA_URL}/trace_attributes`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
+  try {
+    return await fetchJson(`${VALHALLA_URL}/trace_attributes`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }, 10000);
+  } catch {
+    // Scoring still works from maneuvers; posted speeds just go missing for this line.
     return { edges: [] };
   }
-  return res.json();
 }
 
 export function collectTrips(response: RouteResponse): ValhallaTrip[] {
