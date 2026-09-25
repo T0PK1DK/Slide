@@ -685,3 +685,39 @@ body[data-mode="arrive"] .search-card,
 body[data-mode="arrive"] .dash { display: none !important; }
 body:not([data-mode="arrive"]) .arrive-only { display: none !important; }
 body[data-mode="drive"] .recenter { z-index: 6; min-height: 44px; padding: 0 18px; font-size: 14px; font-weight: 600; border-color: color-mix(in srgb, var(--glow) 55%, var(--line)); }
+
+/* ==========================================================================
+   Phase 1 routes: tagged bubbles, stops, route options (src/plan/*)
+   ========================================================================== */
+.route-chip em { display: block; margin-top: 2px; font-style: normal; font-family: var(--mono); font-size: 9px; letter-spacing: .1em; text-transform: uppercase; }
+.route-chip em.free { color: var(--live); }
+.route-chip em.toll { color: var(--amber); }
+.review-eta-note { margin: 2px 0 10px; font-family: var(--mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--faint); }
+
+.stops-list { list-style: none; margin: 0 0 10px; padding: 0; display: grid; gap: 6px; }
+.stops-list li { display: grid; grid-template-columns: 28px 22px 1fr 44px; align-items: center; min-height: 48px; padding: 0 4px 0 6px; border-radius: 14px; border: 1px solid var(--line); background: var(--surface); transition: transform .12s ease; }
+.stops-list li.dragging { position: relative; z-index: 2; transition: none; border-color: var(--glow); box-shadow: 0 12px 28px rgba(0,0,0,.5); }
+.stops-list .grip { cursor: grab; touch-action: none; color: var(--faint); font-size: 16px; line-height: 44px; text-align: center; user-select: none; }
+.stops-list .stop-n { font-family: var(--mono); font-size: 11px; color: var(--glow); }
+.stops-list .stop-label { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stops-list .stop-x { width: 44px; height: 44px; border: 0; background: none; color: var(--muted); font-size: 20px; cursor: pointer; }
+.stop-search { position: relative; margin-bottom: 10px; }
+.stop-search input { width: 100%; box-sizing: border-box; height: 48px; padding: 0 14px; border-radius: 14px; border: 1px solid var(--glow); background: var(--surface); color: var(--text); font: inherit; font-size: 16px; }
+
+.review-tools { display: flex; gap: 8px; margin-bottom: 12px; }
+.review-tools .tool { min-height: 44px; padding: 0 16px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--text); font: inherit; font-size: 14px; cursor: pointer; }
+.review-tools .tool.icon { width: 44px; padding: 0; display: grid; place-items: center; margin-left: auto; }
+.review-tools .tool:disabled { opacity: .45; cursor: not-allowed; }
+
+.options-sheet { position: fixed; left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom)); z-index: 30; max-width: 440px; margin: 0 auto; padding: 18px; border-radius: 26px; display: grid; gap: 4px; }
+.options-sheet[hidden] { display: none; }
+.options-sheet h2 { margin: 0 0 8px; font-size: 20px; font-weight: 300; }
+.switch { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 56px; border-bottom: 1px solid var(--line); cursor: pointer; }
+.switch span { display: grid; font-size: 15px; }
+.switch small { font-size: 12px; color: var(--faint); }
+.switch input { appearance: none; width: 50px; height: 30px; border-radius: 999px; background: #34353a; position: relative; cursor: pointer; transition: background .15s; flex-shrink: 0; }
+.switch input::after { content: ""; position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: #f4f3ef; transition: transform .15s; }
+.switch input:checked { background: var(--glow); }
+.switch input:checked::after { transform: translateX(20px); }
+.switch input:focus-visible { outline: 2px solid var(--glow); outline-offset: 3px; }
+.options-sheet .primary { margin-top: 12px; min-height: 52px; border-radius: 16px; }

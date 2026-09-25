@@ -4,11 +4,8 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import "./styles.css";
 import { decodePolyline6, haversineMeters } from "./lib/polyline";
 import {
-  collectTrips,
-  requestFastRoute,
-  requestRoutes,
+  requestRouteVariant,
   requestTraceAttributes,
-  sameTrip,
   searchPlaces,
   tripShape,
   type LonLat,
@@ -23,7 +20,9 @@ import {
   viaLine,
   type SlideRoute,
 } from "./lib/smooth";
-import { loadGarage, saveGarage, TRAILS, type GarageConfig } from "./lib/garage";
+import { loadGarage, saveGarage, TRAILS, type GarageConfig, type SavedPlace } from "./lib/garage";
+import { bubbleCandidates, mergeVariantTrips, pickFree, tollLabel, variantsFor } from "./plan/routeset";
+import { dropIndex, MAX_STOPS, moveItem, stopsReached } from "./plan/stops";
 import { chasePoint, seedGhosts, stepGhost, type GhostCar } from "./lib/ghosts";
 import {
   buildSteps,
@@ -120,11 +119,30 @@ app.innerHTML = `
       </div>
       <p class="review-via" id="review-via">—</p>
       <p class="review-tag" id="review-tag">—</p>
+      <p class="review-eta-note" id="review-eta-note">Typical time · no live traffic yet</p>
+      <ol class="stops-list" id="stops-list" aria-label="Stops, in driving order"></ol>
+      <div class="stop-search" id="stop-search" hidden>
+        <input id="stop-input" placeholder="Add a stop" autocomplete="off" aria-label="Search for a stop" />
+        <div class="suggest" id="stop-suggest" hidden></div>
+      </div>
+      <div class="review-tools">
+        <button class="tool" id="review-add-stop" type="button">+ Add stop</button>
+        <button class="tool icon" id="review-options" type="button" aria-label="Route options" aria-haspopup="dialog">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>
+        </button>
+      </div>
       <div class="review-actions">
         <button class="ghost" id="review-back" type="button">Where to?</button>
         <button class="primary" id="review-go" type="button">Go now</button>
       </div>
       <button class="linkish" id="review-preview" type="button">Preview drive <span>· simulated, not saved</span></button>
+    </div>
+    <div class="panel options-sheet" id="route-options" role="dialog" aria-modal="true" aria-labelledby="ro-title" hidden>
+      <h2 id="ro-title">Route options</h2>
+      <label class="switch"><span>Avoid tolls<small>SunPass and toll roads</small></span><input type="checkbox" id="ro-tolls" /></label>
+      <label class="switch"><span>Avoid highways</span><input type="checkbox" id="ro-highways" /></label>
+      <label class="switch"><span>Avoid ferries</span><input type="checkbox" id="ro-ferries" /></label>
+      <button class="primary" id="ro-done" type="button">Done</button>
     </div>
     <div class="panel arrival-sheet arrive-only" id="arrival" role="dialog" aria-labelledby="arr-dest" hidden>
       <span class="arr-kicker" id="arr-kicker">ARRIVED</span>
@@ -216,6 +234,10 @@ let dest: LonLat | null = null;
 let originLabel = "";
 let destLabel = "";
 let routes: SlideRoute[] = [];
+/** Zoom the route bubbles were last laid out at; a real zoom change re-runs the overlap pass. */
+let chipLayoutZoom = 0;
+/** Stops between origin and destination, in driving order. Dropped as each is reached. */
+let stops: SavedPlace[] = [];
 let selectedId = "";
 let selectedCoords: [number, number][] = [];
 let ghosts: GhostCar[] = [];
@@ -305,6 +327,32 @@ bindSearch(toInput, $("#to-suggest"), (hit) => {
   rememberRecent(hit);
   plan();
 });
+bindSearch($("#stop-input") as HTMLInputElement, $("#stop-suggest"), (hit) => {
+  if (stops.length >= MAX_STOPS) return;
+  stops.push({ label: hit.label, lon: hit.lon, lat: hit.lat });
+  ($("#stop-input") as HTMLInputElement).value = "";
+  $("#stop-search").setAttribute("hidden", "");
+  renderStops();
+  if (dest) void plan();
+});
+$("#review-add-stop").addEventListener("click", () => {
+  $("#stop-search").removeAttribute("hidden");
+  ($("#stop-input") as HTMLInputElement).focus();
+});
+const optionsEl = $("#route-options");
+const avoidBoxes = { tolls: $("#ro-tolls"), highways: $("#ro-highways"), ferries: $("#ro-ferries") } as Record<keyof GarageConfig["avoid"], HTMLInputElement>;
+$("#review-options").addEventListener("click", () => {
+  for (const k of Object.keys(avoidBoxes) as Array<keyof GarageConfig["avoid"]>) avoidBoxes[k].checked = garage.avoid[k];
+  optionsEl.removeAttribute("hidden");
+  avoidBoxes.tolls.focus();
+});
+for (const k of Object.keys(avoidBoxes) as Array<keyof GarageConfig["avoid"]>) {
+  avoidBoxes[k].addEventListener("change", () => { garage.avoid[k] = avoidBoxes[k].checked; persist(); });
+}
+$("#ro-done").addEventListener("click", () => {
+  optionsEl.setAttribute("hidden", "");
+  if (dest && (hudMode === "review" || hudMode === "plan")) void plan();
+});
 $("#locate").addEventListener("click", locateMe);
 $("#loc-close").addEventListener("click", hideLocationProblem);
 $("#loc-retry").addEventListener("click", () => {
@@ -362,6 +410,9 @@ $("#ov-rail").addEventListener("click", () => {
 $("#ov-home").addEventListener("click", () => { overflowEl.classList.remove("open"); savePlace("home"); });
 $("#ov-work").addEventListener("click", () => { overflowEl.classList.remove("open"); savePlace("work"); });
 $("#ov-lock").addEventListener("click", lockApp);
+map.on("moveend", () => {
+  if ((hudMode === "review" || hudMode === "plan") && routes.length && Math.abs(map.getZoom() - chipLayoutZoom) > 0.25) paintRouteChips();
+});
 const command = mountCommand({
   map,
   driverName: () => loadProfile()?.name ?? "",
@@ -718,6 +769,7 @@ function arrive() {
 }
 function finishArrival() {
   routes = [];
+  stops = [];
   selectedId = "";
   selectedCoords = [];
   dest = null;
@@ -785,10 +837,21 @@ function addRouteLayers() {
   map.addSource("routes", { type: "geojson", data: emptyFc() });
   map.addSource("ghost-trails", { type: "geojson", data: emptyFc() });
   const paint = routeLayerPaints(TRAILS[garage.trail].line);
-  map.addLayer({ id: "route-glow", type: "line", source: "routes", layout: LINE_LAYOUT, paint: paint.glow as never });
-  map.addLayer({ id: "route-case", type: "line", source: "routes", layout: LINE_LAYOUT, paint: paint.case as never });
-  map.addLayer({ id: "route-line", type: "line", source: "routes", layout: LINE_LAYOUT, paint: paint.line as never });
-  map.addLayer({ id: "route-core", type: "line", source: "routes", layout: LINE_LAYOUT, paint: paint.core as never });
+  // The selected line draws above the alternates wherever they overlap.
+  const layout = { ...LINE_LAYOUT, "line-sort-key": ["case", ["get", "selected"], 1, 0] } as never;
+  map.addLayer({ id: "route-glow", type: "line", source: "routes", layout, paint: paint.glow as never });
+  map.addLayer({ id: "route-case", type: "line", source: "routes", layout, paint: paint.case as never });
+  map.addLayer({ id: "route-line", type: "line", source: "routes", layout, paint: paint.line as never });
+  map.addLayer({ id: "route-core", type: "line", source: "routes", layout, paint: paint.core as never });
+  // Invisible fat line so a thumb can pick an alternate by tapping it, not just its bubble.
+  map.addLayer({ id: "route-hit", type: "line", source: "routes", layout: LINE_LAYOUT, paint: { "line-color": "#000", "line-opacity": 0, "line-width": 28 } });
+  map.on("click", "route-hit", (e) => {
+    if (hudMode !== "review" && hudMode !== "plan") return;
+    const id = e.features?.[0]?.properties?.id;
+    if (typeof id === "string" && id !== selectedId) selectRoute(id);
+  });
+  map.on("mouseenter", "route-hit", () => { map.getCanvas().style.cursor = "pointer"; });
+  map.on("mouseleave", "route-hit", () => { map.getCanvas().style.cursor = ""; });
   map.addLayer({ id: "ghost-trails", type: "line", source: "ghost-trails", paint: { "line-color": ["get", "color"], "line-width": 3, "line-opacity": 0.55, "line-dasharray": [1, 1.2] } });
 }
 function bindSearch(input: HTMLInputElement, box: HTMLElement, onPick: (hit: SearchHit) => void) {
@@ -911,25 +974,21 @@ function locateMe() {
 }
 /** Ask Valhalla for lines between two points, score each one, and rank them (Slide first). */
 async function fetchRanked(from: LonLat, to: LonLat): Promise<SlideRoute[]> {
-  const raw = await requestRoutes(from, to);
-  let trips = collectTrips(raw);
-  if (!trips.length) throw new Error("No routes returned.");
-  if (trips.length < 2) {
-    // `alternatives: true` frequently answers with a single trip, which
-    // leaves "smoothest" with nothing to be smoother than. Ask again with
-    // the costing pushed the other way and keep it if it is a real detour.
-    try {
-      const fast = collectTrips(await requestFastRoute(from, to, "miles"));
-      trips = trips.concat(fast.filter((t) => !trips.some((seen) => sameTrip(seen, t))).slice(0, 1));
-    } catch {
-      // One good line still answers the question.
-    }
+  // Slide, Fastest and No-tolls costings in parallel, so there are real
+  // alternatives even when Valhalla returns only one line per request.
+  const points = [from, ...stops.map((s) => ({ lon: s.lon, lat: s.lat })), to];
+  const results = await Promise.allSettled(
+    variantsFor(garage.avoid.tolls).map((v) => requestRouteVariant(points, v, garage.avoid))
+  );
+  const trips = mergeVariantTrips(results);
+  if (!trips.length) {
+    const failed = results.find((r): r is PromiseRejectedResult => r.status === "rejected");
+    throw failed ? failed.reason : new Error("No routes returned.");
   }
-  const scored = [];
-  for (const trip of trips) {
+  const scored = await Promise.all(trips.map(async (trip) => {
     const attrs = await requestTraceAttributes(tripShape(trip));
-    scored.push(scoreTrip(trip, attrs.edges ?? [], "miles"));
-  }
+    return scoreTrip(trip, attrs.edges ?? [], "miles");
+  }));
   return rankRoutes(scored);
 }
 async function plan() {
@@ -1045,20 +1104,27 @@ function paintRouteChips() {
   routeChips = [];
   // One chip even when Valhalla found a single line, so the time sits on the route like any alternative.
   if (hudMode === "drive" || hudMode === "arrive" || !routes.length) return;
-  routes.forEach((r, i) => {
+  // Selected route claims its spot first; the others avoid overlapping it on screen.
+  const placed: Array<{ x: number; y: number }> = [];
+  chipLayoutZoom = map.getZoom();
+  const selectedFirst = [...routes].sort((a, b) => Number(b.id === selectedId) - Number(a.id === selectedId));
+  selectedFirst.forEach((r) => {
     const coords = decodePolyline6(tripShape(r.trip));
     if (!coords.length) return;
     const el = document.createElement("button");
     el.className = "route-chip" + (r.id === selectedId ? " on" : "");
     el.type = "button";
-    el.innerHTML = `<b>${formatDuration(r.durationSec)}</b><span>${r.label}</span>`;
+    const toll = tollLabel(r.hasToll);
+    const tag = r.tags[0] ?? "";
+    const showToll = toll && tag !== "No tolls";
+    el.innerHTML = `<b>${formatDuration(r.durationSec)}</b>${tag ? `<span>${tag}</span>` : ""}${showToll ? `<em class="${r.hasToll ? "toll" : "free"}">${toll}</em>` : ""}`;
+    el.setAttribute("aria-label", [...new Set([formatDuration(r.durationSec), ...r.tags, toll].filter(Boolean))].join(", "));
     el.onclick = (ev) => { ev.stopPropagation(); selectRoute(r.id); };
-    const along = Math.min(0.78, 0.38 + i * 0.16);
-    routeChips.push(
-      new maplibregl.Marker({ element: el, anchor: "center" })
-        .setLngLat(coords[Math.floor(coords.length * along)])
-        .addTo(map)
-    );
+    const others = routes.filter((o) => o.id !== r.id).map((o) => decodePolyline6(tripShape(o.trip)));
+    const cands = bubbleCandidates(coords, others);
+    const at = cands[pickFree(cands.map((c) => map.project(c)), placed)];
+    placed.push(map.project(at));
+    routeChips.push(new maplibregl.Marker({ element: el, anchor: "center" }).setLngLat(at).addTo(map));
   });
 }
 function renderReview() {
@@ -1071,9 +1137,48 @@ function renderReview() {
   $("#review-dist").textContent = formatMiles(sel.distanceMi);
   $("#review-via").textContent = viaLine(sel.maneuvers);
   const shortWhy = sel.why.split(" · ")[0] || sel.label;
-  $("#review-tag").textContent = routes.length === 1
-    ? "Slide · Fastest is also the smoothest line we found"
-    : sel.label === shortWhy ? sel.label : `${sel.label} · ${shortWhy}`;
+  const toll = tollLabel(sel.hasToll);
+  const head = routes.length === 1 || sel.tags.length === 2
+    ? "Slide pick · Fastest is also the smoothest line we found"
+    : [sel.tags.join(" · ") || sel.label, shortWhy].filter(Boolean).join(" · ");
+  $("#review-tag").textContent = toll && !sel.tags.includes("No tolls") ? `${head} · ${toll}` : head;
+  renderStops();
+}
+/** Stops as a reorderable list: drag the grip (pointer events, so it works on touch too) or remove. */
+function renderStops() {
+  const list = $("#stops-list");
+  list.innerHTML = stops.map((st, i) => `<li data-i="${i}"><span class="grip" aria-hidden="true">⋮⋮</span><span class="stop-n">${i + 1}</span><span class="stop-label">${esc(st.label)}</span><button type="button" class="stop-x" data-x="${i}" aria-label="Remove stop ${i + 1}, ${esc(st.label)}">×</button></li>`).join("");
+  list.toggleAttribute("hidden", !stops.length);
+  ($("#review-add-stop") as HTMLButtonElement).disabled = stops.length >= MAX_STOPS;
+  list.querySelectorAll<HTMLButtonElement>(".stop-x").forEach((b) => b.addEventListener("click", () => {
+    stops.splice(Number(b.dataset.x), 1);
+    renderStops();
+    if (dest) void plan();
+  }));
+  list.querySelectorAll<HTMLElement>(".grip").forEach((grip) => grip.addEventListener("pointerdown", (e) => {
+    const row = grip.parentElement as HTMLElement;
+    const from = Number(row.dataset.i);
+    const rows = [...list.children] as HTMLElement[];
+    const startY = e.clientY;
+    row.classList.add("dragging");
+    grip.setPointerCapture(e.pointerId);
+    const move = (ev: PointerEvent) => { row.style.transform = `translateY(${ev.clientY - startY}px)`; };
+    const up = (ev: PointerEvent) => {
+      grip.removeEventListener("pointermove", move);
+      row.classList.remove("dragging");
+      row.style.transform = "";
+      const mids = rows.filter((r) => r !== row).map((r) => { const b = r.getBoundingClientRect(); return b.top + b.height / 2; });
+      const to = dropIndex(ev.clientY, mids);
+      if (to !== from) {
+        stops = moveItem(stops, from, to);
+        renderStops();
+        if (dest) void plan();
+      }
+    };
+    grip.addEventListener("pointermove", move);
+    grip.addEventListener("pointerup", up, { once: true });
+    grip.addEventListener("pointercancel", up as EventListener, { once: true });
+  }));
 }
 function renderDash() {
   dashEl.removeAttribute("hidden");
@@ -1246,6 +1351,12 @@ function checkReroute(off: boolean, fix: Fix) {
 }
 function checkArrival(snap: RouteProgress | null, totalMi: number): boolean {
   if (!dest || !liveFix) return false;
+  if (stopsReached(stops, liveFix.pos)) {
+    const done = stops.shift();
+    renderStops();
+    setStatus(`Stop reached: ${done?.label ?? "stop"}${stops.length ? " · on to the next" : ""}`);
+    window.setTimeout(() => setStatus(""), 3000);
+  }
   const toDestM = haversineMeters(liveFix.pos.lon, liveFix.pos.lat, dest.lon, dest.lat);
   const onLineAtEnd = Boolean(snap && snap.offRouteM <= OFF_ROUTE_M && totalMi > 0 && snap.alongMi / totalMi >= 0.99 && totalMi - snap.alongMi <= 0.05);
   if (toDestM > ARRIVE_M && !onLineAtEnd) return false;
