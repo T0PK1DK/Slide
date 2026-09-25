@@ -13,7 +13,7 @@ npm install
 npm run dev
 ```
 
-Vite + TypeScript. No env file required. Public OSM services only.
+Vite + TypeScript. No env file required: without env vars, accounts, radar feeds and transit simply stay off. See **Owner setup for accounts + radar** to turn them on.
 
 - Routing: `https://valhalla1.openstreetmap.de`
 - Geocode: `https://photon.komoot.io/api`
@@ -23,16 +23,24 @@ Units are **miles / mph**. First proving ground is **Miami**.
 
 ## What already works
 
-- Search From / To (Photon), GPS locate
-- Valhalla `/route` + alternatives, custom smooth costing
-- `/trace_attributes` → posted speed, expected speed, road class, signals
-- Slide score ranks routes (not raw fastest)
-- Labels: **Slide** (smoothest) vs **Faster** vs **Alt**
-- Speed rail + arrival clock
-- Pitched MapLibre map, extruded buildings when the style exposes `building`
-- Glowing route ribbon, player car marker, chase / cinematic / top cameras
-- Garage in localStorage (`slide.garage.v1`): tag, body, glow, trail, camera, ghosts, buildings, share
-- Seeded ghost cars on the chosen line + ghost delta HUD
+Everything below is on `main` (PR #13, 2026-09-25): 0 TS errors, 54/54 unit tests, `npm run build` clean.
+
+- **Search + plan:** Photon search, GPS locate, a "you" marker, and up to 5 stops (drag to reorder).
+- **Routes:** Valhalla `/route` + `/trace_attributes`. Three or more lines are drawn together; tap a line or its bubble to pick one.
+  - Tags: **Slide pick** (smoothest within +10% of fastest), **Fastest**, **No tolls**.
+  - Routes with tolls are flagged; there's no price yet.
+  - The Options sheet can avoid tolls, highways and ferries.
+- **Drive:** live GPS only (nothing simulated), a next-turn banner, the camera follows the driver, reroute when off-route, and an Arrival screen.
+- **On-device account:** login gate, PIN lock, Profile (driver, My car, all-time stats, places, privacy), trip history, and the Command view on desktop (≥1100 px).
+- **Radar** (on once the owner adds the keys):
+  - Driver reports: police, crash, hazard, closure, jam, with votes.
+  - FL511 official incidents.
+  - Speed and red-light cameras from OpenStreetMap (no key needed).
+  - Live buses and trains from GTFS-realtime.
+  - A heads-up banner with vibration.
+- **Accounts** (Supabase): email-code sign-in, @handle, followers / following / friends, driver search, and opt-in rough location for friends on the map.
+- **Installable PWA** on Cloudflare Pages: https://kings-slide.pages.dev
+- **Off until configured:** without the env vars, accounts, reports, FL511 and transit stay hidden and the rest of the app works.
 
 ## Layout
 
@@ -95,7 +103,6 @@ AGENTS.md / CLAUDE.md  short agent rules
 ## Known gaps (honest)
 
 - Ghosts: the fake seeded drivers were **removed** (2026-09-25). No ghosts are drawn until a real source exists (your recorded pace run, or opt-in friends).
-- `shareGhost` is a flag only. No presence server.
 - Car marker is an SVG wedge, not a 3D model.
 - Snap-to-route is nearest-segment projection, not real map matching.
 - 3D buildings depend on OpenFreeMap `building` layer; fail soft if missing.
@@ -103,9 +110,9 @@ AGENTS.md / CLAUDE.md  short agent rules
 - Public Valhalla/Photon can rate-limit. Plan for self-host.
 - Phone demo is live on Cloudflare Pages: https://kings-slide.pages.dev (project `kings-slide`). Do not use slide.pages.dev — that hostname is an unrelated site.
 - Turn-by-turn is the next-maneuver banner only; no full step list, no voice.
-- No leave-by target, no live traffic.
+- No leave-by target. No live traffic: that waits on the traffic provider decision.
 - Native CarPlay requires an iOS app + Apple entitlement — Drive Mode is the phone-mounted stand-in.
-- Plan now lands on a **route overview** sheet (duration / via / Go now). Drive starts only after Go. Leave later, Avoid, preferred-route, and multi-stop are Claude’s follow-up.
+- Leave-by and "Your usual" aren't built yet. Avoid options and multi-stop are done.
 
 ## Architecture next
 
@@ -222,6 +229,8 @@ Read `TASKS.md` top unchecked item. Do not rebase history. Do not rename the pro
 
 - 2026-09-25 Claude: **Nothing simulated.** Owner asked for real data only, so the "Preview drive" button and its simulated car (`chasePoint`, `previewDrive`, the PREVIEW chip) are removed. Go always uses live GPS; with no fix the car is hidden and the speed shows "—". Scanned the production bundle for leftover fake or demo strings: none (the only hit was the HTML word `novalidate`). PR #13 merged.
 
+- 2026-09-25 Claude: **Handed to Nard.** The owner asked about FL511. It covers official incidents, closures and roadwork only; police, traffic speeds, transit, cameras and routing come from the other sources listed above. Rewrote **What already works** and **Next for Nard** to match `main` after PR #13: turn on the data, verify against the real services, stability, then features. Removed the stale Claude follow-up list, since those items are done or folded into Nard's list.
+
 ## Owner setup for accounts + radar
 
 1. **Supabase project:** create a free project named `slide` (region us-east-1). Claude's permissions couldn't create it. Then apply **both** files in `supabase/migrations/`, in name order (have Claude do it, or paste each into the SQL editor).
@@ -257,57 +266,62 @@ Traffic-aware times need a paid provider, and the owner's rule is "HERE/TomTom o
 
 ## Next for Nard (start here)
 
-Claude did Phases 0–1 (PR #8, merged) and the app work after it: VIA skin, login, night-network look, "you" marker, Command view (**the follow-up PR on `claude/slide-app-completion-e4sn59` — merge it first**; PR #8 was merged before those commits landed). Read `docs/STRATEGY.md` first; it defines the core idea
-and the Effort metric the later phases build on. Then work through the phases in order, one PR per phase.
+Updated 2026-09-25, after PR #13. Claude built everything in **What already works**. Claude can't reach Cloudflare or create the Supabase project, so everything from here needs someone with the owner's accounts. Work top-down, one PR per numbered block, and never push to `main` directly.
 
-**Definition of done for the owner's demo** (what "working live site" means — record a short screen video on a real phone at https://kings-slide.pages.dev showing each):
-1. The page loads to a map in under ~3 s on 4G — no blank or black screen.
-2. First visit shows "Set up your driver"; after setup, a reload goes straight in.
-3. Tapping locate asks for location once, then the glowing "you" dot sits on your real position.
-4. Searching a real Miami place and planning shows the glowing white route with Slide / Faster time cards.
-5. Go → the car follows your real movement, the map follows you, the next-turn banner updates.
-6. Taking a wrong turn reroutes within ~10 s.
-7. Arriving shows the Arrival screen; End saves the trip into Drive insights / Your trips.
-8. On a laptop, the Command view dashboard shows around the map.
+### 1. Turn on the data (with the owner, ~30 min, no code)
+
+Follow **Owner setup for accounts + radar** above, step by step:
+- [ ] Create the Supabase project `slide`, then run both files in `supabase/migrations/` in name order in the SQL editor.
+- [ ] Supabase Auth: set the Site URL to `https://kings-slide.pages.dev`, and add `{{ .Token }}` to the Magic Link email template.
+- [ ] Cloudflare Pages `kings-slide` → Production env: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `FL511_API_KEY` (secret), `TRANSIT_FEEDS` (secret, JSON list). Then **redeploy `main`**, because `VITE_` values are baked in at build time.
+- [ ] FL511 key: request it free at fl511.com (Developers / API).
+- [ ] Transit: find the GTFS-realtime **VehiclePositions** URL (and key, if any) for Miami-Dade Transit, Broward County Transit, Tri-Rail, and Brightline if it publishes one. Leave out any agency that has no feed. Never hard-code a URL in the repo.
+
+### 2. Verify against the real services (small PR with any fixes)
+
+- [ ] `https://kings-slide.pages.dev/api/incidents?lat=25.77&lon=-80.19` returns items. If it returns `[]` while fl511.com shows events, save one raw FL511 event and fix the field mapping in `src/lib/sources/fl511.ts` (`fromFl511`, `fl511Kind`). Add that raw event as a test fixture. This closes "Verify FL511 field names" in TASKS.md.
+- [ ] `/api/cameras?lat=25.77&lon=-80.19` returns cameras (Overpass; may be slow the first time, then cached).
+- [ ] `/api/transit?lat=25.77&lon=-80.19` returns vehicles for each feed. An empty agency usually means a wrong URL or key header.
+- [ ] Sign in on two phones and follow each other. Check the Friends tab, then share location and see the other phone's rough spot while planning, and not while driving.
+- [ ] Drive with the radar and send a Report. Check that the other phone sees it and can vote "Not there".
+- [ ] Plan Fort Lauderdale → 9601 Collins Ave. Check that there are 3 or more lines, a "Has tolls" flag, and the Slide pick within +10% of Fastest.
+- [ ] Complete the **Definition of done** below on a real iPhone (Safari) and Android (Chrome), recorded as a screen video.
+
+### 3. Stability (from TASKS.md P0)
+
+- [ ] Offline / no-route sheet (when Valhalla or Photon fail, or no route is found), with a "Try again" button.
+- [ ] Map under 3 s on Slow 4G (today ≈5.8 s): show the HUD and login before MapLibre loads, and pre-cache the style in `public/sw.js`.
+- [ ] Split `src/main.ts` into `hud/ drive/ plan/ map/` with no behavior change. Do it as its own PR, after the verification above passes.
+
+### 4. Features (owner's Phase 2–5, one PR each)
+
+- [ ] **Your usual:** learn the routes you repeat between the same places (on-device only), and tag that line "Your usual".
+- [ ] **Real pace ghost:** record your own GPS run on a route and replay it next time (TASKS P2). This replaces the removed fake ghosts. Never draw invented drivers.
+- [ ] Leave-by (`leaveByForTarget` exists), the upcoming speed-limit chip, and fitting the camera to the route on the first plan.
+- [ ] Transit/walk/bike tab, home sheet, and worker features: see the owner prompt in the 2026-09-25 session log.
+
+### Waiting on the owner — do not start
+
+- **Traffic-aware ETAs** (Slide said 31 min where Google said 42): needs a paid provider. See **Traffic provider decision**; HERE is recommended. FL511 can't do this. Until it's approved, the ETA note stays "Typical time · no live traffic yet".
+- **Toll prices:** they come with HERE, so they're also blocked on that decision.
+
+### Hard rules
+
+- Real data only. Never invent traffic, reports, drivers or police positions; police are always "reported by drivers".
+- Never suggest exceeding the limit. Never scrape Google or Waze. No ads.
+- Keys live in Pages secrets. Only the Supabase URL and anon key may be `VITE_` variables.
+- Personal data (drives, places, car) stays on the phone.
+- Before every PR, `npm run build` and `npm test` must pass. Update `TASKS.md`, this file's session log, and the Layout section if you add files.
+
+### Definition of done for the owner's demo
+
+Record a short screen video on a real phone at https://kings-slide.pages.dev showing each step:
+1. The map loads in under ~3 s on 4G, with no blank screen.
+2. The first visit shows "Set up your driver"; after that, a reload goes straight in.
+3. Locate asks once, and the "you" dot sits on your real position.
+4. Planning a real Miami trip shows 3 or more routes with Slide pick / Fastest / No tolls.
+5. Go: the car and map follow you and the turn banner updates. The radar shows real items.
+6. A wrong turn reroutes within ~10 s.
+7. Arrival → End saves the trip into Your trips.
+8. On a laptop, the Command view shows around the map.
 9. Add to Home Screen opens full screen and stays signed in.
-
-**Phase 2: loading + stability (do first)**
-- [x] **Make the app start.** Right now the browser throws `The requested module '/src/lib/valhalla.ts' does not provide an export named 'sameTrip'` and nothing renders. Restore `sameTrip` / `tripShape` in `valhalla.ts` (they were used by the dual-route code in commit `4c12d77`), then fix the rest of the 17 TS errors. Run `npm run dev` and confirm the map + login appear before anything else.
-- [x] **Fix navigation so it uses real location** (owner: "it's not working, I can't see myself"):
-  1. **Start from GPS.** `ensureOrigin()` falls back to "Map center". When location is available, the From field should default to Current location, and planning should wait for the first fix (with a timeout) instead of using the map center.
-  2. **Go = real GPS.** `startDrive()` must start `locateMe()` / `startTracking` if it isn't running. The simulated `chaseT` car in `tick()` should run **only** from an explicit "Preview drive" button, labelled as a preview, never as a silent fallback.
-  3. **Camera follows the driver** in every camera mode while driving (today only `chase` follows; the default `cinematic` doesn't). Pause follow on user pan, and show a "Recenter" pill to resume.
-  4. **Reroute when off-route.** `setOffRoute(snap.offRouteM > 60)` only shows a banner. After ~8 s continuously off-route (and moving), re-plan from the current fix to the same destination with the same ranking, and keep the Slide contract.
-  5. **Arrival.** When within ~40 m of the destination (or progress ≥ 99%), stop tracking-driven guidance and show the Arrival screen (DESIGN.md 07).
-  6. **Permission states.** Denied / unavailable / timeout each get a clear message plus "Search a start point instead". iOS needs HTTPS (pages.dev is fine; a LAN IP over http is not).
-  7. The "you" dot (`src/map/you.ts`) and the drive car must never both show; `setHudMode` already hides the dot in Drive.
-- [x] **Command view** (`src/hud/command.ts`) is built. After the app starts, check on a laptop (≥1100px wide): the three-column layout, the map column resizing correctly (`map.resize()`), and the existing plan search card not colliding with the Map/3D switch. On a phone, check menu → Drive insights opens the sheet and × closes it. Drive a real route with location on and End it: a trip appears in "Your trips".
-- [x] Login is built (`src/hud/login.ts`). After the app starts, check: first visit shows "Set up your driver", the car tag seeds the garage tag, reload stays signed in, menu → Lock Slide shows "Welcome back", PIN works.
-- [x] VIA skin patch applied on this branch (commit `VIA skin: premium night HUD…`). `docs/DESIGN.md` is the style contract and now has a **screen-by-screen build spec** for all 10 canvas screens — build from that, not from the canvas directly.
-- [ ] VIA design canvas (reference only): https://claude.ai/artifact/3nbD5TfjZeoWbQEyf5yXu2. Where the canvas and `docs/DESIGN.md` disagree (traffic bars, crowd hazard reports, "Report a hazard", weather, "VIA" wordmark), **DESIGN.md wins**.
-- [x] Fix the 17 TS errors so `npm run build` passes. `GarageConfig` is missing `recents` / `home` / `work` (used at `main.ts:334–395`), and there's a 4-arg call at `main.ts:630`. Add those fields to `garage.ts` with defaults and merge old `slide.garage.v1` data safely.
-- [x] (emulated, see 2026-09-24 log — real phone still to do) Measure the live site on a phone over 4G *before* changing anything, and record the numbers in the session log. Check for a blank/black map, the style-load race, Valhalla/Photon timeouts, OpenFreeMap tile failures, fonts, and bundle size.
-- [ ] (partly: boot skeleton, `font-display: swap` non-blocking, MapLibre chunk split, fetch timeouts exist; retry, offline/no-route sheet, `main.ts` split and lazy ghosts/3D still open) Fixes: a skeleton HUD that shows instantly, map fade-in when the style is ready, fetch timeout + one retry, offline and no-route states, `font-display: swap`, lazy-load ghosts and 3D, split `main.ts` into `hud/ drive/ plan/ map/`, and in-memory route/style cache. Target: a usable HUD in under 2 s.
-- [x] Deploy to Cloudflare Pages (`kings-slide`) and verify on https://kings-slide.pages.dev.
-
-**Phase 3: routing brain.** Slide route = least Effort within +10% of fastest (the window is configurable; the proposed clamp is 1–6 min). Today `rankRoutes()` in `src/lib/smooth.ts` has no time bound, so a much slower route can win. Put ranking in one pure, tested module that returns an event list per route. Put every data source behind `src/lib/sources/*`. Update `docs/PRODUCT.md`. Use legal/open data only; never scrape Google or Waze.
-
-**Phase 4: UI clarity.** VIA look: Explore, search, place, route overview, drive, arrival, garage. Build each screen from the **Screen build spec** in `docs/DESIGN.md`. Add a trip timeline, onboarding, and offline/no-route states. It must be glanceable in 1.5 s with 4.5:1 contrast, 44 px touch targets and one accent color. Use Snap's street-level map as the reference for the night basemap (see STRATEGY).
-
-**Phase 5: 3D HUD + ghosts.** Chase cam, lane ribbon, 3D car models, glowing ghost cars, and your own pace ghost. Hold 60 fps with a quality toggle. The surprise feature is **Miami driven %**: roads you've driven glow, stored on-device only. Also draw the garage car on Explore and the Pain points heat.
-
-**Phase 6: TapN stub.** Add `src/lib/sources/tapn.ts` as a typed interface, with mock data behind a flag that's off by default.
-
-**Waiting on the owner:** whether friends' cars on the map are a real goal (if so, write a presence/privacy design before any backend), and approval of the 1–6 min clamp.
-
-## Claude follow-up
-
-Do not pick these up in a Cursor drive-mode / overview PR. They are Claude’s next slice — see unchecked items under **Claude follow-up** in `TASKS.md`.
-
-- Preferred / usual-route badge + stickiness
-- Avoid filters (tolls/ferries) + Valhalla costing
-- Leave later / depart-at (`leaveByForTarget` exists)
-- Multi-stop / Add stop
-- Transport mode switcher chrome
-- Real traffic on the ribbon only when a source exists (never fake)
-- Native CarPlay / iOS app — document only

@@ -4,7 +4,7 @@ Work top-down. Check the box in the same PR.
 
 ## Strategy
 
-> Handed to Nard on 2026-09-23. Full phase checklist: **Next for Nard** in `HANDOFF.md`.
+> Handed to Nard again on 2026-09-25 after PR #13. Start at **Next for Nard** in `HANDOFF.md` (turn on data → verify → stability → features).
 
 - [x] Phase 0–1: `docs/STRATEGY.md` (Magi pass + design recon)
 - [ ] Phase 4/5: 3D living map — garage car on Explore, "Miami driven %" (on-device), Effort icons on the route
