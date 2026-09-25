@@ -11,6 +11,18 @@ Work top-down. Check the box in the same PR.
 - [ ] Presence design (friends' cars, opt-in) before any backend
 - [ ] Phase 3: `rankRoutes()` = least Effort within +10% of fastest (today it has no time bound)
 
+## Phase 1 — Better routes (owner prompt, 2026-09-25)
+
+- [ ] **Traffic-aware ETAs** — blocked on the owner approving a provider (HANDOFF → Traffic provider decision; HERE recommended)
+- [x] 3+ routes drawn together (Slide / Fastest / No-tolls costings + `alternates`), tap line or bubble to select
+- [x] Tags: Slide pick, Fastest, No tolls (Your usual comes with Phase 2 learning)
+- [x] Tolls flagged per route from Valhalla `has_toll`; "Has tolls" with no price until a price source exists
+- [x] Route options sheet: avoid tolls / highways / ferries (saved)
+- [x] Add stops (up to 5), drag to reorder, dropped as reached
+- [ ] Verify on the live site: real Valhalla returns `alternates` and `has_toll` for Fort Lauderdale → 9601 Collins Ave
+
+## Phase 2–5 (not started): save + learn, transit/walk/bike, home sheet, worker features — see the owner prompt in the 2026-09-25 session log
+
 ## P0 — make the demo reliable
 
 - [x] **App doesn't start**: `sameTrip` / `tripShape` missing from `valhalla.ts` (browser module error → blank screen)

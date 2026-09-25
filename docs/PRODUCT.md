@@ -38,6 +38,23 @@ An unprotected left waits on a gap in oncoming traffic; a right is slow-and-go.
 Counting them equally is what makes a "fewest turns" router pick a line that
 drives badly, which is the opposite of the promise above.
 
+## Slide route contract (2026-09-25)
+
+The Slide route is the smoothest line **within +10% of the fastest time** (`SLIDE_WINDOW` in `src/lib/smooth.ts`).
+
+```
+T_fast = fastest candidate's duration (same engine, same request batch)
+candidates = routes with duration ≤ T_fast × 1.10
+Slide pick = highest Slide score among candidates (tie → quicker)
+```
+
+- If nothing in the window beats the fastest line, the fastest **is** the Slide pick and wears both tags ("Fastest is also the smoothest line we found").
+- A much smoother line that is more than 10% slower is still drawn, but it can never be the Slide pick.
+- Candidates come from three parallel requests (Slide costing, Fastest costing, No-tolls costing, each with `alternates: 2`), de-duplicated, capped at 4.
+- Tags: **Slide pick**, **Fastest**, and **No tolls** on the quickest toll-free line when the fastest has tolls. Toll status comes from Valhalla's `summary.has_toll`. When it's missing, nothing is shown: no guessing, and no dollar amounts without a price source.
+
+Before this, `rankRoutes()` picked the highest score with no time bound, so a route 20 minutes slower could win.
+
 ## Timing contract
 
 - Store duration in seconds internally.

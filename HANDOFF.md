@@ -52,6 +52,9 @@ src/hud/login.ts       login gate: set up driver / welcome back / lock
 src/map/you.ts         "you are here" marker: glow dot, pulse, heading cone, accuracy halo
 src/hud/command.ts     Command view: SEKAI-style dashboard (wide) / Insights sheet (phone)
 src/lib/history.ts     on-device trip history + overview stats (live-GPS drives only)
+src/plan/routeset.ts   merge route variants, bubble placement, toll labels (pure, tested)
+src/plan/stops.ts      multi-stop helpers: reorder, stop reached, drop index (pure, tested)
+src/plan/routes.test.ts  Vitest unit tests (`npm test`)
 src/lib/sources/weather.ts  Open-Meteo current conditions for the clock card (CC BY 4.0)
 public/                web manifest, PNG/maskable/apple-touch icons, shell-only sw.js, Pages _headers (Add to Home Screen)
 docs/PRODUCT.md        scoring contract
@@ -144,6 +147,33 @@ Read `TASKS.md` top unchecked item. Do not rebase history. Do not rename the pro
   - **Verified** with Playwright against the live site (29/29 checks, 0 console errors; `qa-results.json`): login first visit, tag seeds garage, reload stays in, Lock → Welcome back, Drive insights opens/closes, From = Current location, Preview not saved, Go = live GPS (speedo MPH), camera follows, pan → Recenter → resumes, End saves a trip, arrival screen + save, trip in Your trips, reroute after 8 s off-route, denied and timeout messages (no map-centre fallback), laptop three-column Command view, canvas = map column (740×802), plan card clear of the Map/3D switch (open and closed), map resizes with the window.
   - **Recording** (`/workspace/slide-live/slide-demo-phone.mp4` 3 m 53 s, `slide-demo-laptop.mp4` 19 s, chapters in `slide-demo-chapters.txt`): **emulated phone** (Chromium 390×844, touch, iPhone UA) with **simulated GPS** (Playwright `setGeolocation` stepping along the real Valhalla route Mary Brickell Village → Bayside Marketplace at ≈25 mph) against the live site. It is **not** a real-device recording. In that run: map rendered in 1.95 s (no throttle), reroute landed 15.4 s after leaving the line (≈5 s to get 60 m off + the 8 s timer + ≈2 s routing).
   - **Still broken / not done:** a real iPhone + Android test and **Add to Home Screen** (standalone launch, stays signed in) still need a human with the devices. The public Valhalla server usually returns a **single line** in Miami (both costings give the same trip on 7 of 8 test pairs), so a **Faster card rarely appears**; a single-line plan now shows one Slide chip and "Fastest is also the smoothest line we found" instead of nothing. Phase 2 items not done: Slow-4G map under 3 s, fetch retry, offline/no-route sheet, `main.ts` split. Ghosts are still seeded simulations (known gap).
+
+- 2026-09-25 Claude: **Phase 1 "Better routes", part 1** (branch on top of PR #11, free providers only).
+  - **3+ routes:** Slide, Fastest and No-tolls costings are requested in parallel and de-duplicated (max 4). Found why Faster almost never appeared: the code sent `alternatives: true`, but Valhalla's option is `alternates` (a count), so it was silently ignored. It now sends `alternates: 2` and reads both response keys.
+  - **Slide route contract implemented:** smoothest within +10% of fastest (PRODUCT.md updated). Tags: Slide pick / Fastest / No tolls.
+  - **Tolls:** from Valhalla `summary.has_toll` → "Has tolls" / "No tolls" on bubbles and in the review line. No prices (no price source yet).
+  - **Route options sheet** (sliders button): avoid tolls / highways / ferries, saved in the garage (`avoid`), applied to every plan and reroute.
+  - **Add stops:** up to 5, reorder by dragging the grip (pointer events, works on touch), remove with ×. Each stop drops off the list once reached, so a reroute never sends you back.
+  - **Map:** tap a route line (invisible 28 px hit layer) or its bubble to select it. The selected line draws on top. Bubbles sit where routes diverge and never overlap on screen (re-laid out after zoom).
+  - **Honest ETA:** the review sheet says "Typical time · no live traffic yet". This is why Slide said 31 min where Google said 42 for Fort Lauderdale → 9601 Collins Ave.
+  - Added Vitest (`npm test`, 18 tests) and `npm run typecheck`. Verified end to end in headless Chromium with **test-only fake Valhalla/Photon answers** (the container can't reach the real services): login → search → 3 bubbles with tags → tap to select → avoid tolls re-plans → add stop sends 3-point routes → setting persists → no page errors. **Not verified against the live Valhalla server** (especially `alternates` and `has_toll`); check on the deployed site.
+  - **Not done, needs the owner (traffic-aware ETAs):** see "Traffic provider decision" below.
+
+## Traffic provider decision (owner to approve)
+
+Traffic-aware times need a paid provider, and the owner's rule is "HERE/TomTom only if I approve paid APIs".
+
+| Provider | Traffic ETA | Alternatives | Toll prices (SunPass) | Fits Slide? |
+| --- | --- | --- | --- | --- |
+| **HERE Routing v8** | Yes | Yes | Yes, returns toll costs | **Recommended**: works with our own map, and it's the only option here that also covers the toll-price requirement |
+| TomTom Routing | Yes | Yes | No prices (avoid tolls only) | Good fallback if HERE is declined |
+| Mapbox Directions (driving-traffic) | Yes | Up to 3 routes | No US prices | Check its terms on use with a non-Mapbox map before choosing |
+| Google Routes API | Yes | Yes | Yes | **Rejected**: Google Maps Platform terms don't allow showing its results on a non-Google map, and HANDOFF forbids replacing OSM routing with Google |
+
+- Both HERE and TomTom have a monthly free tier and charge per request above it. **Check current prices and free-tier limits on their pricing pages before approving.** This container can't reach them, so no numbers are written here that haven't been checked.
+- **Key handling:** never a `VITE_` variable, because anything given to the browser ends up in the public bundle. Add a Cloudflare Pages Function (`functions/api/route.ts`) that holds the key as a Pages secret and forwards the request. Cache identical requests for ~60 s to stay inside the free tier.
+- **Fallback:** keep the current free Valhalla path (not OSRM; Slide has never used OSRM) whenever the provider errors or the quota runs out. The UI must then say "no live traffic".
+- Once approved: the provider adapter goes behind `src/lib/sources/routing/*` with the same `SlideRoute` output, and the Collins Ave check is "within ~10% of Google at the same time of day".
 
 ## Next for Nard (start here)
 
