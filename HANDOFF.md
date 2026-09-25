@@ -220,6 +220,8 @@ Read `TASKS.md` top unchecked item. Do not rebase history. Do not rename the pro
   - **Verified:** 54 unit tests. E2E with test-only stand-ins covering the camera, bus and train blips, the Nearby list, friend spot shown when planning and hidden when driving, share sent already rounded, pill Stop → `stop_presence` and the setting saved off. Regression runs without accounts all pass.
   - **Not verified against the live services.**
 
+- 2026-09-25 Claude: **Nothing simulated.** Owner asked for real data only, so the "Preview drive" button and its simulated car (`chasePoint`, `previewDrive`, the PREVIEW chip) are removed. Go always uses live GPS; with no fix the car is hidden and the speed shows "—". Scanned the production bundle for leftover fake or demo strings: none (the only hit was the HTML word `novalidate`). PR #13 merged.
+
 ## Owner setup for accounts + radar
 
 1. **Supabase project:** create a free project named `slide` (region us-east-1). Claude's permissions couldn't create it. Then apply **both** files in `supabase/migrations/`, in name order (have Claude do it, or paste each into the SQL editor).

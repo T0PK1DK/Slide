@@ -665,7 +665,6 @@ button.cmd-intel-card.on { border-color: rgba(255,255,255,.22); }
 .loc-actions .ghost, .loc-actions .primary { min-height: 44px; border-radius: 999px; padding: 0 16px; }
 .loc-actions .primary { flex: 0 0 auto; }
 .loc-close { position: absolute; top: 8px; right: 8px; width: 36px; height: 36px; border-radius: 50%; background: transparent; color: var(--muted); font-size: 20px; }
-.preview-chip { position: absolute; z-index: 6; left: 50%; transform: translateX(-50%); bottom: calc(92px + env(safe-area-inset-bottom)); border-radius: 999px; padding: 8px 14px; font: 500 11px/1 "Geist Mono", ui-monospace, monospace; letter-spacing: .14em; color: var(--glow); white-space: nowrap; }
 .linkish { display: block; width: 100%; margin-top: 10px; min-height: 44px; background: none; border: 0; color: var(--muted); font: 500 13px/1 inherit; font-family: inherit; cursor: pointer; }
 .linkish span { color: var(--faint); }
 .linkish:hover { color: var(--text); }
