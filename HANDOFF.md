@@ -58,6 +58,14 @@ src/plan/routes.test.ts  Vitest unit tests (`npm test`)
 src/lib/alerts.ts      desktop alert list + switch suggestion from real data only (pure, tested)
 src/lib/dashboard.test.ts  tests for alerts / week tiles
 src/hud/profile.ts     Profile sheet: driver, My car, all-time stats, places, privacy; friends section (not live)
+src/lib/cloud.ts       optional Supabase client (lazy; off when VITE_SUPABASE_* unset)
+src/lib/social.ts      email-code sign-in, profiles, follow/unfollow, friends, search
+src/lib/reports.ts     radar items, heading-up geometry, alerts, report/vote RPCs
+src/lib/sources/fl511.ts  FL511 event → radar item (pure, tested)
+src/hud/radar.ts       mini radar, Report sheet, heads-up banner, Nearby list
+src/hud/social.ts      Profile → Friends & followers (sign in, handle, lists, search)
+functions/api/incidents.ts  Pages Function: FL511 proxy (key in FL511_API_KEY secret)
+supabase/migrations/   accounts, follows, reports schema + RLS (tested in PGlite)
 src/lib/sources/weather.ts  Open-Meteo current conditions for the clock card (CC BY 4.0)
 public/                web manifest, PNG/maskable/apple-touch icons, shell-only sw.js, Pages _headers (Add to Home Screen)
 docs/PRODUCT.md        scoring contract
@@ -72,8 +80,8 @@ AGENTS.md / CLAUDE.md  short agent rules
 
 1. Default route is **smoothest**, not fastest. Fast is an explicit choice.
 2. Never suggest exceeding the posted limit. Expected speed = model; posted = sign.
-3. No ads. No police-spotting social feed.
-4. Privacy: garage + history stay on device until a real backend exists.
+3. No ads. **Owner decision 2026-09-25:** drivers may *report* police, crashes, hazards, closures and jams (Waze-style) on the radar. Slide never *tracks* police or emergency vehicles, since no legal real-time source exists, and it never invents a report. Reports are anonymous, expire, and can be cleared by other drivers.
+4. Privacy: garage, drives, places and trip history stay on the device. The optional Supabase account holds only the handle, name, car tag, an opt-in car label, follows, and anonymous reports.
 5. Ghosts are presence, not a race to cut neighborhoods.
 6. Keep the night HUD. Do not flatten into a Google Maps clone.
 
@@ -174,6 +182,44 @@ Read `TASKS.md` top unchecked item. Do not rebase history. Do not rename the pro
   - **#9** (Cursor's `main.ts` split) closed: it was written against the app before real GPS, login, routes and the dashboard. Its one-retry `net.ts` idea is ported into `fetchJson` (network / timeout / 429 / 5xx only, 700 ms pause). The file split is still a TASKS item.
   - Planning is now gentler on the public Valhalla server: one variant request at a time, stop at 3 distinct lines, and trace calls in sequence with a timeout. Verified that a 429 is retried and the plan still draws 3 routes.
   - 33 unit tests; e2e routes / dashboard / profile all pass on the merged tree.
+
+- 2026-09-25 Claude: **Radar, driver reports, accounts, friends & followers** (owner approved Supabase and the radar).
+  - **Radar** (`src/hud/radar.ts`): a heading-up mini map with a sweep, 0.5 / 1 / 1.5 mi rings and colored blips, showing real items only:
+    - driver reports: police, crash, hazard, closure, jam
+    - FL511 official incidents, closures and roadwork
+    - **Report** button: five big one-tap choices at your current spot.
+    - **Heads-up banner + vibration** once per item when police, a crash, a closure or a hazard is reported within 0.8 mi ahead.
+    - **Nearby list** with Still there / Not there.
+    - It never suggests changing speed, and police are always worded "reported by drivers".
+  - **Database** (`supabase/migrations/…`): profiles, follows, reports and votes, all under RLS.
+    - Reports are only readable through `reports_near()`, which returns no reporter.
+    - Rate limit of 5 per 10 min; duplicates within ~150 m merge as a confirm.
+    - Expiry: police 30 min, crash 60, closure 120, jam 20, hazard 45. Confirms extend it; two "not there" votes remove it.
+    - `delete_my_account()` cascades.
+    - Tested in PGlite with Supabase-style auth stand-ins (dedupe, no reporter column, own-vote ignored, 2 clears remove, rate limit, signed-out refused, friend counts).
+  - **Accounts** (`src/hud/social.ts` in Profile): sign in with an email code, pick a @handle, and choose to show your car or not (off by default).
+    - Friends / Followers / Following tabs, driver search, follow / unfollow / remove follower.
+    - Sign out and Delete account.
+  - **FL511** via a Pages Function holding the key server-side, with a shared 60 s edge cache.
+  - **Everything is off until configured:** the app runs exactly as before without the env vars.
+  - **Verified:** 45 unit tests. E2E in headless Chromium with test-only Supabase / FL511 stand-ins and a fake phone driving north: radar blips, Nearby list, vote sent, report sent, banner + vibration while driving, friends lists. The regression runs without accounts all pass.
+  - **Not verified against live services:** real Supabase, and the FL511 response field names (the mapper reads fields defensively; check the first real payload).
+  - **Not built:** live bus/train positions (GTFS-realtime, next), speed-camera locations, and friends' live positions on the map (needs the presence design).
+
+## Owner setup for accounts + radar
+
+1. **Supabase project:** create a free project named `slide` (region us-east-1). Claude's permissions couldn't create it. Then have Claude apply `supabase/migrations/20260925000000_accounts_social_reports.sql`, or paste it into the SQL editor.
+2. **Supabase Auth settings:**
+   - **URL Configuration:** Site URL `https://kings-slide.pages.dev`.
+   - **Email Templates → Magic Link:** add `{{ .Token }}` so the email shows the 6-digit code the app asks for.
+   - **Email sending:** the built-in sender allows only a few emails per hour, which is fine for testing. For friends at scale, add SMTP (e.g. Resend, which has a free tier).
+3. **Cloudflare Pages → kings-slide → Settings → Environment variables** (Production), then redeploy:
+   - `VITE_SUPABASE_URL` = the project URL
+   - `VITE_SUPABASE_ANON_KEY` = the publishable (anon) key. It's public by design; RLS protects the data.
+   - `FL511_API_KEY` = your key from fl511.com's developer page. Add it as a **secret**.
+4. **Free-tier limits:**
+   - Supabase free: 500 MB database, 50k monthly active users. The project pauses after a week without use.
+   - FL511: one upstream call per minute is shared by all drivers.
 
 ## Traffic provider decision (owner to approve)
 

@@ -42,6 +42,7 @@ import {
 } from "./lib/maplook";
 import { ensureSignedIn, lockApp } from "./hud/login";
 import { mountProfile } from "./hud/profile";
+import { mountRadar } from "./hud/radar";
 import { createYouMarker } from "./map/you";
 import { mountCommand } from "./hud/command";
 import { recordTrip } from "./lib/history";
@@ -420,6 +421,8 @@ const profileSheet = mountProfile({
   onChange: () => command.refreshHistory(),
   onHistoryCleared: () => command.refreshHistory(),
 });
+// Real GPS only: the simulated preview car never feeds the radar or its alerts.
+const radar = mountRadar({ getFix: () => liveFix, openProfile: () => profileSheet.open() });
 $("#ov-profile").addEventListener("click", () => { overflowEl.classList.remove("open"); profileSheet.open(); });
 map.on("moveend", () => {
   if ((hudMode === "review" || hudMode === "plan") && routes.length && Math.abs(map.getZoom() - chipLayoutZoom) > 0.25) paintRouteChips();
@@ -686,6 +689,7 @@ function setHudMode(mode: HudMode) {
   document.body.dataset.mode = mode;
   const driving = mode === "drive";
   you.setVisible(!driving);
+  radar.setMode(mode);
   const reviewing = mode === "review";
   driveBarEl.toggleAttribute("hidden", !driving);
   reviewEl.toggleAttribute("hidden", !reviewing);

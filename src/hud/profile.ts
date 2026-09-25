@@ -2,12 +2,12 @@ import { clearTrips, lifetime, loadTrips } from "../lib/history";
 import { eraseDeviceData, FUELS, loadProfile, saveProfile, toCar, type DriverProfile } from "../lib/profile";
 import type { SavedPlace } from "../lib/garage";
 import { lockApp } from "./login";
+import { renderSocial } from "./social";
 
 /**
  * Profile: who's driving, what they drive, and their own numbers. Everything on
- * this sheet lives on the phone. Friends & followers need real accounts and a
- * presence design (docs/STRATEGY.md), so that section says so instead of
- * showing invented people or zero-count placeholders that pretend to work.
+ * this sheet lives on the phone, except the optional Slide account section
+ * (src/hud/social.ts): handle, name, car tag and an opt-in car label.
  */
 export type ProfileHooks = {
   places: () => { home: SavedPlace | null; work: SavedPlace | null };
@@ -91,11 +91,7 @@ export function mountProfile(h: ProfileHooks): { open(): void; close(): void } {
           <p class="pf-note">Stays on this phone. Slide never asks for your plate or VIN.</p>
         </form>
 
-        <section class="pf-section">
-          <h3>Friends & followers</h3>
-          <p class="pf-note">Coming with Slide accounts. Following drivers and seeing friends on the map needs a sign-in and a privacy design first: who can see you, how precisely, and a one-tap "hide me". Friends are never shown while you drive.</p>
-          <button type="button" class="pf-link" disabled>Find drivers · not available yet</button>
-        </section>
+        <section class="pf-section" id="pf-social"></section>
 
         <section class="pf-section">
           <h3>Places</h3>
@@ -114,6 +110,7 @@ export function mountProfile(h: ProfileHooks): { open(): void; close(): void } {
       </div>`;
 
     el.querySelector(".pf-close")!.addEventListener("click", close);
+    renderSocial(el.querySelector<HTMLElement>("#pf-social")!, p);
     el.querySelector<HTMLFormElement>("#pf-driver")!.addEventListener("submit", (e) => {
       e.preventDefault();
       const d = new FormData(e.target as HTMLFormElement);

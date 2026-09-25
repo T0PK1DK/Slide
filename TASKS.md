@@ -26,7 +26,12 @@ Work top-down. Check the box in the same PR.
 
 - [x] Remove bot data: seeded ghost drivers and the old demo preview page
 - [x] Profile: driver, My car, all-time stats, places, privacy (on-device)
-- [ ] **Friends & followers** — owner decision needed: accounts backend (Supabase is connected) + presence/privacy design (who sees you, precision, hide-me, never while driving)
+- [x] Accounts (Supabase, email code), profiles, follow/unfollow, friends = mutual follows, driver search
+- [x] Radar mini map + driver reports (police, crash, hazard, closure, jam) with votes, heads-up banner, FL511 incidents
+- [ ] **Owner:** create the Supabase project, set Auth URL + `{{ .Token }}` template, set Pages env vars + FL511 key (HANDOFF → Owner setup)
+- [ ] Verify FL511 field names against the first real payload
+- [ ] Live buses/trains on the radar (Miami-Dade Transit, Broward, Tri-Rail, Brightline GTFS-realtime)
+- [ ] Friends' live positions (presence): rough area only, one-tap hide, never shown while driving
 - [ ] Real pace ghost: record your own GPS run per route and replay it (replaces the removed fake ghosts)
 
 ## Phase 2–5 (not started): save + learn, transit/walk/bike, home sheet, worker features — see the owner prompt in the 2026-09-25 session log
