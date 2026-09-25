@@ -11,7 +11,10 @@ import {
   voteReport,
   type Blip,
   type RadarItem,
+  enforcementCameras,
+  transitVehicles,
   type RadarKind,
+  type ReportableKind,
 } from "../lib/reports";
 import { currentUserId } from "../lib/social";
 
@@ -42,6 +45,9 @@ const GLYPH: Record<RadarKind, string> = {
   closure: `<rect x="4" y="8" width="16" height="8" rx="2"/>`,
   jam: `<circle cx="12" cy="12" r="7"/>`,
   roadwork: `<path d="M4 20h16L12 4z"/>`,
+  camera: `<rect x="3" y="7" width="14" height="10" rx="2"/><path d="M17 10l4-2v8l-4-2z"/>`,
+  bus: `<rect x="5" y="4" width="14" height="15" rx="3"/>`,
+  rail: `<rect x="6" y="3" width="12" height="15" rx="4"/><path d="M8 21l2-3M16 21l-2-3" stroke="currentColor" stroke-width="2"/>`,
 };
 
 export function mountRadar(h: RadarHooks): RadarView {
@@ -86,11 +92,13 @@ export function mountRadar(h: RadarHooks): RadarView {
     polling = true;
     lastPollAt = Date.now();
     lastPollPos = fix.pos;
-    const [drivers, official] = await Promise.all([
+    const [drivers, official, cameras, transit] = await Promise.all([
       reportsNear(fix.pos.lat, fix.pos.lon).catch(() => [] as RadarItem[]),
       officialIncidents(fix.pos.lat, fix.pos.lon),
+      enforcementCameras(fix.pos.lat, fix.pos.lon),
+      transitVehicles(fix.pos.lat, fix.pos.lon),
     ]);
-    items = [...drivers, ...official];
+    items = [...drivers, ...official, ...cameras, ...transit];
     polling = false;
     draw();
   };
@@ -115,7 +123,7 @@ export function mountRadar(h: RadarHooks): RadarView {
     const b = nextAlert(blips, alerted);
     if (!b) return;
     alerted.add(b.id);
-    banner.innerHTML = `<span class="rb-dot ${b.kind}"></span><div><b>${esc(b.title)} ahead · ${b.distMi.toFixed(1)} mi</b><span>${esc(b.detail)} · ${ago(b.createdAt)}</span></div>`;
+    banner.innerHTML = `<span class="rb-dot ${b.kind}"></span><div><b>${esc(b.title)} ahead · ${b.distMi.toFixed(1)} mi</b><span>${esc(b.detail)}${b.createdAt ? ` · ${ago(b.createdAt)}` : ""}</span></div>`;
     banner.hidden = false;
     try { navigator.vibrate?.([80, 60, 80]); } catch { /* not supported */ }
     window.clearTimeout(bannerTimer);
@@ -125,12 +133,12 @@ export function mountRadar(h: RadarHooks): RadarView {
   const openList = () => {
     const fix = h.getFix();
     const rows = blips.length
-      ? blips.map((b) => `<li class="rs-item"><span class="rb-dot ${b.kind}"></span><div><b>${esc(b.title)}</b><span>${b.distMi.toFixed(1)} mi${b.ahead ? " ahead" : ""} · ${ago(b.createdAt)} · ${esc(b.detail)}</span>
+      ? blips.map((b) => `<li class="rs-item"><span class="rb-dot ${b.kind}"></span><div><b>${esc(b.title)}</b><span>${b.distMi.toFixed(1)} mi${b.ahead ? " ahead" : ""}${b.createdAt ? ` · ${ago(b.createdAt)}` : ""} · ${esc(b.detail)}</span>
           ${b.reportId !== null ? `<div class="rs-votes"><button type="button" data-vote="${b.reportId}" data-yes="1">Still there</button><button type="button" data-vote="${b.reportId}" data-yes="0">Not there</button></div>` : ""}</div></li>`).join("")
       : `<li class="rs-empty">${fix ? "Nothing reported within 1.5 mi." : "Turn on location to see what's around you."}</li>`;
     sheet.innerHTML = `<div class="rs-card">
       <header><h2>Radar</h2><button type="button" class="rs-close" aria-label="Close">×</button></header>
-      <p class="rs-src">Driver reports${cloudConfigured() ? "" : " (accounts not set up on this build)"} · FL511 official incidents. Slide never tracks police vehicles; police items are reports from other drivers.</p>
+      <p class="rs-src">Driver reports${cloudConfigured() ? "" : " (accounts not set up on this build)"} · FL511 official incidents · cameras mapped in OpenStreetMap (may be incomplete) · live buses and trains where agencies publish them. Slide never tracks police vehicles; police items are reports from other drivers.</p>
       <ul class="rs-list">${rows}</ul>
       <p class="rs-msg" role="status"></p>
     </div>`;
@@ -177,7 +185,7 @@ export function mountRadar(h: RadarHooks): RadarView {
         if (!f) { msg.textContent = "Waiting for your location…"; return; }
         btn.disabled = true;
         try {
-          await submitReport(btn.dataset.kind as Exclude<RadarKind, "roadwork">, f.pos.lat, f.pos.lon, f.headingDeg);
+          await submitReport(btn.dataset.kind as ReportableKind, f.pos.lat, f.pos.lon, f.headingDeg);
           msg.textContent = "Reported. Thanks for looking out.";
           void poll(f);
           window.setTimeout(closeSheet, 900);

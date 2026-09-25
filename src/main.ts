@@ -43,6 +43,7 @@ import {
 import { ensureSignedIn, lockApp } from "./hud/login";
 import { mountProfile } from "./hud/profile";
 import { mountRadar } from "./hud/radar";
+import { mountFriends } from "./map/friends";
 import { createYouMarker } from "./map/you";
 import { mountCommand } from "./hud/command";
 import { recordTrip } from "./lib/history";
@@ -420,9 +421,17 @@ const profileSheet = mountProfile({
   openGarage: () => garageEl.classList.add("open"),
   onChange: () => command.refreshHistory(),
   onHistoryCleared: () => command.refreshHistory(),
+  sharing: () => garage.shareWithFriends,
+  setSharing: (on) => { garage.shareWithFriends = on; persist(); friends.refresh(); },
 });
 // Real GPS only: the simulated preview car never feeds the radar or its alerts.
 const radar = mountRadar({ getFix: () => liveFix, openProfile: () => profileSheet.open() });
+const friends = mountFriends({
+  map,
+  getFix: () => liveFix,
+  sharing: () => garage.shareWithFriends,
+  setSharing: (on) => { garage.shareWithFriends = on; persist(); },
+});
 $("#ov-profile").addEventListener("click", () => { overflowEl.classList.remove("open"); profileSheet.open(); });
 map.on("moveend", () => {
   if ((hudMode === "review" || hudMode === "plan") && routes.length && Math.abs(map.getZoom() - chipLayoutZoom) > 0.25) paintRouteChips();
@@ -690,6 +699,7 @@ function setHudMode(mode: HudMode) {
   const driving = mode === "drive";
   you.setVisible(!driving);
   radar.setMode(mode);
+  friends.setMode(mode);
   const reviewing = mode === "review";
   driveBarEl.toggleAttribute("hidden", !driving);
   reviewEl.toggleAttribute("hidden", !reviewing);

@@ -927,3 +927,29 @@ body[data-mode="drive"] .radar { top: calc(132px + env(safe-area-inset-top)); }
 /* Drive stack, top to bottom: next-turn card, heads-up banner, radar. */
 body[data-mode="drive"] .radar-banner { top: calc(112px + env(safe-area-inset-top)); }
 body[data-mode="drive"] .radar { top: calc(196px + env(safe-area-inset-top)); }
+
+/* Radar: cameras, buses, trains */
+.radar .blip.camera { color: #c084fc; } .radar .blip.bus { color: #38bdf8; } .radar .blip.rail { color: #2dd4bf; }
+.rb-dot.camera { background: #c084fc; box-shadow: 0 0 10px #c084fc; } .rb-dot.bus { background: #38bdf8; } .rb-dot.rail { background: #2dd4bf; }
+
+/* Friends on the map (src/map/friends.ts): rough ~1 km area + name chip */
+.friend-spot { position: relative; width: 0; height: 0; }
+.fs-area { position: absolute; left: 0; top: 0; transform: translate(-50%, -50%); border-radius: 50%;
+  background: radial-gradient(circle, rgba(91,140,255,.22), rgba(91,140,255,.06) 70%, transparent); border: 1px dashed rgba(91,140,255,.45); pointer-events: none; }
+.fs-chip { position: absolute; left: 0; top: 0; transform: translate(-50%, -50%); display: flex; align-items: center; gap: 6px; padding: 4px 10px 4px 4px; border-radius: 999px;
+  background: rgba(12,14,20,.92); border: 1px solid rgba(91,140,255,.5); color: var(--text); font-size: 12px; font-weight: 500; white-space: nowrap; box-shadow: 0 8px 20px rgba(0,0,0,.5); }
+.fs-chip b { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; background: #5b8cff; color: #07080a; font-size: 11px; }
+.fs-chip small { color: var(--faint); font-size: 10.5px; }
+body[data-mode="drive"] .friend-spot { display: none; }
+
+.share-pill { position: fixed; left: 50%; top: calc(12px + env(safe-area-inset-top)); transform: translateX(-50%); z-index: 8; display: flex; align-items: center; gap: 10px;
+  padding: 4px 4px 4px 12px; border-radius: 999px; border: 1px solid rgba(91,140,255,.45); background: rgba(12,14,20,.92); font-size: 12.5px; color: var(--text); white-space: nowrap; }
+.share-pill[hidden] { display: none; }
+.share-pill i { width: 8px; height: 8px; border-radius: 50%; background: #5b8cff; box-shadow: 0 0 8px #5b8cff; }
+.share-pill button { min-height: 36px; padding: 0 14px; border-radius: 999px; border: 0; background: #1c2233; color: var(--text); font: inherit; font-weight: 600; cursor: pointer; }
+.sc-share { border-bottom: 0; }
+@media (min-width: 1100px) { body.cmd .share-pill { top: 76px; } }
+/* Sharing pill sits right of the menu button, never over it. */
+.share-pill { left: 70px; right: auto; transform: none; max-width: calc(100vw - 82px); }
+.share-pill span { overflow: hidden; text-overflow: ellipsis; }
+@media (min-width: 1100px) { body.cmd .share-pill { left: 50%; transform: translateX(-50%); } }

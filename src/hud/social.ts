@@ -1,4 +1,5 @@
 import { cloudConfigured } from "../lib/cloud";
+import { stopPresence } from "../lib/presence";
 import type { DriverProfile } from "../lib/profile";
 import {
   carLabel,
@@ -30,7 +31,9 @@ const esc = (s: string) =>
 
 type Tab = "friends" | "followers" | "following";
 
-export function renderSocial(box: HTMLElement, local: DriverProfile) {
+export type ShareHooks = { sharing: () => boolean; setSharing: (on: boolean) => void };
+
+export function renderSocial(box: HTMLElement, local: DriverProfile, share: ShareHooks) {
   if (!cloudConfigured()) {
     box.innerHTML = `<h3>Friends & followers</h3><p class="pf-note">Slide accounts aren't switched on for this build yet. Your profile works on this phone in the meantime.</p>`;
     return;
@@ -112,6 +115,7 @@ export function renderSocial(box: HTMLElement, local: DriverProfile) {
           ${(["friends", "followers", "following"] as Tab[]).map((t) => `<button type="button" role="tab" aria-selected="${t === tab}" class="sc-tab${t === tab ? " on" : ""}" data-tab="${t}"><b>${counts[t]}</b>${t[0].toUpperCase() + t.slice(1)}</button>`).join("")}
         </div>
         <ul class="sc-list">${lists[tab].length ? lists[tab].map(personRow).join("") : `<li class="pf-note">${tab === "friends" ? "Friends are people you follow who follow you back." : "No one here yet."}</li>`}</ul>
+        <label class="switch sc-share"><span>Share my rough location with friends<small>About 1 km, only friends who follow you back, gone after 15 min. Never shown while driving.</small></span><input type="checkbox" data-share${share.sharing() ? " checked" : ""} /></label>
         <form class="pf-form sc-search" role="search"><label>Find drivers<input name="q" placeholder="@handle or name" autocomplete="off" /></label></form>
         <ul class="sc-list sc-results"></ul>
         <p class="sc-msg pf-note" role="status"></p>
@@ -142,7 +146,13 @@ export function renderSocial(box: HTMLElement, local: DriverProfile) {
           } catch (err) { fail(err); }
         }, 300);
       });
-      box.querySelector("[data-signout]")!.addEventListener("click", async () => { try { await signOut(); await load(); } catch (err) { fail(err); } });
+      box.querySelector<HTMLInputElement>("[data-share]")!.addEventListener("change", async (e) => {
+        const on = (e.target as HTMLInputElement).checked;
+        share.setSharing(on);
+        if (!on) await stopPresence().catch(() => undefined);
+        say(on ? "Friends can now see roughly where you are." : "Stopped sharing. Your position was removed.");
+      });
+      box.querySelector("[data-signout]")!.addEventListener("click", async () => { try { share.setSharing(false); await stopPresence().catch(() => undefined); await signOut(); await load(); } catch (err) { fail(err); } });
       box.querySelector("[data-delete]")!.addEventListener("click", async () => {
         if (!confirm("Delete your Slide account? Your profile, follows and reports are removed from the server. Drives on this phone stay.")) return;
         try { await deleteAccount(); await load(); } catch (err) { fail(err); }

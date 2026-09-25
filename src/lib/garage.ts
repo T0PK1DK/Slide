@@ -31,6 +31,8 @@ export type GarageConfig = {
   home: SavedPlace | null;
   work: SavedPlace | null;
   avoid: AvoidOptions;
+  /** Friends on the map: share my rough (~1 km) location with mutual friends. Off by default. */
+  shareWithFriends: boolean;
 };
 
 const KEY = "slide.garage.v1";
@@ -57,6 +59,7 @@ export const DEFAULT_GARAGE: GarageConfig = {
   home: null,
   work: null,
   avoid: { tolls: false, highways: false, ferries: false },
+  shareWithFriends: false,
 };
 
 const CAMERAS: readonly CameraMode[] = ["cinematic", "chase", "top"];
@@ -97,7 +100,7 @@ export function migrateGarage(saved: unknown): GarageConfig {
   // The flat night skin was once called "waze"; it's Slide's own look now.
   const skin = saved.mapSkin === "waze" ? "slide" : saved.mapSkin;
   if (typeof skin === "string" && skin in MAP_STYLES) out.mapSkin = skin as MapSkin;
-  for (const k of ["showGhosts", "showBuildings", "shareGhost", "coachDismissed"] as const) {
+  for (const k of ["showGhosts", "showBuildings", "shareGhost", "coachDismissed", "shareWithFriends"] as const) {
     if (typeof saved[k] === "boolean") out[k] = saved[k] as boolean;
   }
   if (Array.isArray(saved.recents)) {

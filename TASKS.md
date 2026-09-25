@@ -30,8 +30,9 @@ Work top-down. Check the box in the same PR.
 - [x] Radar mini map + driver reports (police, crash, hazard, closure, jam) with votes, heads-up banner, FL511 incidents
 - [ ] **Owner:** create the Supabase project, set Auth URL + `{{ .Token }}` template, set Pages env vars + FL511 key (HANDOFF → Owner setup)
 - [ ] Verify FL511 field names against the first real payload
-- [ ] Live buses/trains on the radar (Miami-Dade Transit, Broward, Tri-Rail, Brightline GTFS-realtime)
-- [ ] Friends' live positions (presence): rough area only, one-tap hide, never shown while driving
+- [x] Live buses/trains on the radar (GTFS-realtime via TRANSIT_FEEDS) — **owner:** add each agency's feed URL/key
+- [x] Speed / red-light cameras on the radar (OpenStreetMap via Overpass)
+- [x] Friends on the map: opt-in, server-rounded ~1 km, mutual friends only, 15 min expiry, one-tap stop, hidden while driving
 - [ ] Real pace ghost: record your own GPS run per route and replay it (replaces the removed fake ghosts)
 
 ## Phase 2–5 (not started): save + learn, transit/walk/bike, home sheet, worker features — see the owner prompt in the 2026-09-25 session log

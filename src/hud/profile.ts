@@ -17,6 +17,9 @@ export type ProfileHooks = {
   onChange: (p: DriverProfile) => void;
   /** Called after the drive history is cleared. */
   onHistoryCleared: () => void;
+  /** Friends on the map (rough location, mutual friends only). */
+  sharing: () => boolean;
+  setSharing: (on: boolean) => void;
 };
 
 const esc = (s: string) =>
@@ -110,7 +113,7 @@ export function mountProfile(h: ProfileHooks): { open(): void; close(): void } {
       </div>`;
 
     el.querySelector(".pf-close")!.addEventListener("click", close);
-    renderSocial(el.querySelector<HTMLElement>("#pf-social")!, p);
+    renderSocial(el.querySelector<HTMLElement>("#pf-social")!, p, { sharing: h.sharing, setSharing: h.setSharing });
     el.querySelector<HTMLFormElement>("#pf-driver")!.addEventListener("submit", (e) => {
       e.preventDefault();
       const d = new FormData(e.target as HTMLFormElement);

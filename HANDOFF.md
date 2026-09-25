@@ -65,6 +65,13 @@ src/lib/sources/fl511.ts  FL511 event → radar item (pure, tested)
 src/hud/radar.ts       mini radar, Report sheet, heads-up banner, Nearby list
 src/hud/social.ts      Profile → Friends & followers (sign in, handle, lists, search)
 functions/api/incidents.ts  Pages Function: FL511 proxy (key in FL511_API_KEY secret)
+functions/api/cameras.ts    Pages Function: OSM enforcement cameras via Overpass (24 h tile cache)
+functions/api/transit.ts    Pages Function: GTFS-realtime buses/trains from TRANSIT_FEEDS secret
+src/lib/sources/gtfsrt.ts   dependency-free GTFS-realtime VehiclePositions decoder (tested)
+src/lib/sources/osmcameras.ts  Overpass query + camera mapping (tested)
+src/lib/sources/transit.ts  feed config + vehicle → radar item (tested)
+src/lib/presence.ts    friends on the map: share / stop / read (server rounds to ~1 km)
+src/map/friends.ts     friend spots (rough area + chip), sharing pill; hidden while driving
 supabase/migrations/   accounts, follows, reports schema + RLS (tested in PGlite)
 src/lib/sources/weather.ts  Open-Meteo current conditions for the clock card (CC BY 4.0)
 public/                web manifest, PNG/maskable/apple-touch icons, shell-only sw.js, Pages _headers (Add to Home Screen)
@@ -206,9 +213,16 @@ Read `TASKS.md` top unchecked item. Do not rebase history. Do not rename the pro
   - **Not verified against live services:** real Supabase, and the FL511 response field names (the mapper reads fields defensively; check the first real payload).
   - **Not built:** live bus/train positions (GTFS-realtime, next), speed-camera locations, and friends' live positions on the map (needs the presence design).
 
+- 2026-09-25 Claude: **Add-ons finished: cameras, buses & trains, friends on the map.**
+  - **Enforcement cameras:** `highway=speed_camera` nodes and `type=enforcement` relation devices (speed, red light, average speed) from OpenStreetMap, via `/api/cameras`. Overpass is queried once per ~11 km tile and cached for 24 h at the edge. Purple blips; a heads-up only within 0.3 mi ahead ("Red-light camera ahead"), with no speed advice. The Nearby list says coverage is only as complete as OSM.
+  - **Buses & trains:** `/api/transit` reads GTFS-realtime VehiclePositions feeds listed in the `TRANSIT_FEEDS` Pages secret. There's a hand-written protobuf decoder (no dependency), tested against byte-exact feeds built to the spec's field numbers. Positions older than 180 s are dropped. Blue bus and teal train blips, which never trigger alerts. No feed URL is hard-coded: wrong or retired URLs just drop that agency.
+  - **Friends on the map:** new migration `…_friend_presence.sql`. The server rounds positions to 2 decimals (~1 km), only mutual friends can read them, rows expire after 15 min, and stopping deletes the row. Tested in PGlite. It's off by default: Profile → "Share my rough location with friends". A pill "Sharing rough location with friends · Stop" shows while sharing. Friend spots appear as a ~1 km circle with a name chip while planning and are **hidden while driving**. Sign-out also stops sharing.
+  - **Verified:** 54 unit tests. E2E with test-only stand-ins covering the camera, bus and train blips, the Nearby list, friend spot shown when planning and hidden when driving, share sent already rounded, pill Stop → `stop_presence` and the setting saved off. Regression runs without accounts all pass.
+  - **Not verified against the live services.**
+
 ## Owner setup for accounts + radar
 
-1. **Supabase project:** create a free project named `slide` (region us-east-1). Claude's permissions couldn't create it. Then have Claude apply `supabase/migrations/20260925000000_accounts_social_reports.sql`, or paste it into the SQL editor.
+1. **Supabase project:** create a free project named `slide` (region us-east-1). Claude's permissions couldn't create it. Then apply **both** files in `supabase/migrations/`, in name order (have Claude do it, or paste each into the SQL editor).
 2. **Supabase Auth settings:**
    - **URL Configuration:** Site URL `https://kings-slide.pages.dev`.
    - **Email Templates → Magic Link:** add `{{ .Token }}` so the email shows the 6-digit code the app asks for.
@@ -217,6 +231,8 @@ Read `TASKS.md` top unchecked item. Do not rebase history. Do not rename the pro
    - `VITE_SUPABASE_URL` = the project URL
    - `VITE_SUPABASE_ANON_KEY` = the publishable (anon) key. It's public by design; RLS protects the data.
    - `FL511_API_KEY` = your key from fl511.com's developer page. Add it as a **secret**.
+   - `TRANSIT_FEEDS` (**secret**) = a JSON list of GTFS-realtime VehiclePositions feeds. Get each URL and key from the agency's developer page (Miami-Dade Transit, Broward County Transit, Tri-Rail/SFRTA, Brightline if published), e.g. `[{"agency":"Miami-Dade Transit","mode":"bus","url":"https://…","header":"x-api-key","key":"…"},{"agency":"Tri-Rail","mode":"rail","url":"https://…"}]`
+   - Cameras need no key: they use the public Overpass API with OSM attribution.
 4. **Free-tier limits:**
    - Supabase free: 500 MB database, 50k monthly active users. The project pauses after a week without use.
    - FL511: one upstream call per minute is shared by all drivers.

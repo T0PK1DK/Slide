@@ -7,10 +7,12 @@ import { cloud, cloudConfigured } from "./cloud";
  * Nothing is predicted or invented, and police items are always worded as
  * "reported by drivers" — Slide doesn't track police vehicles; nobody can legally.
  */
-export type RadarKind = "police" | "crash" | "hazard" | "closure" | "jam" | "roadwork";
+export type RadarKind = "police" | "crash" | "hazard" | "closure" | "jam" | "roadwork" | "camera" | "bus" | "rail";
+/** Kinds a driver can report (the rest come from official or open data). */
+export type ReportableKind = "police" | "crash" | "hazard" | "closure" | "jam";
 export type RadarItem = {
   id: string;
-  source: "driver" | "fl511";
+  source: "driver" | "fl511" | "osm" | "transit";
   kind: RadarKind;
   lat: number;
   lon: number;
@@ -22,7 +24,7 @@ export type RadarItem = {
   reportId: number | null;
 };
 
-export const REPORT_KINDS: ReadonlyArray<{ kind: Exclude<RadarKind, "roadwork">; label: string }> = [
+export const REPORT_KINDS: ReadonlyArray<{ kind: ReportableKind; label: string }> = [
   { kind: "police", label: "Police" },
   { kind: "crash", label: "Crash" },
   { kind: "hazard", label: "Hazard" },
@@ -37,6 +39,9 @@ const KIND_TITLE: Record<RadarKind, string> = {
   closure: "Road closed",
   jam: "Traffic jam reported",
   roadwork: "Roadwork",
+  camera: "Enforcement camera",
+  bus: "Bus",
+  rail: "Train",
 };
 
 const MI_PER_DEG_LAT = 69.055;
@@ -71,11 +76,12 @@ export function radarBlips(items: RadarItem[], you: { lat: number; lon: number }
   return out.sort((a, b) => a.distMi - b.distMi);
 }
 
-const ALERT_KINDS: ReadonlySet<RadarKind> = new Set(["police", "crash", "closure", "hazard"]);
+/** How close (miles, ahead) each kind earns a heads-up. Transit and jams never alert. */
+const ALERT_WITHIN: Partial<Record<RadarKind, number>> = { police: 0.8, crash: 0.8, closure: 0.8, hazard: 0.8, camera: 0.3 };
 
-/** Pure: the one thing worth a heads-up — the nearest alert-worthy item ahead within `withinMi`, not already alerted. */
-export function nextAlert(blips: Blip[], alerted: ReadonlySet<string>, withinMi = 0.8): Blip | null {
-  return blips.find((b) => b.ahead && b.distMi <= withinMi && ALERT_KINDS.has(b.kind) && !alerted.has(b.id)) ?? null;
+/** Pure: the one thing worth a heads-up — the nearest alert-worthy item ahead in range, not already alerted. */
+export function nextAlert(blips: Blip[], alerted: ReadonlySet<string>): Blip | null {
+  return blips.find((b) => b.ahead && b.distMi <= (ALERT_WITHIN[b.kind] ?? -1) && !alerted.has(b.id)) ?? null;
 }
 
 /** Pure: "4 min ago", "just now". */
@@ -112,7 +118,7 @@ export async function reportsNear(lat: number, lon: number, km = 8): Promise<Rad
   return ((data ?? []) as ReportRow[]).map(fromReportRow);
 }
 
-export async function submitReport(kind: Exclude<RadarKind, "roadwork">, lat: number, lon: number, heading: number | null): Promise<void> {
+export async function submitReport(kind: ReportableKind, lat: number, lon: number, heading: number | null): Promise<void> {
   const sb = await cloud();
   const { error } = await sb.rpc("submit_report", {
     p_kind: kind,
@@ -129,12 +135,12 @@ export async function voteReport(reportId: number, stillThere: boolean): Promise
   if (error) throw new Error(error.message);
 }
 
-/** Official FL511 incidents through our own Pages Function (it holds the key). Empty when not configured. */
-export async function officialIncidents(lat: number, lon: number, km = 12): Promise<RadarItem[]> {
+/** GET one of our own Pages Function feeds (/api/incidents, /api/cameras, /api/transit). Empty on any failure. */
+async function ownFeed(path: string, lat: number, lon: number, km: number): Promise<RadarItem[]> {
   const ctrl = new AbortController();
   const t = window.setTimeout(() => ctrl.abort(), 8000);
   try {
-    const res = await fetch(`/api/incidents?lat=${lat.toFixed(4)}&lon=${lon.toFixed(4)}&km=${km}`, { signal: ctrl.signal });
+    const res = await fetch(`${path}?lat=${lat.toFixed(4)}&lon=${lon.toFixed(4)}&km=${km}`, { signal: ctrl.signal });
     if (!res.ok) return [];
     const json = (await res.json()) as { items?: RadarItem[] };
     return Array.isArray(json.items) ? json.items : [];
@@ -144,3 +150,10 @@ export async function officialIncidents(lat: number, lon: number, km = 12): Prom
     window.clearTimeout(t);
   }
 }
+
+/** Official FL511 incidents (the Function holds the key). */
+export const officialIncidents = (lat: number, lon: number, km = 12) => ownFeed("/api/incidents", lat, lon, km);
+/** Speed / red-light cameras mapped in OpenStreetMap. */
+export const enforcementCameras = (lat: number, lon: number, km = 5) => ownFeed("/api/cameras", lat, lon, km);
+/** Live bus and train positions from the configured GTFS-realtime feeds. */
+export const transitVehicles = (lat: number, lon: number, km = 4) => ownFeed("/api/transit", lat, lon, km);

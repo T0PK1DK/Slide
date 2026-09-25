@@ -36,6 +36,9 @@ const TITLE: Record<RadarKind, string> = {
   closure: "Road closed",
   jam: "Congestion",
   roadwork: "Roadwork",
+  camera: "Enforcement camera",
+  bus: "Bus",
+  rail: "Train",
 };
 
 /** Pure: one FL511 event → radar item, or null if it has no usable position/type. */
