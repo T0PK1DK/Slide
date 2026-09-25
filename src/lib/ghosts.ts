@@ -1,4 +1,3 @@
-import type { LonLat } from "./valhalla";
 
 export type GhostSample = {
   lon: number;
@@ -53,21 +52,5 @@ export function stepGhost(g: GhostCar, dt: number): GhostSample {
     lon: a.lon + (b.lon - a.lon) * f,
     lat: a.lat + (b.lat - a.lat) * f,
     bearing: a.bearing + ((((b.bearing - a.bearing + 540) % 360) - 180) * f),
-  };
-}
-
-export function chasePoint(
-  coords: [number, number][],
-  t: number
-): { pos: LonLat; bearing: number } {
-  if (!coords.length) return { pos: { lon: 0, lat: 0 }, bearing: 0 };
-  const idx = Math.max(0, Math.min(1, t)) * (coords.length - 1);
-  const i = Math.floor(idx);
-  const f = idx - i;
-  const a = coords[i];
-  const b = coords[Math.min(i + 1, coords.length - 1)];
-  return {
-    pos: { lon: a[0] + (b[0] - a[0]) * f, lat: a[1] + (b[1] - a[1]) * f },
-    bearing: bearing(a, b),
   };
 }
