@@ -53,7 +53,7 @@ src/map/you.ts         "you are here" marker: glow dot, pulse, heading cone, acc
 src/hud/command.ts     Command view: SEKAI-style dashboard (wide) / Insights sheet (phone)
 src/lib/history.ts     on-device trip history + overview stats (live-GPS drives only)
 src/lib/sources/weather.ts  Open-Meteo current conditions for the clock card (CC BY 4.0)
-public/                web manifest + icon (Add to Home Screen)
+public/                web manifest, PNG/maskable/apple-touch icons, shell-only sw.js, Pages _headers (Add to Home Screen)
 docs/PRODUCT.md        scoring contract
 docs/DESIGN.md         VIA style contract + screen-by-screen build spec
 docs/STRATEGY.md       why Slide wins, Effort metric, design recon (Borrowed / Rejected / Unique)
@@ -126,6 +126,25 @@ Read `TASKS.md` top unchecked item. Do not rebase history. Do not rename the pro
 
 - 2026-09-23 Claude: owner renamed the flat night map skin from "Waze" to **Slide** (`MapSkin` `"waze"` → `"slide"` in `garage.ts`; a saved `"waze"` migrates on load). When the 3D / FLAT / SLIDE skin toggle is built, label it **SLIDE**, never Waze. Owner also confirmed satellite imagery is optional ("just extra"), so the Satellite tab stays disabled with no paid source for now.
 
+- 2026-09-24 Nard: **Phase 2 — app starts, real-location navigation, live on Pages.** PR #10 merged to `main` first (VIA skin, login, night-network look, you-are-here, Command view), then one branch/PR on top (`nard/app-start-real-nav`).
+  - **Starts:** restored `sameTrip` / `tripShape`, switched the 4-arg call to `requestFastRoute`, added `coachDismissed` / `recents` / `home` / `work` to `GarageConfig`. `npm run build` passes with zero TS errors. `slide.garage.v1` migrates field by field (`migrateGarage()`): every valid field is kept, a broken one falls back to its default, the pre-migration value is copied once to `slide.garage.v1.backup`, and unreadable JSON is kept in `slide.garage.v1.corrupt` rather than dropped.
+  - **Navigation on real GPS:** From defaults to **Current location**, and planning waits up to 15 s for a fix — never the map centre. **Go now** starts `watchPosition`; the simulated car runs only from **Preview drive** (labelled "simulated, not saved", a PREVIEW chip shows while it runs, and it is never written to history). The camera follows the driver in cinematic / chase / top; any pan, pinch or wheel pauses follow and shows **Recenter** (raw pointer events, because the per-frame `jumpTo` cancels MapLibre's own drag before `dragstart` fires). Off-route (>60 m) for 8 s while moving (≥3 mph) re-plans from the fix with the same `rankRoutes()`. **Arrival** screen at ≤40 m (or ≥99 % along with ≤0.05 mi left) saves the trip. Location denied / unavailable / timeout / non-https each have their own message with **Search a start point instead** + **Try again**. Trip distance is now the GPS distance actually driven, not route progress (it survives a reroute).
+  - **Bug fixed — posted speeds:** Valhalla already returns mph when asked for `units: miles`, and `buildBands()` converted again, so a posted **30 showed as 19** on the limit sign and "Hold X → Y" chip. Fixed; kilometre responses still convert. Scoring weights unchanged (speed variance never used the converted value), so no PRODUCT.md contract change.
+  - **Installable:** PNG 192/512 + maskable 512 + 180 px apple-touch icon, manifest `display: standalone`, and a shell-only service worker (`public/sw.js`: network-first HTML, cache-first hashed assets; **never** caches routes, search, weather or tiles). Chrome's `Page.getInstallabilityErrors` on the live site returns **no errors**; SW active and controlling after reload. Google Fonts no longer block first paint, and a static SLIDE boot skeleton paints before the JS. MapLibre is split into its own long-cached chunk (app JS is 76 kB / 25.7 kB gzip; MapLibre 1,053 kB / 283 kB gzip).
+  - **Live:** https://kings-slide.pages.dev (Pages project `kings-slide`, account `f52402ec…`), app bundle `assets/index-B2z6p5YW.js`, deploy `https://4cb68188.kings-slide.pages.dev`. The workers.dev preview (Worker `slide`, static assets from `dist`, config shape from the earlier preview's `wrangler.jsonc`) was refreshed to the same build: https://slide.kingleonardjr19.workers.dev. Wrangler needs Node ≥22; the box has Node 20, so it was run via `npx -p node@22`.
+  - **Load time, measured** (headless Chromium on the box → Cloudflare edge, cache disabled, median of 3; `slide-map-idle` = first full map render, a `performance.mark` now in `main.ts`):
+
+    | Profile | First paint | HUD/login ready (DCL) | Map style loaded | Map fully rendered |
+    |---|---|---|---|---|
+    | Desktop 1440×900, no throttle | 0.14 s | 0.32 s | 1.02 s | 1.79 s |
+    | Phone, 9 Mbps / 85 ms RTT / 4× CPU ("good 4G", custom) | 0.35 s | 1.02 s | 2.23 s | 2.99 s |
+    | Phone, Lighthouse Slow 4G (1.6 Mbps / 150 ms / 4× CPU) | 0.63 s | 2.48 s | 5.06 s | 5.82 s |
+
+    Before this PR (old live build `index-DsG32Gag.js`, same method): first paint 0.35–0.42 s desktop / 0.51–0.53 s Slow 4G; that build had no map-ready mark, so its map time isn't comparable. **The "<3 s map on 4G" target is met on good 4G but not on Slow 4G** — the 283 kB gzip MapLibre bundle plus the OpenFreeMap style → tiles chain is the floor. Next lever: show the login/HUD before MapLibre loads (dynamic import), then self-host or pre-cache the style.
+  - **Verified** with Playwright against the live site (29/29 checks, 0 console errors; `qa-results.json`): login first visit, tag seeds garage, reload stays in, Lock → Welcome back, Drive insights opens/closes, From = Current location, Preview not saved, Go = live GPS (speedo MPH), camera follows, pan → Recenter → resumes, End saves a trip, arrival screen + save, trip in Your trips, reroute after 8 s off-route, denied and timeout messages (no map-centre fallback), laptop three-column Command view, canvas = map column (740×802), plan card clear of the Map/3D switch (open and closed), map resizes with the window.
+  - **Recording** (`/workspace/slide-live/slide-demo-phone.mp4` 3 m 53 s, `slide-demo-laptop.mp4` 19 s, chapters in `slide-demo-chapters.txt`): **emulated phone** (Chromium 390×844, touch, iPhone UA) with **simulated GPS** (Playwright `setGeolocation` stepping along the real Valhalla route Mary Brickell Village → Bayside Marketplace at ≈25 mph) against the live site. It is **not** a real-device recording. In that run: map rendered in 1.95 s (no throttle), reroute landed 15.4 s after leaving the line (≈5 s to get 60 m off + the 8 s timer + ≈2 s routing).
+  - **Still broken / not done:** a real iPhone + Android test and **Add to Home Screen** (standalone launch, stays signed in) still need a human with the devices. The public Valhalla server usually returns a **single line** in Miami (both costings give the same trip on 7 of 8 test pairs), so a **Faster card rarely appears**; a single-line plan now shows one Slide chip and "Fastest is also the smoothest line we found" instead of nothing. Phase 2 items not done: Slow-4G map under 3 s, fetch retry, offline/no-route sheet, `main.ts` split. Ghosts are still seeded simulations (known gap).
+
 ## Next for Nard (start here)
 
 Claude did Phases 0–1 (PR #8, merged) and the app work after it: VIA skin, login, night-network look, "you" marker, Command view (**the follow-up PR on `claude/slide-app-completion-e4sn59` — merge it first**; PR #8 was merged before those commits landed). Read `docs/STRATEGY.md` first; it defines the core idea
@@ -143,8 +162,8 @@ and the Effort metric the later phases build on. Then work through the phases in
 9. Add to Home Screen opens full screen and stays signed in.
 
 **Phase 2: loading + stability (do first)**
-- [ ] **Make the app start.** Right now the browser throws `The requested module '/src/lib/valhalla.ts' does not provide an export named 'sameTrip'` and nothing renders. Restore `sameTrip` / `tripShape` in `valhalla.ts` (they were used by the dual-route code in commit `4c12d77`), then fix the rest of the 17 TS errors. Run `npm run dev` and confirm the map + login appear before anything else.
-- [ ] **Fix navigation so it uses real location** (owner: "it's not working, I can't see myself"):
+- [x] **Make the app start.** Right now the browser throws `The requested module '/src/lib/valhalla.ts' does not provide an export named 'sameTrip'` and nothing renders. Restore `sameTrip` / `tripShape` in `valhalla.ts` (they were used by the dual-route code in commit `4c12d77`), then fix the rest of the 17 TS errors. Run `npm run dev` and confirm the map + login appear before anything else.
+- [x] **Fix navigation so it uses real location** (owner: "it's not working, I can't see myself"):
   1. **Start from GPS.** `ensureOrigin()` falls back to "Map center". When location is available, the From field should default to Current location, and planning should wait for the first fix (with a timeout) instead of using the map center.
   2. **Go = real GPS.** `startDrive()` must start `locateMe()` / `startTracking` if it isn't running. The simulated `chaseT` car in `tick()` should run **only** from an explicit "Preview drive" button, labelled as a preview, never as a silent fallback.
   3. **Camera follows the driver** in every camera mode while driving (today only `chase` follows; the default `cinematic` doesn't). Pause follow on user pan, and show a "Recenter" pill to resume.
@@ -152,43 +171,18 @@ and the Effort metric the later phases build on. Then work through the phases in
   5. **Arrival.** When within ~40 m of the destination (or progress ≥ 99%), stop tracking-driven guidance and show the Arrival screen (DESIGN.md 07).
   6. **Permission states.** Denied / unavailable / timeout each get a clear message plus "Search a start point instead". iOS needs HTTPS (pages.dev is fine; a LAN IP over http is not).
   7. The "you" dot (`src/map/you.ts`) and the drive car must never both show; `setHudMode` already hides the dot in Drive.
-- [ ] **Command view** (`src/hud/command.ts`) is built. After the app starts, check on a laptop (≥1100px wide): the three-column layout, the map column resizing correctly (`map.resize()`), and the existing plan search card not colliding with the Map/3D switch. On a phone, check menu → Drive insights opens the sheet and × closes it. Drive a real route with location on and End it: a trip appears in "Your trips".
-- [ ] Login is built (`src/hud/login.ts`). After the app starts, check: first visit shows "Set up your driver", the car tag seeds the garage tag, reload stays signed in, menu → Lock Slide shows "Welcome back", PIN works.
+- [x] **Command view** (`src/hud/command.ts`) is built. After the app starts, check on a laptop (≥1100px wide): the three-column layout, the map column resizing correctly (`map.resize()`), and the existing plan search card not colliding with the Map/3D switch. On a phone, check menu → Drive insights opens the sheet and × closes it. Drive a real route with location on and End it: a trip appears in "Your trips".
+- [x] Login is built (`src/hud/login.ts`). After the app starts, check: first visit shows "Set up your driver", the car tag seeds the garage tag, reload stays signed in, menu → Lock Slide shows "Welcome back", PIN works.
 - [x] VIA skin patch applied on this branch (commit `VIA skin: premium night HUD…`). `docs/DESIGN.md` is the style contract and now has a **screen-by-screen build spec** for all 10 canvas screens — build from that, not from the canvas directly.
 - [ ] VIA design canvas (reference only): https://claude.ai/artifact/3nbD5TfjZeoWbQEyf5yXu2. Where the canvas and `docs/DESIGN.md` disagree (traffic bars, crowd hazard reports, "Report a hazard", weather, "VIA" wordmark), **DESIGN.md wins**.
-- [ ] Fix the 17 TS errors so `npm run build` passes. `GarageConfig` is missing `recents` / `home` / `work` (used at `main.ts:334–395`), and there's a 4-arg call at `main.ts:630`. Add those fields to `garage.ts` with defaults and merge old `slide.garage.v1` data safely.
-- [ ] Measure the live site on a phone over 4G *before* changing anything, and record the numbers in the session log. Check for a blank/black map, the style-load race, Valhalla/Photon timeouts, OpenFreeMap tile failures, fonts, and bundle size.
-- [ ] Fixes: a skeleton HUD that shows instantly, map fade-in when the style is ready, fetch timeout + one retry, offline and no-route states, `font-display: swap`, lazy-load ghosts and 3D, split `main.ts` into `hud/ drive/ plan/ map/`, and in-memory route/style cache. Target: a usable HUD in under 2 s.
-- [ ] Deploy to Cloudflare Pages (`kings-slide`) and verify on https://kings-slide.pages.dev.
+- [x] Fix the 17 TS errors so `npm run build` passes. `GarageConfig` is missing `recents` / `home` / `work` (used at `main.ts:334–395`), and there's a 4-arg call at `main.ts:630`. Add those fields to `garage.ts` with defaults and merge old `slide.garage.v1` data safely.
+- [x] (emulated, see 2026-09-24 log — real phone still to do) Measure the live site on a phone over 4G *before* changing anything, and record the numbers in the session log. Check for a blank/black map, the style-load race, Valhalla/Photon timeouts, OpenFreeMap tile failures, fonts, and bundle size.
+- [ ] (partly: boot skeleton, `font-display: swap` non-blocking, MapLibre chunk split, fetch timeouts exist; retry, offline/no-route sheet, `main.ts` split and lazy ghosts/3D still open) Fixes: a skeleton HUD that shows instantly, map fade-in when the style is ready, fetch timeout + one retry, offline and no-route states, `font-display: swap`, lazy-load ghosts and 3D, split `main.ts` into `hud/ drive/ plan/ map/`, and in-memory route/style cache. Target: a usable HUD in under 2 s.
+- [x] Deploy to Cloudflare Pages (`kings-slide`) and verify on https://kings-slide.pages.dev.
 
 **Phase 3: routing brain.** Slide route = least Effort within +10% of fastest (the window is configurable; the proposed clamp is 1–6 min). Today `rankRoutes()` in `src/lib/smooth.ts` has no time bound, so a much slower route can win. Put ranking in one pure, tested module that returns an event list per route. Put every data source behind `src/lib/sources/*`. Update `docs/PRODUCT.md`. Use legal/open data only; never scrape Google or Waze.
 
 **Phase 4: UI clarity.** VIA look: Explore, search, place, route overview, drive, arrival, garage. Build each screen from the **Screen build spec** in `docs/DESIGN.md`. Add a trip timeline, onboarding, and offline/no-route states. It must be glanceable in 1.5 s with 4.5:1 contrast, 44 px touch targets and one accent color. Use Snap's street-level map as the reference for the night basemap (see STRATEGY).
-
-**Phase 5: 3D HUD + ghosts.** Chase cam, lane ribbon, 3D car models, glowing ghost cars, and your own pace ghost. Hold 60 fps with a quality toggle. The surprise feature is **Miami driven %**: roads you've driven glow, stored on-device only. Also draw the garage car on Explore and the Pain points heat.
-
-**Phase 6: TapN stub.** Add `src/lib/sources/tapn.ts` as a typed interface, with mock data behind a flag that's off by default.
-
-**Waiting on the owner:** whether friends' cars on the map are a real goal (if so, write a presence/privacy design before any backend), and approval of the 1–6 min clamp.
-
-- 2026-09-23 Claude: Phase 0–1 docs only. Added `docs/STRATEGY.md`: day-1/day-30 framing, measurable Effort (weighted lefts, signals, merges, speed drops, lane changes), the proposed contract "Slide = least Effort within +10% of fastest" (lands in Phase 3 with a PRODUCT.md update), and a Borrowed / Rejected / Unique table. Found: `npm run build` fails on this branch (13 TS errors: `recents`/`home`/`work` missing from `GarageConfig`, 4-arg call at `main.ts:630`); `rankRoutes()` has no time bound, so a much slower route can win. No scoring-contract change yet.
-- 2026-09-23 Claude: owner added a Snap Map / Waze CarPlay direction: a 3D living map with *cars* instead of avatars, Forza vibe. Captured in `docs/STRATEGY.md` ("3D living map layer"): garage car in 3D on Explore, "Miami driven %" glowing driven roads (on-device; now the proposed Phase 5 surprise feature), Effort events drawn on the route, friends' cars deferred to an opt-in presence design. No sponsored pins.
-
-## Next for Nard (start here)
-
-Claude did Phases 0–1 (docs only, PR #8). Read `docs/STRATEGY.md` first; it defines the core idea
-and the Effort metric the later phases build on. Then work through the phases in order, one PR per phase.
-
-**Phase 2: loading + stability (do first)**
-- [ ] Apply the VIA patch. It never reached Claude's session, so the owner has it.
-- [ ] Fix the 13 TS errors so `npm run build` passes. `GarageConfig` is missing `recents` / `home` / `work` (used at `main.ts:334–395`), and there's a 4-arg call at `main.ts:630`. Add those fields to `garage.ts` with defaults and merge old `slide.garage.v1` data safely.
-- [ ] Measure the live site on a phone over 4G *before* changing anything, and record the numbers in the session log. Check for a blank/black map, the style-load race, Valhalla/Photon timeouts, OpenFreeMap tile failures, fonts, and bundle size.
-- [ ] Fixes: a skeleton HUD that shows instantly, map fade-in when the style is ready, fetch timeout + one retry, offline and no-route states, `font-display: swap`, lazy-load ghosts and 3D, split `main.ts` into `hud/ drive/ plan/ map/`, and in-memory route/style cache. Target: a usable HUD in under 2 s.
-- [ ] Deploy to Cloudflare Pages (`kings-slide`) and verify on https://kings-slide.pages.dev.
-
-**Phase 3: routing brain.** Slide route = least Effort within +10% of fastest (the window is configurable; the proposed clamp is 1–6 min). Today `rankRoutes()` in `src/lib/smooth.ts` has no time bound, so a much slower route can win. Put ranking in one pure, tested module that returns an event list per route. Put every data source behind `src/lib/sources/*`. Update `docs/PRODUCT.md`. Use legal/open data only; never scrape Google or Waze.
-
-**Phase 4: UI clarity.** VIA look: Explore, search, place, route overview, drive, arrival, garage. Add a trip timeline, onboarding, and offline/no-route states. It must be glanceable in 1.5 s with 4.5:1 contrast, 44 px touch targets and one accent color. Use Snap's street-level map as the reference for the night basemap (see STRATEGY).
 
 **Phase 5: 3D HUD + ghosts.** Chase cam, lane ribbon, 3D car models, glowing ghost cars, and your own pace ghost. Hold 60 fps with a quality toggle. The surprise feature is **Miami driven %**: roads you've driven glow, stored on-device only. Also draw the garage car on Explore and the Pain points heat.
 

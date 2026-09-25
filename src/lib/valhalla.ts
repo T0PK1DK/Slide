@@ -242,3 +242,20 @@ export function collectTrips(response: RouteResponse): ValhallaTrip[] {
   }
   return trips;
 }
+
+/** The trip's full encoded shape. Slide plans two-point trips, so this is a single leg. */
+export function tripShape(trip: ValhallaTrip): string {
+  return trip.legs.map((l) => l.shape).join("");
+}
+
+/**
+ * True when two trips are the same line. Valhalla can answer a second costing
+ * pass with the identical geometry, and showing the driver "Slide" and "Faster"
+ * as the same road is worse than showing one option.
+ */
+export function sameTrip(a: ValhallaTrip, b: ValhallaTrip): boolean {
+  if (tripShape(a) === tripShape(b)) return true;
+  const dt = Math.abs(a.summary.time - b.summary.time);
+  const dl = Math.abs(a.summary.length - b.summary.length);
+  return dt < 25 && dl < 0.06;
+}

@@ -2,9 +2,10 @@ import maplibregl from "maplibre-gl";
 import type { Feature, FeatureCollection } from "geojson";
 import "maplibre-gl/dist/maplibre-gl.css";
 import "./styles.css";
-import { decodePolyline6 } from "./lib/polyline";
+import { decodePolyline6, haversineMeters } from "./lib/polyline";
 import {
   collectTrips,
+  requestFastRoute,
   requestRoutes,
   requestTraceAttributes,
   sameTrip,
@@ -44,7 +45,16 @@ import { createYouMarker } from "./map/you";
 import { mountCommand } from "./hud/command";
 import { recordTrip } from "./lib/history";
 import { loadProfile } from "./lib/profile";
-import { cumulativeMiles, snapToRoute, startTracking, type Fix, type TrackerHandle } from "./lib/tracking";
+import {
+  cumulativeMiles,
+  LOCATION_MESSAGES,
+  snapToRoute,
+  startTracking,
+  type Fix,
+  type LocationProblem,
+  type RouteProgress,
+  type TrackerHandle,
+} from "./lib/tracking";
 
 const MIAMI: LonLat = { lon: -80.1918, lat: 25.7617 };
 const STYLE = "https://tiles.openfreemap.org/styles/dark";
@@ -71,7 +81,7 @@ app.innerHTML = `
       </div>
       <div class="sheet-more">
         <div class="fields">
-          <div class="field"><label>From</label><input id="from" placeholder="Current location or address" autocomplete="off" /><div class="suggest" id="from-suggest" hidden></div></div>
+          <div class="field"><label>From</label><input id="from" value="Current location" placeholder="Current location or address" autocomplete="off" /><button type="button" class="use-gps" id="from-gps" aria-label="Start from my current location"><svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true"><path d="M21 3L3 10.5l7.5 2.9L13.4 21z" fill="currentColor"/></svg>Me</button><div class="suggest" id="from-suggest" hidden></div></div>
         </div>
         <div class="place-chips" id="place-chips">
           <button type="button" class="place-chip" id="chip-home">Home</button>
@@ -88,6 +98,15 @@ app.innerHTML = `
       </div>
     </div>
     <div class="panel status-pill" id="status">Locking a 3D line…</div>
+    <div class="panel loc-banner" id="loc-banner" role="alert" hidden>
+      <p id="loc-msg"></p>
+      <div class="loc-actions">
+        <button class="ghost" id="loc-search" type="button">Search a start point instead</button>
+        <button class="primary" id="loc-retry" type="button">Try again</button>
+        <button class="icon loc-close" id="loc-close" type="button" aria-label="Dismiss">×</button>
+      </div>
+    </div>
+    <div class="panel preview-chip drive-only" id="preview-chip" hidden>PREVIEW · simulated car, not your location</div>
     <div class="panel maneuver drive-only" id="maneuver" hidden>
       <svg class="arrow" viewBox="0 0 24 24" aria-hidden="true"><path id="man-arrow" d="" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
       <div class="man-text"><b id="man-dist">—</b><span id="man-instr">—</span></div>
@@ -105,6 +124,18 @@ app.innerHTML = `
         <button class="ghost" id="review-back" type="button">Where to?</button>
         <button class="primary" id="review-go" type="button">Go now</button>
       </div>
+      <button class="linkish" id="review-preview" type="button">Preview drive <span>· simulated, not saved</span></button>
+    </div>
+    <div class="panel arrival-sheet arrive-only" id="arrival" role="dialog" aria-labelledby="arr-dest" hidden>
+      <span class="arr-kicker" id="arr-kicker">ARRIVED</span>
+      <h2 id="arr-dest">—</h2>
+      <div class="arr-stats">
+        <div><span>Drive time</span><b id="arr-time">—</b></div>
+        <div><span>Driven</span><b id="arr-dist">—</b></div>
+        <div><span>Line</span><b id="arr-line">—</b></div>
+      </div>
+      <p class="arr-note" id="arr-note"></p>
+      <button class="primary" id="arr-done" type="button">Done</button>
     </div>
     <div class="panel dash plan-only" id="dash" hidden>
       <div class="stat-row">
@@ -175,7 +206,9 @@ const map = new maplibregl.Map({
 });
 const you = createYouMarker(map);
 /** Recorded into on-device history only when the drive ran on live GPS (never the preview car). */
-let driveLog = { startedAt: 0, live: false, offRouteEvents: 0, wasOff: false };
+type DriveLog = { startedAt: number; live: boolean; offRouteEvents: number; wasOff: boolean; drivenMi: number; lastPos: LonLat | null };
+const freshLog = (): DriveLog => ({ startedAt: 0, live: false, offRouteEvents: 0, wasOff: false, drivenMi: 0, lastPos: null });
+let driveLog = freshLog();
 map.addControl(new maplibregl.AttributionControl({ compact: true }), "top-right");
 
 let origin: LonLat | null = null;
@@ -202,6 +235,19 @@ let liveFix: Fix | null = null;
 let followCamera = true;
 let planning = false;
 let routeChips: maplibregl.Marker[] = [];
+/** True once the driver searched a specific From address; otherwise From is their live GPS position. */
+let originPicked = false;
+/** The simulated car runs only when the driver explicitly asked for a preview. */
+let previewDrive = false;
+let offSince = 0;
+let lastRerouteAt = 0;
+let rerouting = false;
+let lastProblem: LocationProblem | null = null;
+let disp: { lon: number; lat: number; bearing: number } | null = null;
+const fixWaiters: Array<{ resolve: (f: Fix) => void; reject: (p: LocationProblem) => void }> = [];
+const ARRIVE_M = 40;
+const OFF_ROUTE_M = 60;
+const REROUTE_AFTER_MS = 8000;
 
 const fromInput = $("#from") as HTMLInputElement;
 const toInput = $("#to") as HTMLInputElement;
@@ -219,9 +265,11 @@ const reviewEl = $("#review-sheet");
 const coachEl = $("#coach");
 const overflowEl = $("#overflow");
 const moreBtn = $("#more");
-let hudMode: "plan" | "review" | "drive" = "plan";
+type HudMode = "plan" | "review" | "drive" | "arrive";
+let hudMode: HudMode = "plan";
 
 map.on("load", () => {
+  performance.mark("slide-map-load");
   styleReady = true;
   liftNightBasemap(map);
   ensure3DBuildings();
@@ -230,6 +278,8 @@ map.on("load", () => {
   else applyPlanView();
   styleQueue.splice(0).forEach((fn) => fn());
 });
+// Timing marks read by the load-time check (and handy in DevTools): style loaded, first full render.
+map.once("idle", () => { performance.mark("slide-map-idle"); document.documentElement.dataset.map = "ready"; });
 map.on("error", () => {
   // Tiles / style can 429. Keep the HUD usable; route paint still applies on a lifted land color.
 });
@@ -237,18 +287,45 @@ map.on("error", () => {
 bindSearch(fromInput, $("#from-suggest"), (hit) => {
   origin = { lon: hit.lon, lat: hit.lat };
   originLabel = hit.label;
+  originPicked = true;
   fromInput.value = hit.label;
 });
+fromInput.addEventListener("focus", () => { if (!originPicked) fromInput.select(); });
+fromInput.addEventListener("blur", () => {
+  window.setTimeout(() => {
+    if (!fromInput.value.trim()) useCurrentLocation();
+    else if (!originPicked) fromInput.value = "Current location";
+  }, 250);
+});
+$("#from-gps").addEventListener("click", useCurrentLocation);
 bindSearch(toInput, $("#to-suggest"), (hit) => {
   dest = { lon: hit.lon, lat: hit.lat };
   destLabel = hit.label;
   toInput.value = hit.label;
   rememberRecent(hit);
-  ensureOrigin();
   plan();
 });
 $("#locate").addEventListener("click", locateMe);
-$("#locate-fab").addEventListener("click", locateMe);
+$("#loc-close").addEventListener("click", hideLocationProblem);
+$("#loc-retry").addEventListener("click", () => {
+  hideLocationProblem();
+  if (hudMode === "plan" && dest) void plan();
+  else startLocation({ center: hudMode === "plan" });
+});
+$("#loc-search").addEventListener("click", () => {
+  hideLocationProblem();
+  if (hudMode !== "plan") setHudMode("plan");
+  $("#search-card").classList.add("open");
+  fromInput.value = "";
+  fromInput.focus();
+});
+$("#review-preview").addEventListener("click", () => startDrive(true));
+$("#arr-done").addEventListener("click", finishArrival);
+// The round FAB is "show me": it starts location or recentres on it, never switches it off.
+$("#locate-fab").addEventListener("click", () => {
+  if (!tracker) return locateMe();
+  if (liveFix) map.easeTo({ center: [liveFix.pos.lon, liveFix.pos.lat], zoom: Math.max(map.getZoom(), 15), duration: 700 });
+});
 $("#menu-fab").addEventListener("click", () => {
   overflowEl.classList.toggle("open");
   overflowEl.classList.toggle("from-plan", overflowEl.classList.contains("open"));
@@ -261,8 +338,12 @@ toInput.addEventListener("focus", () => $("#search-card").classList.add("open"))
 $("#go").addEventListener("click", plan);
 $("#tune").addEventListener("click", () => garageEl.classList.toggle("open"));
 $("#g-close").addEventListener("click", () => garageEl.classList.remove("open"));
-recenterEl.addEventListener("click", () => { followCamera = true; recenterEl.setAttribute("hidden", ""); fitToRoute(); });
-$("#review-go").addEventListener("click", startDrive);
+recenterEl.addEventListener("click", () => {
+  followCamera = true;
+  recenterEl.setAttribute("hidden", "");
+  if (hudMode !== "drive") fitToRoute();
+});
+$("#review-go").addEventListener("click", () => startDrive(false));
 $("#review-back").addEventListener("click", backToSearch);
 $("#end-drive").addEventListener("click", endDrive);
 $("#help").addEventListener("click", () => showCoach(true));
@@ -299,7 +380,6 @@ $("#chip-saved").addEventListener("click", () => {
   destLabel = saved.label;
   toInput.value = saved.label;
   showError("");
-  ensureOrigin();
   plan();
 });
 $("#search-card").addEventListener("click", (e) => {
@@ -309,9 +389,33 @@ $("#search-card").addEventListener("click", (e) => {
 });
 window.addEventListener("resize", () => {
   map.resize();
-  if (hudMode === "drive") fitToRoute();
+  if (hudMode === "review") fitToRoute();
 });
-map.on("dragstart", () => { if (garage.camera === "chase") { followCamera = false; recenterEl.removeAttribute("hidden"); } });
+/** A hand on the map pauses follow in every camera mode; the Recenter pill brings it back. */
+function pauseFollow(e: { originalEvent?: unknown }) {
+  if (hudMode !== "drive" || !e.originalEvent) return;
+  followCamera = false;
+  recenterEl.removeAttribute("hidden");
+}
+// followDriver() calls jumpTo every frame, which cancels MapLibre's own drag
+// handlers before "dragstart" can fire — so also watch the raw gesture.
+{
+  const box = map.getCanvasContainer();
+  let down: { x: number; y: number } | null = null;
+  box.addEventListener("pointerdown", (e) => { down = { x: e.clientX, y: e.clientY }; });
+  box.addEventListener("pointermove", (e) => {
+    if (down && Math.hypot(e.clientX - down.x, e.clientY - down.y) > 6) pauseFollow({ originalEvent: e });
+  });
+  const lift = () => { down = null; };
+  box.addEventListener("pointerup", lift);
+  box.addEventListener("pointercancel", lift);
+  box.addEventListener("wheel", (e) => pauseFollow({ originalEvent: e }), { passive: true });
+  box.addEventListener("touchstart", (e) => { if (e.touches.length > 1) pauseFollow({ originalEvent: e }); }, { passive: true });
+}
+map.on("dragstart", pauseFollow);
+map.on("zoomstart", pauseFollow);
+map.on("rotatestart", pauseFollow);
+map.on("pitchstart", pauseFollow);
 document.addEventListener("click", (e) => {
   const t = e.target as HTMLElement;
   if (!t.closest(".field") && !t.closest(".where-row")) document.querySelectorAll<HTMLElement>(".suggest").forEach((b) => { b.hidden = true; });
@@ -342,7 +446,7 @@ ensureSignedIn(document.body, (driver) => {
 async function autoLocate() {
   try {
     const status = await navigator.permissions?.query({ name: "geolocation" as PermissionName });
-    if (status?.state === "granted" && !tracker) locateMe();
+    if (status?.state === "granted" && !tracker) startLocation({ center: true });
   } catch {
     // Permissions API missing (older Safari): wait for the Locate button.
   }
@@ -389,17 +493,60 @@ function renderRecents() {
       dest = { lon: Number(btn.dataset.lon), lat: Number(btn.dataset.lat) };
       destLabel = btn.textContent || "";
       toInput.value = destLabel;
-      ensureOrigin();
       plan();
     };
   });
 }
-function ensureOrigin() {
-  if (origin) return;
-  const c = map.getCenter();
-  origin = { lon: c.lng, lat: c.lat };
-  originLabel = "Map center";
-  fromInput.value = "Map center";
+/** From = the driver's live position. Clears any searched start point. */
+function useCurrentLocation() {
+  originPicked = false;
+  origin = liveFix?.pos ?? null;
+  originLabel = "Current location";
+  fromInput.value = "Current location";
+}
+/**
+ * The start point for a plan: a searched address if the driver picked one,
+ * otherwise a real GPS fix. Never the map centre — if there's no fix, the
+ * driver gets told why and can search a start point instead.
+ */
+async function resolveOrigin(): Promise<LonLat | null> {
+  if (originPicked && origin) return origin;
+  if (liveFix && Date.now() - liveFix.at < 30_000) return liveFix.pos;
+  setStatus("Finding you…");
+  try {
+    const fix = await waitForFix(15_000);
+    return fix.pos;
+  } catch (problem) {
+    showLocationProblem(problem as LocationProblem);
+    return null;
+  } finally {
+    setStatus("");
+  }
+}
+function waitForFix(ms: number): Promise<Fix> {
+  if (liveFix && Date.now() - liveFix.at < 30_000) return Promise.resolve(liveFix);
+  return new Promise<Fix>((resolve, reject) => {
+    const waiter = {
+      resolve: (f: Fix) => { window.clearTimeout(timer); resolve(f); },
+      reject: (p: LocationProblem) => { window.clearTimeout(timer); reject(p); },
+    };
+    const timer = window.setTimeout(() => {
+      const i = fixWaiters.indexOf(waiter);
+      if (i >= 0) fixWaiters.splice(i, 1);
+      reject(lastProblem === "unavailable" ? "unavailable" : "timeout");
+    }, ms);
+    fixWaiters.push(waiter);
+    startLocation({ center: false });
+  });
+}
+function showLocationProblem(problem: LocationProblem) {
+  $("#loc-msg").textContent = LOCATION_MESSAGES[problem];
+  // Mid-drive there's no start point to search; the drive just waits for GPS.
+  $("#loc-search").toggleAttribute("hidden", hudMode === "drive");
+  $("#loc-banner").removeAttribute("hidden");
+}
+function hideLocationProblem() {
+  $("#loc-banner").setAttribute("hidden", "");
 }
 function applyPlanView() {
   const phone = window.innerWidth < 820;
@@ -420,7 +567,6 @@ function useOrSavePlace(slot: "home" | "work") {
     destLabel = saved.label;
     toInput.value = saved.label;
     showError("");
-    ensureOrigin();
     plan();
     return;
   }
@@ -440,7 +586,8 @@ function refreshPlaceChips() {
   const extra = $("#chip-saved");
   const saved = savedChipPlace();
   extra.toggleAttribute("hidden", !saved);
-  extra.textContent = saved ? saved.label.split(",")[0] : "";
+  // "401, Bayside Marketplace, …" → "Bayside Marketplace": skip a bare house number.
+  extra.textContent = saved ? (saved.label.split(",").map((x) => x.trim()).find((x) => x && !/^\d+[a-z]?$/i.test(x)) ?? saved.label) : "";
 }
 function wireGarage() {
   const tag = $("#g-tag") as HTMLInputElement;
@@ -470,7 +617,7 @@ function paintSwatches(el: HTMLElement, colors: string[], current: string, onPic
     el.appendChild(b);
   });
 }
-function setHudMode(mode: "plan" | "review" | "drive") {
+function setHudMode(mode: HudMode) {
   hudMode = mode;
   document.body.dataset.mode = mode;
   const driving = mode === "drive";
@@ -478,6 +625,8 @@ function setHudMode(mode: "plan" | "review" | "drive") {
   const reviewing = mode === "review";
   driveBarEl.toggleAttribute("hidden", !driving);
   reviewEl.toggleAttribute("hidden", !reviewing);
+  $("#arrival").toggleAttribute("hidden", mode !== "arrive");
+  if (!driving) $("#preview-chip").setAttribute("hidden", "");
   if (driving) {
     speedsEl.setAttribute("hidden", "");
     toggleBuildings(garage.showBuildings);
@@ -494,22 +643,38 @@ function setHudMode(mode: "plan" | "review" | "drive") {
   paintRouteChips();
   requestAnimationFrame(() => {
     map.resize();
-    if (driving || reviewing) fitToRoute();
-    else applyPlanView();
+    // Drive: the camera follows the car from tick(); Arrival frames the destination itself.
+    if (reviewing) fitToRoute();
+    else if (mode === "plan") applyPlanView();
   });
 }
-function startDrive() {
+/** Go = real GPS. The simulated car only runs from the explicit "Preview drive" button. */
+function startDrive(preview = false) {
   if (!routes.length) return;
-  driveLog = { startedAt: Date.now(), live: false, offRouteEvents: 0, wasOff: false };
+  previewDrive = preview;
+  driveLog = { ...freshLog(), startedAt: Date.now() };
+  offSince = 0;
+  disp = null;
+  followCamera = true;
+  hideLocationProblem();
   renderSpeedRail();
   bootDrive();
   setHudMode("drive");
+  $("#preview-chip").toggleAttribute("hidden", !preview);
+  if (!preview) {
+    startLocation({ center: false });
+    if (!liveFix) setStatus("Waiting for GPS…");
+  }
   streak += 1;
   $("#stat-streak").textContent = String(streak);
 }
 function stopDriveLoop() {
   if (raf) cancelAnimationFrame(raf);
   raf = 0;
+  disp = null;
+  offSince = 0;
+  // followDriver() pads the camera so the car sits low; plan and review framing expect none.
+  map.setPadding({ top: 0, bottom: 0, left: 0, right: 0 });
   playerMarker?.remove();
   playerMarker = null;
   ghostMarkers.forEach((m) => m.remove());
@@ -519,6 +684,9 @@ function endDrive() {
   saveDriveToHistory();
   stopDriveLoop();
   followCamera = true;
+  previewDrive = false;
+  setOffRoute(false);
+  setStatus("");
   if (routes.length) {
     loadSelectedRoute();
     paintRouteChips();
@@ -528,23 +696,56 @@ function endDrive() {
     setHudMode("plan");
   }
 }
+/** Within ~40 m of the destination: stop live guidance and show the Arrival screen (DESIGN.md 07). */
+function arrive() {
+  const route = routes.find((r) => r.id === selectedId);
+  const startedAt = driveLog.startedAt;
+  const drivenMi = driveLog.drivenMi;
+  saveDriveToHistory();
+  stopDriveLoop();
+  setOffRoute(false);
+  setStatus("");
+  followCamera = true;
+  const now = new Date();
+  $("#arr-kicker").textContent = `ARRIVED · ${now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`;
+  $("#arr-dest").textContent = destLabel || "Destination";
+  $("#arr-time").textContent = startedAt ? formatDuration((now.getTime() - startedAt) / 1000) : "—";
+  $("#arr-dist").textContent = formatMiles(drivenMi);
+  $("#arr-line").textContent = route?.label ?? "—";
+  $("#arr-note").textContent = drivenMi >= 0.2 ? "Saved to Your trips on this phone." : "Short drive — not saved to Your trips.";
+  setHudMode("arrive");
+  if (dest) map.easeTo({ center: [dest.lon, dest.lat], zoom: 16, pitch: 30, bearing: 0, duration: 900 });
+}
+function finishArrival() {
+  routes = [];
+  selectedId = "";
+  selectedCoords = [];
+  dest = null;
+  destLabel = "";
+  toInput.value = "";
+  paintRoutes();
+  dashEl.setAttribute("hidden", "");
+  setHudMode("plan");
+}
 function saveDriveToHistory() {
   const route = routes.find((r) => r.id === selectedId);
   // Preview drives (the simulated car) and false starts are never recorded.
-  if (!route || !driveLog.live || progressMi < 0.2 || !driveLog.startedAt) return;
+  const log = driveLog;
+  driveLog = freshLog();
+  if (!route || previewDrive || !log.live || log.drivenMi < 0.2 || !log.startedAt) return;
   const step = Math.max(1, Math.floor(route.bands.length / 24));
   recordTrip({
-    id: `t${driveLog.startedAt}`,
-    startedAt: driveLog.startedAt,
+    id: `t${log.startedAt}`,
+    startedAt: log.startedAt,
     endedAt: Date.now(),
     destLabel,
     routeLabel: route.label,
-    distanceMi: Math.min(progressMi, route.distanceMi),
+    distanceMi: Math.round(log.drivenMi * 100) / 100,
     plannedSec: route.durationSec,
-    actualSec: Math.round((Date.now() - driveLog.startedAt) / 1000),
+    actualSec: Math.round((Date.now() - log.startedAt) / 1000),
     slideScore: route.slideScore,
     lefts: route.lefts,
-    offRouteEvents: driveLog.offRouteEvents,
+    offRouteEvents: log.offRouteEvents,
     postedProfile: route.bands.filter((_, i) => i % step === 0).map((b) => b.postedMph ?? b.expectedMph),
   });
   command.refreshHistory();
@@ -646,24 +847,36 @@ function stopTracking() {
   $("#locate").classList.remove("on");
   $("#locate").textContent = "Locate";
 }
-/** Toggles a live GPS watch — the speedo reads real mph while this is on. */
-function locateMe() {
-  if (tracker) { stopTracking(); setStatus(""); return; }
-  setStatus("Finding you…");
+/** Start the live GPS watch if it isn't running. Never toggles it off. */
+function startLocation(opts: { center: boolean }) {
+  if (tracker) return;
   $("#locate").classList.add("on");
   $("#locate").textContent = "Tracking";
-  let first = true;
+  let first = opts.center;
   tracker = startTracking(
     (fix) => {
       liveFix = fix;
+      lastProblem = null;
       you.update(fix);
+      if (!originPicked) { origin = fix.pos; fromInput.value = document.activeElement === fromInput ? fromInput.value : "Current location"; }
+      if (!$("#loc-banner").hasAttribute("hidden") && hudMode === "drive") hideLocationProblem();
+      fixWaiters.splice(0).forEach((w) => w.resolve(fix));
+      if (hudMode === "drive" && !previewDrive) {
+        if (statusEl.textContent === "Waiting for GPS…") setStatus("");
+        const prev = driveLog.lastPos;
+        // Count real distance between fixes; skip junk fixes and teleports.
+        if (fix.accuracyM <= 100) {
+          if (prev) {
+            const m = haversineMeters(prev.lon, prev.lat, fix.pos.lon, fix.pos.lat);
+            if (m < 500) driveLog.drivenMi += m / 1609.344;
+          }
+          driveLog.lastPos = fix.pos;
+        }
+      }
       if (!first) return;
       first = false;
-      origin = fix.pos;
-      originLabel = "Current location";
-      fromInput.value = "Current location";
-      setStatus("");
-      const phonePlan = window.innerWidth < 820 && hudMode !== "drive";
+      if (hudMode === "drive") return;
+      const phonePlan = window.innerWidth < 820;
       map.easeTo({
         center: [fix.pos.lon, fix.pos.lat],
         zoom: phonePlan ? 13.6 : 15.4,
@@ -672,40 +885,68 @@ function locateMe() {
         duration: 900,
       });
     },
-    (message) => { showError(message); setStatus(""); stopTracking(); }
+    (problem) => {
+      lastProblem = problem;
+      if (problem === "denied" || problem === "insecure") {
+        fixWaiters.splice(0).forEach((w) => w.reject(problem));
+        stopTracking();
+        setStatus("");
+        showLocationProblem(problem);
+      } else if (hudMode === "drive" && !previewDrive) {
+        showLocationProblem(problem);
+      } else if (!fixWaiters.length && !liveFix) {
+        showLocationProblem(problem);
+      }
+    }
   );
+}
+/** Locate button: toggles the live GPS watch — the speedo reads real mph while this is on. */
+function locateMe() {
+  if (tracker) { stopTracking(); setStatus(""); return; }
+  hideLocationProblem();
+  if (!liveFix) setStatus("Finding you…");
+  startLocation({ center: true });
+  const clear = () => { if (statusEl.textContent === "Finding you…") setStatus(""); };
+  waitForFix(15_000).then(clear, (p: LocationProblem) => { clear(); showLocationProblem(p); });
+}
+/** Ask Valhalla for lines between two points, score each one, and rank them (Slide first). */
+async function fetchRanked(from: LonLat, to: LonLat): Promise<SlideRoute[]> {
+  const raw = await requestRoutes(from, to);
+  let trips = collectTrips(raw);
+  if (!trips.length) throw new Error("No routes returned.");
+  if (trips.length < 2) {
+    // `alternatives: true` frequently answers with a single trip, which
+    // leaves "smoothest" with nothing to be smoother than. Ask again with
+    // the costing pushed the other way and keep it if it is a real detour.
+    try {
+      const fast = collectTrips(await requestFastRoute(from, to, "miles"));
+      trips = trips.concat(fast.filter((t) => !trips.some((seen) => sameTrip(seen, t))).slice(0, 1));
+    } catch {
+      // One good line still answers the question.
+    }
+  }
+  const scored = [];
+  for (const trip of trips) {
+    const attrs = await requestTraceAttributes(tripShape(trip));
+    scored.push(scoreTrip(trip, attrs.edges ?? [], "miles"));
+  }
+  return rankRoutes(scored);
 }
 async function plan() {
   if (planning) return;
   showError("");
-  if (!origin) ensureOrigin();
-  if (!origin) return showError("Set a start point.");
+  hideLocationProblem();
   if (!dest) return showError("Set a destination.");
   planning = true;
   const goBtn = $("#go") as HTMLButtonElement;
   goBtn.disabled = true;
-  setStatus("Scoring the smoothest 3D line…");
   try {
-    const raw = await requestRoutes(origin, dest);
-    let trips = collectTrips(raw);
-    if (!trips.length) throw new Error("No routes returned.");
-    if (trips.length < 2) {
-      // `alternatives: true` frequently answers with a single trip, which
-      // leaves "smoothest" with nothing to be smoother than. Ask again with
-      // the costing pushed the other way and keep it if it is a real detour.
-      try {
-        const fast = collectTrips(await requestRoutes(origin, dest, "miles", "fast"));
-        trips = trips.concat(fast.filter((t) => !trips.some((seen) => sameTrip(seen, t))).slice(0, 1));
-      } catch {
-        // One good line still answers the question.
-      }
-    }
-    const scored = [];
-    for (const trip of trips) {
-      const attrs = await requestTraceAttributes(tripShape(trip));
-      scored.push(scoreTrip(trip, attrs.edges ?? [], "miles"));
-    }
-    routes = rankRoutes(scored);
+    const start = await resolveOrigin();
+    if (!start) return;
+    origin = start;
+    if (!originPicked) originLabel = "Current location";
+    setStatus("Scoring the smoothest 3D line…");
+    routes = await fetchRanked(start, dest);
     selectedId = routes[0]?.id ?? "";
     loadSelectedRoute();
     paintRoutes();
@@ -715,11 +956,39 @@ async function plan() {
     setStatus("");
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Routing failed.";
-    showError(/failed|network|fetch|load/i.test(msg) ? "Can't reach routing right now. Check your connection and try again." : msg);
+    $("#search-card").classList.add("open");
+    showError(/failed|network|fetch|load|abort|\d{3}/i.test(msg) ? "Can't reach routing right now. Check your connection and try again." : msg);
     setStatus("");
   } finally {
     planning = false;
     goBtn.disabled = false;
+  }
+}
+/** Off the line for ~8 s while moving: re-plan from this fix to the same destination, same ranking. */
+async function reroute(from: LonLat) {
+  if (!dest || rerouting) return;
+  rerouting = true;
+  lastRerouteAt = performance.now();
+  setStatus("Off the line — finding a new Slide route…");
+  try {
+    const next = await fetchRanked(from, dest);
+    if (hudMode !== "drive" || previewDrive || !next.length) return;
+    routes = next;
+    selectedId = routes[0].id;
+    origin = from;
+    originLabel = "Current location";
+    loadDriveRoute();
+    paintRoutes();
+    renderDash();
+    spawnGhosts();
+    offSince = 0;
+    setOffRoute(false);
+    setStatus("New Slide line");
+    window.setTimeout(() => { if (statusEl.textContent === "New Slide line") setStatus(""); }, 2500);
+  } catch {
+    setStatus("Can't reach routing to reroute — retrying shortly.");
+  } finally {
+    rerouting = false;
   }
 }
 function fitToRoute() {
@@ -774,7 +1043,8 @@ function paintRoutes() {
 function paintRouteChips() {
   routeChips.forEach((m) => m.remove());
   routeChips = [];
-  if (hudMode === "drive" || routes.length < 2) return;
+  // One chip even when Valhalla found a single line, so the time sits on the route like any alternative.
+  if (hudMode === "drive" || hudMode === "arrive" || !routes.length) return;
   routes.forEach((r, i) => {
     const coords = decodePolyline6(tripShape(r.trip));
     if (!coords.length) return;
@@ -801,7 +1071,9 @@ function renderReview() {
   $("#review-dist").textContent = formatMiles(sel.distanceMi);
   $("#review-via").textContent = viaLine(sel.maneuvers);
   const shortWhy = sel.why.split(" · ")[0] || sel.label;
-  $("#review-tag").textContent = sel.label === shortWhy ? sel.label : `${sel.label} · ${shortWhy}`;
+  $("#review-tag").textContent = routes.length === 1
+    ? "Slide · Fastest is also the smoothest line we found"
+    : sel.label === shortWhy ? sel.label : `${sel.label} · ${shortWhy}`;
 }
 function renderDash() {
   dashEl.removeAttribute("hidden");
@@ -827,12 +1099,17 @@ function loadSelectedRoute() {
   selectedCoords = route ? decodePolyline6(tripShape(route.trip)) : [];
   return route;
 }
-function bootDrive() {
+/** Point the drive at the selected line: shape, cumulative miles, guidance steps. */
+function loadDriveRoute() {
   const route = loadSelectedRoute();
-  if (!route || !selectedCoords.length) return;
+  if (!route || !selectedCoords.length) return null;
   cumulative = cumulativeMiles(selectedCoords);
   steps = buildSteps(route.maneuvers);
   progressMi = 0;
+  return route;
+}
+function bootDrive() {
+  if (!loadDriveRoute()) return;
   chaseT = 0; spawnPlayer(); spawnGhosts();
   $("#speedo").removeAttribute("hidden");
   if (!raf) { lastTs = performance.now(); raf = requestAnimationFrame(tick); }
@@ -880,39 +1157,57 @@ function tick(ts: number) {
 
   const route = routes.find((r) => r.id === selectedId);
   const totalMi = cumulative[cumulative.length - 1] || route?.distanceMi || 0;
-  let you: { pos: LonLat; bearing: number };
-  let mph: number;
-  const live = Boolean(liveFix);
+  let target: { pos: LonLat; bearing: number } | null = null;
+  let mph: number | null = null;
 
-  if (liveFix) {
+  if (previewDrive) {
+    // Explicit preview only: a simulated car laps the line. Never saved, never a fallback.
+    chaseT = (chaseT + dt * 0.015) % 1;
+    target = chasePoint(selectedCoords, chaseT);
+    progressMi = chaseT * totalMi;
+    mph = route ? Math.round(route.distanceMi / Math.max(route.durationSec / 3600, 0.01)) : 0;
+  } else if (liveFix) {
     // Real position wins: snap the fix to the planned line so the marker tracks
     // the road rather than drifting into the buildings beside it.
     const snap = snapToRoute(selectedCoords, cumulative, liveFix.pos);
-    if (snap) {
+    const off = snap ? snap.offRouteM > OFF_ROUTE_M : false;
+    if (snap && !off) {
       progressMi = snap.alongMi;
-      you = { pos: snap.snapped, bearing: liveFix.headingDeg ?? snap.bearing };
-      setOffRoute(snap.offRouteM > 60);
+      target = { pos: snap.snapped, bearing: snap.bearing };
     } else {
-      you = { pos: liveFix.pos, bearing: liveFix.headingDeg ?? 0 };
+      target = { pos: liveFix.pos, bearing: liveFix.headingDeg ?? disp?.bearing ?? snap?.bearing ?? 0 };
     }
+    setOffRoute(off);
+    checkReroute(off, liveFix);
     mph = Math.round(liveFix.speedMph);
     driveLog.live = true;
-  } else {
-    chaseT = (chaseT + dt * 0.015) % 1;
-    you = chasePoint(selectedCoords, chaseT);
-    progressMi = chaseT * totalMi;
-    mph = route ? Math.round(route.distanceMi / Math.max(route.durationSec / 3600, 0.01)) : 0;
+    if (checkArrival(snap, totalMi)) return;
   }
 
-  playerMarker?.setLngLat([you.pos.lon, you.pos.lat]);
-  playerMarker?.setRotation(you.bearing);
-  $("#speed-n").textContent = String(mph);
-  $("#speed-src").textContent = live ? "MPH" : "Est";
-  if (garage.camera === "chase" && followCamera) {
-    map.jumpTo({ center: [you.pos.lon, you.pos.lat], bearing: you.bearing, pitch: 64, zoom: 16.4 });
+  const el = playerMarker?.getElement();
+  if (target) {
+    if (!disp || previewDrive) {
+      disp = { lon: target.pos.lon, lat: target.pos.lat, bearing: target.bearing };
+    } else {
+      // GPS lands about once a second; glide between fixes instead of jumping.
+      const k = 1 - Math.exp(-dt * 5);
+      disp.lon += (target.pos.lon - disp.lon) * k;
+      disp.lat += (target.pos.lat - disp.lat) * k;
+      const db = ((target.bearing - disp.bearing + 540) % 360) - 180;
+      disp.bearing = (disp.bearing + db * k + 360) % 360;
+    }
+    if (el) el.style.visibility = "";
+    playerMarker?.setLngLat([disp.lon, disp.lat]);
+    playerMarker?.setRotation(disp.bearing);
+    if (followCamera && hudMode === "drive") followDriver(disp);
+  } else if (el) {
+    // Live drive with no fix yet: no car on the map rather than a pretend one.
+    el.style.visibility = "hidden";
   }
+  $("#speed-n").textContent = mph === null ? "—" : String(mph);
+  $("#speed-src").textContent = previewDrive ? "Est" : "MPH";
 
-  renderGuidance(progressMi, mph);
+  renderGuidance(progressMi, mph ?? 0);
   updateDriveMeta(route, progressMi);
 
   ghosts.forEach((g, i) => { const s = stepGhost(g, dt); ghostMarkers[i]?.setLngLat([s.lon, s.lat]); ghostMarkers[i]?.setRotation(s.bearing); });
@@ -927,6 +1222,35 @@ function tick(ts: number) {
     $("#ghost-delta").textContent = "NO GHOSTS";
   }
   raf = requestAnimationFrame(tick);
+}
+/** Keep the car in frame in every camera mode. Sits low on screen so the road ahead shows. */
+function followDriver(p: { lon: number; lat: number; bearing: number }) {
+  const h = map.getContainer().clientHeight;
+  const center: [number, number] = [p.lon, p.lat];
+  if (garage.camera === "top") {
+    map.jumpTo({ center, bearing: 0, pitch: 0, zoom: 16, padding: { top: 0, bottom: 0, left: 0, right: 0 } });
+  } else if (garage.camera === "chase") {
+    map.jumpTo({ center, bearing: p.bearing, pitch: 64, zoom: 16.6, padding: { top: Math.round(h * 0.38), bottom: 0, left: 0, right: 0 } });
+  } else {
+    map.jumpTo({ center, bearing: p.bearing, pitch: 55, zoom: 15.8, padding: { top: Math.round(h * 0.3), bottom: 0, left: 0, right: 0 } });
+  }
+}
+function checkReroute(off: boolean, fix: Fix) {
+  const moving = fix.speedMph >= 3;
+  if (!off || !moving) { offSince = 0; return; }
+  const now = performance.now();
+  if (!offSince) offSince = now;
+  if (now - offSince >= REROUTE_AFTER_MS && !rerouting && now - lastRerouteAt > 12_000 && liveFix) {
+    void reroute(liveFix.pos);
+  }
+}
+function checkArrival(snap: RouteProgress | null, totalMi: number): boolean {
+  if (!dest || !liveFix) return false;
+  const toDestM = haversineMeters(liveFix.pos.lon, liveFix.pos.lat, dest.lon, dest.lat);
+  const onLineAtEnd = Boolean(snap && snap.offRouteM <= OFF_ROUTE_M && totalMi > 0 && snap.alongMi / totalMi >= 0.99 && totalMi - snap.alongMi <= 0.05);
+  if (toDestM > ARRIVE_M && !onLineAtEnd) return false;
+  arrive();
+  return true;
 }
 function updateDriveMeta(route: SlideRoute | undefined, mi: number) {
   if (hudMode !== "drive" || !route) return;
@@ -986,3 +1310,7 @@ function showError(text: string) { errorEl.textContent = text; errorEl.toggleAtt
 const ESCAPES: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
 function esc(s: string): string { return s.replace(/[&<>"']/g, (c) => ESCAPES[c]); }
 persist();
+// Installable app shell (Add to Home Screen). Production only, so dev reloads stay uncached.
+if (import.meta.env.PROD && "serviceWorker" in navigator) {
+  window.addEventListener("load", () => { void navigator.serviceWorker.register("./sw.js").catch(() => {}); });
+}

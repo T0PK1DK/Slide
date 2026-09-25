@@ -94,16 +94,30 @@ export function snapToRoute(
 
 export type TrackerHandle = { stop: () => void };
 
+/** Why there is no fix. Each gets its own message; none of them fall back to a fake position. */
+export type LocationProblem = "denied" | "unavailable" | "timeout" | "insecure";
+
+export const LOCATION_MESSAGES: Record<LocationProblem, string> = {
+  denied: "Location is off for Slide. Allow it in your browser or phone settings (Settings → Privacy → Location), then tap Try again.",
+  unavailable: "Your phone can't find its location right now. Check that Location Services are on, or search a start point instead.",
+  timeout: "Still waiting on a GPS fix. Move somewhere with a clear view of the sky, or search a start point instead.",
+  insecure: "Location needs a secure (https) page. Open Slide from kings-slide.pages.dev, or search a start point instead.",
+};
+
 /**
  * Live GPS. `coords.speed` is metres/second and is null on plenty of devices,
  * so fall back to distance/time between fixes rather than showing nothing.
  */
 export function startTracking(
   onFix: (fix: Fix) => void,
-  onError: (message: string) => void
+  onError: (problem: LocationProblem) => void
 ): TrackerHandle {
+  if (!window.isSecureContext) {
+    onError("insecure");
+    return { stop: () => {} };
+  }
   if (!navigator.geolocation) {
-    onError("Location unavailable on this device.");
+    onError("unavailable");
     return { stop: () => {} };
   }
   let prev: { lon: number; lat: number; at: number } | null = null;
@@ -132,10 +146,9 @@ export function startTracking(
       });
     },
     (err) => {
+      // A watch keeps running after TIMEOUT / POSITION_UNAVAILABLE; only a denial ends it.
       onError(
-        err.code === err.PERMISSION_DENIED
-          ? "Location permission denied."
-          : "Waiting on a GPS fix."
+        err.code === err.PERMISSION_DENIED ? "denied" : err.code === err.TIMEOUT ? "timeout" : "unavailable"
       );
     },
     { enableHighAccuracy: true, maximumAge: 1000, timeout: 12000 }
