@@ -135,3 +135,21 @@ describe("garage avoid options", () => {
     expect(migrateGarage({ avoid: { tolls: true, highways: "yes" } }).avoid).toEqual({ tolls: true, highways: false, ferries: false });
   });
 });
+
+import { retryable } from "../lib/valhalla";
+import { postedDropMarks } from "../lib/timeline";
+describe("retryable", () => {
+  it("retries network errors, rate limits and server errors, never 4xx", () => {
+    expect(retryable(null)).toBe(true);
+    expect(retryable(429)).toBe(true);
+    expect(retryable(503)).toBe(true);
+    expect(retryable(400)).toBe(false);
+    expect(retryable(404)).toBe(false);
+  });
+});
+describe("timeline (PR #5)", () => {
+  it("marks only real posted-limit drops", () => {
+    const b = (from: number, mph: number | null) => ({ fromMi: from, toMi: from + 1, name: "", postedMph: mph, expectedMph: 30, seconds: 60, roadClass: "" });
+    expect(postedDropMarks([b(0, 45), b(2, 30), b(4, 40), b(6, null)], 8)).toEqual([{ t: 0.25, mph: 30 }]);
+  });
+});

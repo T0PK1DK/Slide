@@ -167,6 +167,14 @@ Read `TASKS.md` top unchecked item. Do not rebase history. Do not rename the pro
 - 2026-09-25 Claude: **Removed bot data.** The seeded ghost "drivers" (NOVA, KITE, VEX and a pretend "you") that appeared on every route as if they were real people are gone; `seedGhosts()` is deleted, no ghost cars are drawn, and the GHOST timer stays hidden until a real ghost exists. Deleted `preview/index.html` (an old standalone demo page with a "Demo Miami" button and its own made-up scoring; it was never part of the build). Test fixtures stay, but only inside test files.
 - 2026-09-25 Claude: **Profile section** (`src/hud/profile.ts`): menu → Profile on phones, the avatar on laptops. It shows the driver header (name, car tag, "driving with Slide since"), all-time drives, miles and average smooth score from real trips, editable name and tag, and **My car** (make, model, year, fuel, SunPass; never plate or VIN). It also has Home/Work with Clear, and privacy buttons: Lock, Clear my drive history, and Erase everything on this phone. **Friends & followers** is shown but says it's not available yet: it needs accounts and a presence/privacy design, which the owner has to decide on (see TASKS). All data stays on the device. 31 unit tests; e2e in headless Chromium (phone: save car → reload keeps it; preview drive draws 0 ghost cars; laptop: avatar opens the sheet and Escape closes it).
 
+- 2026-09-25 Claude: **Everything merged onto one line.** Owner asked to merge all open work before using Slide for work.
+  - **#11** (Nard, real GPS) and **#12** (routes, dashboard, profile) → `main`.
+  - **#5** (Grok's `src/lib/timeline.ts`, posted-drop marks) merged into #12. It isn't wired into the UI yet.
+  - **#7** closed: superseded by #11's identical build fix.
+  - **#9** (Cursor's `main.ts` split) closed: it was written against the app before real GPS, login, routes and the dashboard. Its one-retry `net.ts` idea is ported into `fetchJson` (network / timeout / 429 / 5xx only, 700 ms pause). The file split is still a TASKS item.
+  - Planning is now gentler on the public Valhalla server: one variant request at a time, stop at 3 distinct lines, and trace calls in sequence with a timeout. Verified that a 429 is retried and the plan still draws 3 routes.
+  - 33 unit tests; e2e routes / dashboard / profile all pass on the merged tree.
+
 ## Traffic provider decision (owner to approve)
 
 Traffic-aware times need a paid provider, and the owner's rule is "HERE/TomTom only if I approve paid APIs".
