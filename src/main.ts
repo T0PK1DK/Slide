@@ -420,6 +420,7 @@ const command = mountCommand({
   onGarage: () => garageEl.classList.add("open"),
   onLocate: () => { if (!tracker) locateMe(); else if (liveFix) map.easeTo({ center: [liveFix.pos.lon, liveFix.pos.lat], zoom: 15, duration: 700 }); },
   onSelectRoute: (id) => selectRoute(id),
+  avoidTolls: () => garage.avoid.tolls,
 });
 $("#ov-insights").addEventListener("click", () => { overflowEl.classList.remove("open"); command.openSheet(true); });
 $("#chip-home").addEventListener("click", () => useOrSavePlace("home"));
@@ -799,6 +800,7 @@ function saveDriveToHistory() {
     lefts: route.lefts,
     offRouteEvents: log.offRouteEvents,
     postedProfile: route.bands.filter((_, i) => i % step === 0).map((b) => b.postedMph ?? b.expectedMph),
+    tollRoad: route.hasToll,
   });
   command.refreshHistory();
 }

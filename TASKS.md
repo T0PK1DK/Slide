@@ -21,6 +21,9 @@ Work top-down. Check the box in the same PR.
 - [x] Add stops (up to 5), drag to reorder, dropped as reached
 - [ ] Verify on the live site: real Valhalla returns `alternates` and `has_toll` for Fort Lauderdale → 9601 Collins Ave
 
+- [x] Desktop Command view: SEKAI Live Network pass (tiles + trends, week sparkline, alert list, navigation intelligence + Switch) — phones unchanged
+- [ ] Live incidents in the alert list — needs the traffic provider
+
 ## Phase 2–5 (not started): save + learn, transit/walk/bike, home sheet, worker features — see the owner prompt in the 2026-09-25 session log
 
 ## P0 — make the demo reliable

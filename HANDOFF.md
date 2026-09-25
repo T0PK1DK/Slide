@@ -55,6 +55,8 @@ src/lib/history.ts     on-device trip history + overview stats (live-GPS drives 
 src/plan/routeset.ts   merge route variants, bubble placement, toll labels (pure, tested)
 src/plan/stops.ts      multi-stop helpers: reorder, stop reached, drop index (pure, tested)
 src/plan/routes.test.ts  Vitest unit tests (`npm test`)
+src/lib/alerts.ts      desktop alert list + switch suggestion from real data only (pure, tested)
+src/lib/dashboard.test.ts  tests for alerts / week tiles
 src/lib/sources/weather.ts  Open-Meteo current conditions for the clock card (CC BY 4.0)
 public/                web manifest, PNG/maskable/apple-touch icons, shell-only sw.js, Pages _headers (Add to Home Screen)
 docs/PRODUCT.md        scoring contract
@@ -158,6 +160,8 @@ Read `TASKS.md` top unchecked item. Do not rebase history. Do not rename the pro
   - **Honest ETA:** the review sheet says "Typical time · no live traffic yet". This is why Slide said 31 min where Google said 42 for Fort Lauderdale → 9601 Collins Ave.
   - Added Vitest (`npm test`, 18 tests) and `npm run typecheck`. Verified end to end in headless Chromium with **test-only fake Valhalla/Photon answers** (the container can't reach the real services): login → search → 3 bubbles with tags → tap to select → avoid tolls re-plans → add stop sends 3-point routes → setting persists → no page errors. **Not verified against the live Valhalla server** (especially `alternates` and `has_toll`); check on the deployed site.
   - **Not done, needs the owner (traffic-aware ETAs):** see "Traffic provider decision" below.
+
+- 2026-09-25 Claude: **SEKAI Live Network pass on the desktop Command view** (owner's HTML, ≥1100px only; phones unchanged, verified: 0 desktop-only elements visible at 390px, Insights sheet identical). Adds stat tiles with week-over-week trends, a 7-day minutes sparkline, a bell + right-rail **alert list** with severity dots (posted-speed drops, tolls vs Avoid tolls, rain, off-route), and a **Navigation intelligence** card with a one-tap **Switch** and real typical-time savings. The HTML's fake parts (predicted congestion, fleet, ETA jitter) are not copied; congestion is an honest "needs a live traffic provider" line. Trips now record `tollRoad`. 28 unit tests; e2e in headless Chromium with test-only fixtures (desktop + phone).
 
 ## Traffic provider decision (owner to approve)
 

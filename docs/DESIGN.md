@@ -160,6 +160,20 @@ It's a **look** reference; its layout is a fleet control room, not a phone in a 
 
 **Built (2026-09-23):** the full dashboard as the **Command view** (`src/hud/command.ts`; every SEKAI panel mapped to real Slide data, see HANDOFF session log), plus the basemap palette + route ribbon in `src/lib/maplook.ts`, the "you" marker in `src/map/you.ts`, glass / card / FAB / status-dot styles in the *Night network* block at the end of `src/styles.css`.
 
+### SEKAI "Live Network" HTML pass — desktop Command view only (2026-09-25)
+Built from the owner's `sekai-live-network.html`. **Applies at ≥1100px only; the phone UI and Insights sheet are unchanged** (`.cmd-wide` / `.cmd-narrow`).
+
+| SEKAI piece | Slide desktop version | Data source |
+| --- | --- | --- |
+| Tokens: #07080b bg, #111318 panels, 6–10% white borders, 14px radius, green/red/orange status only | Scoped CSS variables under `body.cmd` at ≥1100px; amber stays the accent | — |
+| Network Overview stat tiles with trend | **This week** tiles: Avg trip, Miles, Toll-road trips, On time, each "± vs last week" | Recorded trips (`weekTiles`) |
+| Efficiency line chart | **Minutes driven**, last 7 days | Recorded trips (`minutesByDay`) |
+| Bell dropdown + severity alert list | **Alerts** (bell + right rail): posted-speed drops ≥10 mph, tolls vs Avoid tolls, rain/fog, off-route this week | Planned route, Open-Meteo, trips (`buildAlerts`) |
+| "Congestion Predicted · AI Analysis" | Shown as an honest line: "Predicted congestion needs a live traffic provider (not connected)" | None yet |
+| "Alternate Route · saves 18 min" | **Navigation intelligence**: "Switch to X · saves N min" with a one-tap Switch, or "You're on the best line" | Planned lines, typical times (`suggestSwitch`) |
+| Weather/time chip | Already built (Open-Meteo) | Open-Meteo |
+| Fleet, depot, maintenance, passenger flow, fake ETA jitter | **Not taken**: Slide is one commuter, and the reference's numbers are hard-coded | — |
+
 ### Missing from the canvas (design these next)
 - **Onboarding:** location permission with a reason line, then set Home / Work, then pick your car. Three screens, skippable.
 - **Offline / no-route:** a calm sheet "Can't reach the route engine — retrying" with the last cached route if one exists; "No smooth route inside +10% — showing fastest".
