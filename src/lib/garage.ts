@@ -8,6 +8,9 @@ export const MAP_STYLES: Record<MapSkin, string> = {
   slide: "https://tiles.openfreemap.org/styles/dark",
 };
 
+/** Route options sheet (the sliders icon). Applied to every plan and reroute. */
+export type AvoidOptions = { tolls: boolean; highways: boolean; ferries: boolean };
+
 /** A saved destination (Home, Work, a recent search). Stays on this device. */
 export type SavedPlace = { label: string; lon: number; lat: number };
 
@@ -27,6 +30,7 @@ export type GarageConfig = {
   recents: SavedPlace[];
   home: SavedPlace | null;
   work: SavedPlace | null;
+  avoid: AvoidOptions;
 };
 
 const KEY = "slide.garage.v1";
@@ -52,6 +56,7 @@ export const DEFAULT_GARAGE: GarageConfig = {
   recents: [],
   home: null,
   work: null,
+  avoid: { tolls: false, highways: false, ferries: false },
 };
 
 const CAMERAS: readonly CameraMode[] = ["cinematic", "chase", "top"];
@@ -82,7 +87,7 @@ export function toPlace(v: unknown): SavedPlace | null {
  * rest — every valid field is kept, every broken one falls back to its default.
  */
 export function migrateGarage(saved: unknown): GarageConfig {
-  const out: GarageConfig = { ...DEFAULT_GARAGE, recents: [] };
+  const out: GarageConfig = { ...DEFAULT_GARAGE, recents: [], avoid: { ...DEFAULT_GARAGE.avoid } };
   if (!isRecord(saved)) return out;
   if (typeof saved.tag === "string" && saved.tag.trim()) out.tag = saved.tag.trim().slice(0, 12);
   if (typeof saved.carColor === "string" && HEX.test(saved.carColor)) out.carColor = saved.carColor;
@@ -103,6 +108,11 @@ export function migrateGarage(saved: unknown): GarageConfig {
       seen.add(p.label);
       out.recents.push(p);
       if (out.recents.length >= MAX_RECENTS) break;
+    }
+  }
+  if (isRecord(saved.avoid)) {
+    for (const k of ["tolls", "highways", "ferries"] as const) {
+      if (typeof saved.avoid[k] === "boolean") out.avoid[k] = saved.avoid[k] as boolean;
     }
   }
   out.home = toPlace(saved.home);

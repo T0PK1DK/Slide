@@ -18,6 +18,10 @@ export type SlideRoute = {
   durationSec: number;
   slideScore: number;
   label: "Slide" | "Faster" | "Alt";
+  /** Map-bubble tags, most important first: "Slide pick", "Fastest". */
+  tags: RouteTag[];
+  /** From Valhalla's trip summary. `null` = the server didn't say, so show nothing rather than guess. */
+  hasToll: boolean | null;
   why: string;
   turns: number;
   lefts: number;
@@ -55,7 +59,7 @@ export function scoreTrip(
   trip: ValhallaTrip,
   edges: EdgeAttribute[],
   units: "miles" | "kilometers"
-): Omit<SlideRoute, "id" | "label"> {
+): Omit<SlideRoute, "id" | "label" | "tags"> {
   const toMiles = units === "miles" ? 1 : 0.621371;
   const distanceMi = trip.summary.length * toMiles;
   const durationSec = trip.summary.time;
@@ -114,6 +118,7 @@ export function scoreTrip(
 
   return {
     trip,
+    hasToll: typeof trip.summary.has_toll === "boolean" ? trip.summary.has_toll : null,
     shape: trip.legs.map((l) => l.shape).join(""),
     distanceMi,
     durationSec,
@@ -255,28 +260,41 @@ function explain(input: {
   return bits.join(" · ");
 }
 
+export type RouteTag = "Slide pick" | "Fastest" | "No tolls";
+
+/** How much slower than the fastest line the Slide pick may be (docs/PRODUCT.md, Slide route contract). */
+export const SLIDE_WINDOW = 0.1;
+
+/**
+ * The Slide route contract: among routes no more than `window` slower than the
+ * fastest, pick the smoothest (highest Slide score; ties go to the quicker one).
+ * If nothing in the window is smoother than the fastest line, the fastest line
+ * is the Slide pick and wears both tags. Order: Slide pick, Fastest, then the
+ * rest by time. "No tolls" goes on the quickest toll-free line when the fastest
+ * one has tolls (and only when Valhalla actually reported toll status).
+ */
 export function rankRoutes(
-  scored: Array<Omit<SlideRoute, "id" | "label">>
+  scored: Array<Omit<SlideRoute, "id" | "label" | "tags">>,
+  window = SLIDE_WINDOW
 ): SlideRoute[] {
   if (!scored.length) return [];
-  const bySlide = [...scored].sort((a, b) => b.slideScore - a.slideScore);
   const byTime = [...scored].sort((a, b) => a.durationSec - b.durationSec);
-
-  const labeled = bySlide.map((r, i) => {
-    const isFastest = r === byTime[0];
-    let label: SlideRoute["label"] = i === 0 ? "Slide" : isFastest ? "Faster" : "Alt";
-    if (i === 0 && isFastest) label = "Slide";
-    return {
-      ...r,
-      id: `r${i}`,
-      label,
-    };
+  const fastest = byTime[0];
+  const limit = fastest.durationSec * (1 + window);
+  const slide = byTime
+    .filter((r) => r.durationSec <= limit)
+    .reduce((best, r) => (r.slideScore > best.slideScore ? r : best), fastest);
+  const ordered = [slide, ...(slide === fastest ? [] : [fastest]), ...byTime.filter((r) => r !== slide && r !== fastest)];
+  // "No tolls" only means something when the fastest line has tolls: tag the quickest toll-free one.
+  const tollFree = fastest.hasToll === true ? byTime.find((r) => r.hasToll === false) : undefined;
+  return ordered.map((r, i) => {
+    const tags: RouteTag[] = [];
+    if (r === slide) tags.push("Slide pick");
+    if (r === fastest) tags.push("Fastest");
+    if (r === tollFree) tags.push("No tolls");
+    const label: SlideRoute["label"] = r === slide ? "Slide" : r === fastest ? "Faster" : "Alt";
+    return { ...r, id: `r${i}`, label, tags };
   });
-
-  const slide = labeled.find((r) => r.label === "Slide")!;
-  const faster = labeled.find((r) => r.label === "Faster");
-  const rest = labeled.filter((r) => r !== slide && r !== faster);
-  return [slide, ...(faster ? [faster] : []), ...rest];
 }
 
 export function formatDuration(sec: number): string {

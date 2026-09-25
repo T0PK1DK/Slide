@@ -1,5 +1,6 @@
 import type maplibregl from "maplibre-gl";
-import { loadTrips, overview, type TripRecord, type Window } from "../lib/history";
+import { loadTrips, minutesByDay, overview, weekTiles, type Tile, type TripRecord, type Window } from "../lib/history";
+import { buildAlerts, suggestSwitch, type Alert } from "../lib/alerts";
 import { currentWeather } from "../lib/sources/weather";
 import { formatDuration, type SlideRoute } from "../lib/smooth";
 
@@ -15,8 +16,11 @@ export type CommandHooks = {
   driverName: () => string;
   onSearch: () => void;
   onGarage: () => void;
+  onProfile: () => void;
   onLocate: () => void;
   onSelectRoute: (id: string) => void;
+  /** Driver's Avoid-tolls option, so the alert list can say when it couldn't be honoured. */
+  avoidTolls: () => boolean;
 };
 
 export type CommandView = {
@@ -110,8 +114,39 @@ function tripRow(t: TripRecord): string {
   </li>`;
 }
 
+/** Desktop stat tile: big number, small label, and a +/- trend vs last week. `lowerIsBetter` flips the colour. */
+function tileHtml(label: string, t: Tile, fmt: (n: number) => string, unit: string, lowerIsBetter = false): string {
+  const d = t.delta;
+  const good = d !== null && (lowerIsBetter ? d < 0 : d > 0);
+  const trend = d === null || Math.abs(d) < 0.05
+    ? `<span class="cmd-tile-d flat">${d === null ? "no prior week" : "same as last week"}</span>`
+    : `<span class="cmd-tile-d ${good ? "up" : "down"}">${d > 0 ? "+" : "−"}${fmt(Math.abs(d))} vs last week</span>`;
+  return `<div class="cmd-tile"><span class="cmd-tile-l">${label}</span><b>${t.value === null ? "—" : fmt(t.value)}<small>${t.value === null ? "" : unit}</small></b>${trend}</div>`;
+}
+
+/** Seven-day sparkline (minutes driven per day), today last. */
+function weekSpark(mins: number[]): string {
+  if (mins.every((m) => m === 0)) return `<div class="cmd-empty">No drives in the last 7 days.</div>`;
+  const w = 260, h = 56, max = Math.max(...mins, 1);
+  const step = w / (mins.length - 1);
+  const y = (m: number) => h - 4 - (m / max) * (h - 12);
+  const pts = mins.map((m, i) => `${(i * step).toFixed(1)},${y(m).toFixed(1)}`).join(" ");
+  const days = mins.map((_, i) => new Date(Date.now() - (6 - i) * 864e5).toLocaleDateString([], { weekday: "narrow" }));
+  return `<svg viewBox="0 0 ${w} ${h}" class="cmd-week" role="img" aria-label="Minutes driven per day, last 7 days: ${mins.join(", ")}">
+      <polyline points="0,${h} ${pts} ${w},${h}" class="cmd-week-fill"/>
+      <polyline points="${pts}" class="cmd-week-line"/>
+      <circle cx="${w}" cy="${y(mins[6]).toFixed(1)}" r="3" class="cmd-peak"/>
+    </svg><div class="cmd-hours">${days.map((d) => `<span>${d}</span>`).join("")}</div>`;
+}
+
+function alertRow(a: Alert): string {
+  return `<li class="cmd-alert ${a.level}"><i class="sev" aria-hidden="true"></i><div><b>${esc(a.title)}</b><span>${esc(a.detail)}</span></div><span class="sr">${a.level === "info" ? "Info" : a.level === "red" ? "Severe" : "Warning"}</span></li>`;
+}
+
 export function mountCommand(h: CommandHooks): CommandView {
   let win: Window = "7d";
+  let wxLabel: string | null = null;
+  let alerts: Alert[] = [];
   let routes: SlideRoute[] = [];
   let selectedId = "";
 
@@ -127,8 +162,9 @@ export function mountCommand(h: CommandHooks): CommandView {
       <button type="button" data-tab="garage">Garage</button>
     </nav>
     <button type="button" class="cmd-search">${ICON.search}<span>Search places, addresses, or routes…</span></button>
-    <button type="button" class="cmd-bell" aria-label="Alerts">${ICON.bell}<i hidden></i></button>
-    <div class="cmd-avatar" aria-label="Driver"></div>`;
+    <button type="button" class="cmd-bell" aria-label="Alerts" aria-expanded="false" aria-controls="cmd-alerts-drop">${ICON.bell}<i hidden></i></button>
+    <div class="cmd-alerts-drop" id="cmd-alerts-drop" role="region" aria-label="Alerts" hidden></div>
+    <button type="button" class="cmd-avatar" aria-label="Your profile"></button>`;
 
   const left = document.createElement("aside");
   left.className = "cmd-rail cmd-left";
@@ -187,6 +223,7 @@ export function mountCommand(h: CommandHooks): CommandView {
     })
   );
   const avatar = top.querySelector<HTMLElement>(".cmd-avatar")!;
+  avatar.addEventListener("click", h.onProfile);
   const paintAvatar = () => { avatar.textContent = (h.driverName().trim()[0] ?? "S").toUpperCase(); };
 
   // --- map overlay controls
@@ -222,6 +259,8 @@ export function mountCommand(h: CommandHooks): CommandView {
     box.querySelector(".cmd-wx-ico")!.innerHTML = wx.isDay ? ICON.sun : ICON.moon;
     box.querySelector(".cmd-temp")!.textContent = `${wx.tempF}°F`;
     box.querySelector(".cmd-cond")!.textContent = wx.label;
+    wxLabel = wx.label;
+    renderAlerts();
   };
   void loadWeather();
   window.setInterval(() => void loadWeather(), 15 * 60 * 1000);
@@ -231,9 +270,23 @@ export function mountCommand(h: CommandHooks): CommandView {
     const trips = loadTrips();
     const o = overview(trips, win);
     const recent = trips.slice(0, 8);
+    const wk = weekTiles(trips);
     const delta = o.smoothDelta;
     left.innerHTML = `
-      <section class="cmd-card">
+      <section class="cmd-card cmd-wide">
+        <header><h2>This week</h2><span class="cmd-dim">vs the 7 days before</span></header>
+        <div class="cmd-tiles">
+          ${tileHtml("Avg trip", wk.avgTripMin, (n) => n.toFixed(0), " min", true)}
+          ${tileHtml("Miles", wk.miles, (n) => n.toFixed(0), " mi")}
+          ${tileHtml("Toll-road trips", wk.tollTrips, (n) => n.toFixed(0), "", true)}
+          ${tileHtml("On time", wk.onTime, (n) => n.toFixed(0), "%")}
+        </div>
+      </section>
+      <section class="cmd-card cmd-wide">
+        <header><h2 class="cmd-sub">Minutes driven</h2><span class="cmd-dim">last 7 days</span></header>
+        ${weekSpark(minutesByDay(trips))}
+      </section>
+      <section class="cmd-card cmd-narrow">
         <header><h2>Drive overview</h2>
           <label class="cmd-select"><span class="sr">Time window</span>
             <select>${(["24h", "7d", "30d"] as Window[]).map((w) => `<option${w === win ? " selected" : ""}>${w}</option>`).join("")}</select>
@@ -259,9 +312,33 @@ export function mountCommand(h: CommandHooks): CommandView {
       renderLeft();
       renderRight();
     });
-    const bellDot = top.querySelector<HTMLElement>(".cmd-bell i")!;
-    bellDot.hidden = o.alerts === 0;
+    renderAlerts();
   };
+
+  // --- alerts: bell dropdown + right-rail list (desktop). Real sources only (src/lib/alerts.ts).
+  const drop = top.querySelector<HTMLElement>("#cmd-alerts-drop")!;
+  const bell = top.querySelector<HTMLButtonElement>(".cmd-bell")!;
+  const renderAlerts = () => {
+    alerts = buildAlerts({ route: routes.find((r) => r.id === selectedId), avoidTolls: h.avoidTolls(), trips: loadTrips(), weather: wxLabel });
+    const live = alerts.filter((a) => a.level === "red" || a.level === "orange");
+    bell.querySelector<HTMLElement>("i")!.hidden = live.length === 0;
+    bell.setAttribute("aria-label", live.length ? `Alerts, ${live.length} active` : "Alerts");
+    drop.innerHTML = `<h4>${live.length ? `${live.length} active alert${live.length === 1 ? "" : "s"}` : "No active alerts"}</h4><ul>${alerts.map(alertRow).join("")}</ul>`;
+    const list = right.querySelector(".cmd-alert-list");
+    if (list) list.innerHTML = alerts.map(alertRow).join("");
+  };
+  bell.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const open = drop.hidden;
+    drop.hidden = !open;
+    bell.setAttribute("aria-expanded", String(open));
+  });
+  document.addEventListener("click", (e) => {
+    if (!drop.hidden && !drop.contains(e.target as Node)) { drop.hidden = true; bell.setAttribute("aria-expanded", "false"); }
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !drop.hidden) { drop.hidden = true; bell.setAttribute("aria-expanded", "false"); bell.focus(); }
+  });
 
   // --- right rail: route intelligence + drive rhythm
   const renderRight = () => {
@@ -288,10 +365,23 @@ export function mountCommand(h: CommandHooks): CommandView {
     const onTime = o.onTime;
     const segs = 10;
     const lit = onTime === null ? 0 : Math.round(onTime * segs);
-    right.innerHTML = `
+    const sug = suggestSwitch(routes, selectedId);
+    const wideIntel = `
+      <section class="cmd-card cmd-wide cmd-nav-intel">
+        <header><div><h2>Navigation intelligence</h2><p class="cmd-dim">From your planned lines · typical times, no live traffic yet</p></div></header>
+        ${sel ? `<div class="cmd-sel"><span class="cmd-dim">${esc(sel.tags.join(" · ") || sel.label)}</span><b>${formatDuration(sel.durationSec)}</b><span>${sel.distanceMi.toFixed(1)} mi · ${sel.lefts} left${sel.lefts === 1 ? "" : "s"} · ${sel.signals} signals${sel.hasToll === true ? " · tolls" : sel.hasToll === false ? " · no tolls" : ""}</span></div>` : `<p class="cmd-empty">Plan a trip to compare lines here.</p>`}
+        ${sug ? `<div class="cmd-sug ${sug.savesMin > 0 ? "faster" : "smoother"}"><div><em>${esc(sug.title)}</em><p>${esc(sug.detail)}</p></div><button type="button" class="cmd-switch" data-route="${sug.targetId}">Switch</button></div>`
+          : sel && routes.length > 1 ? `<p class="cmd-best"><i class="dot ok"></i>You're on the best line: nothing quicker, nothing smoother within 10%.</p>` : ""}
+        <p class="cmd-congestion"><i class="dot"></i>Predicted congestion needs a live traffic provider (not connected).</p>
+      </section>
+      <section class="cmd-card cmd-wide">
+        <header><h2>Alerts</h2><span class="cmd-dim">route, weather, your drives</span></header>
+        <ul class="cmd-alert-list"></ul>
+      </section>`;
+    right.innerHTML = `${wideIntel}
       <section class="cmd-intel">
-        <header><div><h2>Route intelligence</h2><p class="cmd-dim">Scored from Valhalla routes and posted limits. No live traffic yet.</p></div></header>
-        ${verdict}${alt}
+        <header class="cmd-narrow"><div><h2>Route intelligence</h2><p class="cmd-dim">Scored from Valhalla routes and posted limits. No live traffic yet.</p></div></header>
+        <div class="cmd-narrow cmd-intel">${verdict}${alt}</div>
         <article class="cmd-intel-card"><span class="cmd-ico">${ICON.bars}</span><div>
           <em>Arrival accuracy</em><b>${onTime === null ? "—" : `${Math.round(onTime * 100)}%`}</b>
           <p>${onTime === null ? "Shows how close Slide's ETA is to your real arrival." : "Drives that arrived within 2 min of the ETA."}</p>
@@ -303,6 +393,7 @@ export function mountCommand(h: CommandHooks): CommandView {
         ${hourBars(o.byHour)}
       </section>`;
     right.querySelectorAll<HTMLButtonElement>("[data-route]").forEach((b) => b.addEventListener("click", () => h.onSelectRoute(b.dataset.route!)));
+    renderAlerts();
   };
 
   // --- floating route card over the map (the reference's "Route 14 · 2.5 min")

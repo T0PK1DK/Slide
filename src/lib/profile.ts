@@ -5,13 +5,37 @@
  * opening straight into your drives — it is not security against someone with
  * the device and dev tools.
  */
+export type Fuel = "gas" | "hybrid" | "electric" | "diesel";
+export const FUELS: readonly Fuel[] = ["gas", "hybrid", "electric", "diesel"];
+
+/** The driver's own car. Stays on this device; no plate or VIN is ever asked for. */
+export type Car = { make: string; model: string; year: number | null; fuel: Fuel; sunpass: boolean };
+
 export type DriverProfile = {
   name: string;
   tag: string;
   pinHash: string | null;
   createdAt: number;
   lastSeen: number;
+  car: Car | null;
 };
+
+/** Pure: a saved car value → a valid Car, or null. Unknown fields are dropped, bad ones defaulted. */
+export function toCar(v: unknown): Car | null {
+  if (!v || typeof v !== "object") return null;
+  const c = v as Record<string, unknown>;
+  const make = typeof c.make === "string" ? c.make.trim().slice(0, 24) : "";
+  const model = typeof c.model === "string" ? c.model.trim().slice(0, 24) : "";
+  if (!make && !model) return null;
+  const y = typeof c.year === "number" ? Math.round(c.year) : Number.NaN;
+  return {
+    make,
+    model,
+    year: y >= 1950 && y <= new Date().getFullYear() + 1 ? y : null,
+    fuel: FUELS.includes(c.fuel as Fuel) ? (c.fuel as Fuel) : "gas",
+    sunpass: c.sunpass === true,
+  };
+}
 
 const PROFILE_KEY = "slide.profile.v1";
 const SESSION_KEY = "slide.session.v1";
@@ -28,6 +52,7 @@ export function loadProfile(): DriverProfile | null {
       pinHash: typeof p.pinHash === "string" ? p.pinHash : null,
       createdAt: p.createdAt ?? Date.now(),
       lastSeen: p.lastSeen ?? Date.now(),
+      car: toCar(p.car),
     };
   } catch {
     return null;

@@ -52,6 +52,12 @@ src/hud/login.ts       login gate: set up driver / welcome back / lock
 src/map/you.ts         "you are here" marker: glow dot, pulse, heading cone, accuracy halo
 src/hud/command.ts     Command view: SEKAI-style dashboard (wide) / Insights sheet (phone)
 src/lib/history.ts     on-device trip history + overview stats (live-GPS drives only)
+src/plan/routeset.ts   merge route variants, bubble placement, toll labels (pure, tested)
+src/plan/stops.ts      multi-stop helpers: reorder, stop reached, drop index (pure, tested)
+src/plan/routes.test.ts  Vitest unit tests (`npm test`)
+src/lib/alerts.ts      desktop alert list + switch suggestion from real data only (pure, tested)
+src/lib/dashboard.test.ts  tests for alerts / week tiles
+src/hud/profile.ts     Profile sheet: driver, My car, all-time stats, places, privacy; friends section (not live)
 src/lib/sources/weather.ts  Open-Meteo current conditions for the clock card (CC BY 4.0)
 public/                web manifest, PNG/maskable/apple-touch icons, shell-only sw.js, Pages _headers (Add to Home Screen)
 docs/PRODUCT.md        scoring contract
@@ -73,7 +79,7 @@ AGENTS.md / CLAUDE.md  short agent rules
 
 ## Known gaps (honest)
 
-- Ghosts are **simulated on the current route**, not live other drivers.
+- Ghosts: the fake seeded drivers were **removed** (2026-09-25). No ghosts are drawn until a real source exists (your recorded pace run, or opt-in friends).
 - `shareGhost` is a flag only. No presence server.
 - Car marker is an SVG wedge, not a 3D model.
 - Snap-to-route is nearest-segment projection, not real map matching.
@@ -144,6 +150,46 @@ Read `TASKS.md` top unchecked item. Do not rebase history. Do not rename the pro
   - **Verified** with Playwright against the live site (29/29 checks, 0 console errors; `qa-results.json`): login first visit, tag seeds garage, reload stays in, Lock → Welcome back, Drive insights opens/closes, From = Current location, Preview not saved, Go = live GPS (speedo MPH), camera follows, pan → Recenter → resumes, End saves a trip, arrival screen + save, trip in Your trips, reroute after 8 s off-route, denied and timeout messages (no map-centre fallback), laptop three-column Command view, canvas = map column (740×802), plan card clear of the Map/3D switch (open and closed), map resizes with the window.
   - **Recording** (`/workspace/slide-live/slide-demo-phone.mp4` 3 m 53 s, `slide-demo-laptop.mp4` 19 s, chapters in `slide-demo-chapters.txt`): **emulated phone** (Chromium 390×844, touch, iPhone UA) with **simulated GPS** (Playwright `setGeolocation` stepping along the real Valhalla route Mary Brickell Village → Bayside Marketplace at ≈25 mph) against the live site. It is **not** a real-device recording. In that run: map rendered in 1.95 s (no throttle), reroute landed 15.4 s after leaving the line (≈5 s to get 60 m off + the 8 s timer + ≈2 s routing).
   - **Still broken / not done:** a real iPhone + Android test and **Add to Home Screen** (standalone launch, stays signed in) still need a human with the devices. The public Valhalla server usually returns a **single line** in Miami (both costings give the same trip on 7 of 8 test pairs), so a **Faster card rarely appears**; a single-line plan now shows one Slide chip and "Fastest is also the smoothest line we found" instead of nothing. Phase 2 items not done: Slow-4G map under 3 s, fetch retry, offline/no-route sheet, `main.ts` split. Ghosts are still seeded simulations (known gap).
+
+- 2026-09-25 Claude: **Phase 1 "Better routes", part 1** (branch on top of PR #11, free providers only).
+  - **3+ routes:** Slide, Fastest and No-tolls costings are requested in parallel and de-duplicated (max 4). Found why Faster almost never appeared: the code sent `alternatives: true`, but Valhalla's option is `alternates` (a count), so it was silently ignored. It now sends `alternates: 2` and reads both response keys.
+  - **Slide route contract implemented:** smoothest within +10% of fastest (PRODUCT.md updated). Tags: Slide pick / Fastest / No tolls.
+  - **Tolls:** from Valhalla `summary.has_toll` → "Has tolls" / "No tolls" on bubbles and in the review line. No prices (no price source yet).
+  - **Route options sheet** (sliders button): avoid tolls / highways / ferries, saved in the garage (`avoid`), applied to every plan and reroute.
+  - **Add stops:** up to 5, reorder by dragging the grip (pointer events, works on touch), remove with ×. Each stop drops off the list once reached, so a reroute never sends you back.
+  - **Map:** tap a route line (invisible 28 px hit layer) or its bubble to select it. The selected line draws on top. Bubbles sit where routes diverge and never overlap on screen (re-laid out after zoom).
+  - **Honest ETA:** the review sheet says "Typical time · no live traffic yet". This is why Slide said 31 min where Google said 42 for Fort Lauderdale → 9601 Collins Ave.
+  - Added Vitest (`npm test`, 18 tests) and `npm run typecheck`. Verified end to end in headless Chromium with **test-only fake Valhalla/Photon answers** (the container can't reach the real services): login → search → 3 bubbles with tags → tap to select → avoid tolls re-plans → add stop sends 3-point routes → setting persists → no page errors. **Not verified against the live Valhalla server** (especially `alternates` and `has_toll`); check on the deployed site.
+  - **Not done, needs the owner (traffic-aware ETAs):** see "Traffic provider decision" below.
+
+- 2026-09-25 Claude: **SEKAI Live Network pass on the desktop Command view** (owner's HTML, ≥1100px only; phones unchanged, verified: 0 desktop-only elements visible at 390px, Insights sheet identical). Adds stat tiles with week-over-week trends, a 7-day minutes sparkline, a bell + right-rail **alert list** with severity dots (posted-speed drops, tolls vs Avoid tolls, rain, off-route), and a **Navigation intelligence** card with a one-tap **Switch** and real typical-time savings. The HTML's fake parts (predicted congestion, fleet, ETA jitter) are not copied; congestion is an honest "needs a live traffic provider" line. Trips now record `tollRoad`. 28 unit tests; e2e in headless Chromium with test-only fixtures (desktop + phone).
+
+- 2026-09-25 Claude: **Removed bot data.** The seeded ghost "drivers" (NOVA, KITE, VEX and a pretend "you") that appeared on every route as if they were real people are gone; `seedGhosts()` is deleted, no ghost cars are drawn, and the GHOST timer stays hidden until a real ghost exists. Deleted `preview/index.html` (an old standalone demo page with a "Demo Miami" button and its own made-up scoring; it was never part of the build). Test fixtures stay, but only inside test files.
+- 2026-09-25 Claude: **Profile section** (`src/hud/profile.ts`): menu → Profile on phones, the avatar on laptops. It shows the driver header (name, car tag, "driving with Slide since"), all-time drives, miles and average smooth score from real trips, editable name and tag, and **My car** (make, model, year, fuel, SunPass; never plate or VIN). It also has Home/Work with Clear, and privacy buttons: Lock, Clear my drive history, and Erase everything on this phone. **Friends & followers** is shown but says it's not available yet: it needs accounts and a presence/privacy design, which the owner has to decide on (see TASKS). All data stays on the device. 31 unit tests; e2e in headless Chromium (phone: save car → reload keeps it; preview drive draws 0 ghost cars; laptop: avatar opens the sheet and Escape closes it).
+
+- 2026-09-25 Claude: **Everything merged onto one line.** Owner asked to merge all open work before using Slide for work.
+  - **#11** (Nard, real GPS) and **#12** (routes, dashboard, profile) → `main`.
+  - **#5** (Grok's `src/lib/timeline.ts`, posted-drop marks) merged into #12. It isn't wired into the UI yet.
+  - **#7** closed: superseded by #11's identical build fix.
+  - **#9** (Cursor's `main.ts` split) closed: it was written against the app before real GPS, login, routes and the dashboard. Its one-retry `net.ts` idea is ported into `fetchJson` (network / timeout / 429 / 5xx only, 700 ms pause). The file split is still a TASKS item.
+  - Planning is now gentler on the public Valhalla server: one variant request at a time, stop at 3 distinct lines, and trace calls in sequence with a timeout. Verified that a 429 is retried and the plan still draws 3 routes.
+  - 33 unit tests; e2e routes / dashboard / profile all pass on the merged tree.
+
+## Traffic provider decision (owner to approve)
+
+Traffic-aware times need a paid provider, and the owner's rule is "HERE/TomTom only if I approve paid APIs".
+
+| Provider | Traffic ETA | Alternatives | Toll prices (SunPass) | Fits Slide? |
+| --- | --- | --- | --- | --- |
+| **HERE Routing v8** | Yes | Yes | Yes, returns toll costs | **Recommended**: works with our own map, and it's the only option here that also covers the toll-price requirement |
+| TomTom Routing | Yes | Yes | No prices (avoid tolls only) | Good fallback if HERE is declined |
+| Mapbox Directions (driving-traffic) | Yes | Up to 3 routes | No US prices | Check its terms on use with a non-Mapbox map before choosing |
+| Google Routes API | Yes | Yes | Yes | **Rejected**: Google Maps Platform terms don't allow showing its results on a non-Google map, and HANDOFF forbids replacing OSM routing with Google |
+
+- Both HERE and TomTom have a monthly free tier and charge per request above it. **Check current prices and free-tier limits on their pricing pages before approving.** This container can't reach them, so no numbers are written here that haven't been checked.
+- **Key handling:** never a `VITE_` variable, because anything given to the browser ends up in the public bundle. Add a Cloudflare Pages Function (`functions/api/route.ts`) that holds the key as a Pages secret and forwards the request. Cache identical requests for ~60 s to stay inside the free tier.
+- **Fallback:** keep the current free Valhalla path (not OSRM; Slide has never used OSRM) whenever the provider errors or the quota runs out. The UI must then say "no live traffic".
+- Once approved: the provider adapter goes behind `src/lib/sources/routing/*` with the same `SlideRoute` output, and the Collins Ave check is "within ~10% of Google at the same time of day".
 
 ## Next for Nard (start here)
 

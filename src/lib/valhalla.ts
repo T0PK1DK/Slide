@@ -32,6 +32,10 @@ export type ValhallaSummary = {
   max_lat: number;
   max_lon: number;
   has_time_restrictions?: boolean;
+  /** Present on current Valhalla builds; absent means "unknown", never "no". */
+  has_toll?: boolean;
+  has_highway?: boolean;
+  has_ferry?: boolean;
 };
 
 export type ValhallaLeg = {
@@ -51,6 +55,8 @@ export type ValhallaTrip = {
 
 export type RouteResponse = {
   trip: ValhallaTrip;
+  /** Valhalla's key is `alternates`; `alternatives` is read too in case a proxy renames it. */
+  alternates?: Array<{ trip: ValhallaTrip }>;
   alternatives?: Array<{ trip: ValhallaTrip }>;
 };
 
@@ -100,16 +106,81 @@ const SMOOTH_COSTING = {
   },
 };
 
+/** How a request shapes the line. Each is a separate /route call; duplicates are dropped after. */
+export type RouteVariant = "slide" | "fastest" | "notolls";
+export type Avoid = { tolls: boolean; highways: boolean; ferries: boolean };
+
+const FASTEST_AUTO = { maneuver_penalty: 5, use_highways: 1, use_tolls: 0.5, use_ferry: 0.5, use_living_streets: 0.1, shortest: false };
+
+/** Pure: the costing block for one variant with the driver's avoid options layered on top. */
+export function costingFor(variant: RouteVariant, avoid: Avoid): Record<string, number | boolean> {
+  const base: Record<string, number | boolean> =
+    variant === "fastest" ? { ...FASTEST_AUTO } : { ...SMOOTH_COSTING.costing_options.auto };
+  if (variant === "notolls" || avoid.tolls) base.use_tolls = 0;
+  if (avoid.highways) base.use_highways = 0;
+  if (avoid.ferries) base.use_ferry = 0;
+  return base;
+}
+
+/**
+ * One route request through every stop in order (origin, stops…, destination).
+ * Stops are `break` locations, so each leg gets its own maneuvers.
+ */
+export async function requestRouteVariant(
+  points: LonLat[],
+  variant: RouteVariant,
+  avoid: Avoid,
+  units: "miles" | "kilometers" = "miles"
+): Promise<RouteResponse> {
+  const body = {
+    locations: points.map((p) => ({ lon: p.lon, lat: p.lat, type: "break" })),
+    costing: "auto",
+    costing_options: { auto: costingFor(variant, avoid) },
+    units,
+    // Valhalla's option is `alternates` (a count) and it only computes them for
+    // two-point routes. The older `alternatives: true` was silently ignored,
+    // which is why Faster so rarely appeared.
+    ...(points.length === 2 ? { alternates: 2 } : {}),
+    directions_options: { units, language: "en-US" },
+    id: `slide-${variant}`,
+  };
+  return fetchJson(`${VALHALLA_URL}/route`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  }, 12000);
+}
+
+/** Pure: is this failure worth one more try? Network drops, timeouts, rate limits and server errors — never a 4xx. */
+export function retryable(status: number | null): boolean {
+  return status === null || status === 429 || status >= 500;
+}
+
+/**
+ * Timed fetch with one retry after a short pause (ported from Cursor's PR #9
+ * `net.ts`). The public Valhalla/Photon servers rate-limit and blip; one
+ * polite retry turns most of those into a normal answer.
+ */
 async function fetchJson(url: string, init: RequestInit = {}, ms = 8000): Promise<any> {
-  const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), ms);
-  try {
-    const res = await fetch(url, { ...init, signal: ctrl.signal });
-    if (!res.ok) throw new Error(`${res.status}`);
-    return await res.json();
-  } finally {
-    clearTimeout(t);
+  let last: unknown;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    if (attempt) await new Promise((r) => setTimeout(r, 700));
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), ms);
+    let status: number | null = null;
+    try {
+      const res = await fetch(url, { ...init, signal: ctrl.signal });
+      status = res.status;
+      if (!res.ok) throw new Error(`${res.status}`);
+      return await res.json();
+    } catch (err) {
+      last = err;
+      if (!retryable(status)) break;
+    } finally {
+      clearTimeout(t);
+    }
   }
+  throw last;
 }
 
 export async function searchPlaces(query: string, bias?: LonLat): Promise<SearchHit[]> {
@@ -155,7 +226,7 @@ export async function requestRoutes(
     ],
     ...SMOOTH_COSTING,
     units,
-    alternatives: true,
+    alternates: 2,
     directions_options: { units, language: "en-US" },
     id: "slide",
   };
@@ -182,7 +253,7 @@ export async function requestFastRoute(
       auto: { maneuver_penalty: 3, use_highways: 0.85, use_living_streets: 0.2 },
     },
     units,
-    alternatives: true,
+    alternates: 2,
     directions_options: { units, language: "en-US" },
     id: "slide-fast",
   };
@@ -223,27 +294,28 @@ export async function requestTraceAttributes(
     },
   };
 
-  const res = await fetch(`${VALHALLA_URL}/trace_attributes`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
+  try {
+    return await fetchJson(`${VALHALLA_URL}/trace_attributes`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }, 10000);
+  } catch {
+    // Scoring still works from maneuvers; posted speeds just go missing for this line.
     return { edges: [] };
   }
-  return res.json();
 }
 
 export function collectTrips(response: RouteResponse): ValhallaTrip[] {
   const trips: ValhallaTrip[] = [];
   if (response.trip) trips.push(response.trip);
-  for (const alt of response.alternatives ?? []) {
+  for (const alt of [...(response.alternates ?? []), ...(response.alternatives ?? [])]) {
     if (alt.trip) trips.push(alt.trip);
   }
   return trips;
 }
 
-/** The trip's full encoded shape. Slide plans two-point trips, so this is a single leg. */
+/** The trip's full encoded shape, every leg in order (multi-stop trips have one leg per stop). */
 export function tripShape(trip: ValhallaTrip): string {
   return trip.legs.map((l) => l.shape).join("");
 }

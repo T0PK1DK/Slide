@@ -17,6 +17,8 @@ export type TripRecord = {
   offRouteEvents: number;
   /** Posted limits sampled along the line (mph), for the row sparkline. */
   postedProfile: number[];
+  /** Valhalla said the driven line had tolls. Absent on older trips / unknown. */
+  tollRoad?: boolean | null;
 };
 
 const KEY = "slide.history.v1";
@@ -84,5 +86,66 @@ export function overview(all: TripRecord[], w: Window, now = Date.now()): Overvi
     onTime: cur.length ? onTimeTrips.length / cur.length : null,
     byHour,
     miles: cur.reduce((a, t) => a + t.distanceMi, 0),
+  };
+}
+
+export type Tile = { value: number | null; delta: number | null };
+export type WeekTiles = { avgTripMin: Tile; miles: Tile; tollTrips: Tile; onTime: Tile };
+
+/**
+ * Pure: the desktop stat tiles — this 7 days vs the 7 before, from recorded
+ * trips only. `null` means "no trips to say anything", shown as an em dash.
+ */
+export function weekTiles(all: TripRecord[], now = Date.now()): WeekTiles {
+  const WEEK = 7 * 864e5;
+  const cur = all.filter((t) => now - t.startedAt <= WEEK);
+  const prev = all.filter((t) => now - t.startedAt > WEEK && now - t.startedAt <= 2 * WEEK);
+  const avgMin = (xs: TripRecord[]) => (xs.length ? xs.reduce((a, t) => a + t.actualSec, 0) / xs.length / 60 : null);
+  const miles = (xs: TripRecord[]) => xs.reduce((a, t) => a + t.distanceMi, 0);
+  const tolls = (xs: TripRecord[]) => xs.filter((t) => t.tollRoad === true).length;
+  const onTime = (xs: TripRecord[]) =>
+    xs.length ? (100 * xs.filter((t) => Math.abs(t.actualSec - t.plannedSec) <= Math.max(120, t.plannedSec * 0.1)).length) / xs.length : null;
+  const tile = (c: number | null, p: number | null, hasPrev: boolean): Tile => ({
+    value: c,
+    delta: c !== null && p !== null && hasPrev ? c - p : null,
+  });
+  const hp = prev.length > 0;
+  return {
+    avgTripMin: tile(avgMin(cur), avgMin(prev), hp),
+    miles: tile(cur.length ? miles(cur) : null, miles(prev), hp),
+    tollTrips: tile(cur.length ? tolls(cur) : null, tolls(prev), hp),
+    onTime: tile(onTime(cur), onTime(prev), hp),
+  };
+}
+
+/** Pure: minutes driven on each of the last 7 days, oldest first (index 6 = today). */
+export function minutesByDay(all: TripRecord[], now = Date.now()): number[] {
+  const out = new Array<number>(7).fill(0);
+  const today = new Date(now);
+  today.setHours(0, 0, 0, 0);
+  for (const t of all) {
+    const day = new Date(t.startedAt);
+    day.setHours(0, 0, 0, 0);
+    const ago = Math.round((today.getTime() - day.getTime()) / 864e5);
+    if (ago >= 0 && ago < 7) out[6 - ago] += t.actualSec / 60;
+  }
+  return out.map((m) => Math.round(m));
+}
+
+/** "Clear my drive history": removes every recorded trip from this device. */
+export function clearTrips() {
+  try {
+    localStorage.removeItem(KEY);
+  } catch {
+    // Nothing stored.
+  }
+}
+
+/** Pure: all-time totals for the profile header. Smooth average is null with no drives. */
+export function lifetime(all: TripRecord[]): { drives: number; miles: number; smoothAvg: number | null } {
+  return {
+    drives: all.length,
+    miles: all.reduce((a, t) => a + t.distanceMi, 0),
+    smoothAvg: all.length ? all.reduce((a, t) => a + t.slideScore, 0) / all.length : null,
   };
 }

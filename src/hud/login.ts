@@ -95,6 +95,7 @@ function renderCreate(gate: HTMLElement, onReady: Done) {
       pinHash: pin ? await hashPin(pin) : null,
       createdAt: now,
       lastSeen: now,
+      car: null,
     };
     saveProfile(profile);
     finish(gate, profile, onReady);
