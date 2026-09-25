@@ -131,3 +131,21 @@ export function minutesByDay(all: TripRecord[], now = Date.now()): number[] {
   }
   return out.map((m) => Math.round(m));
 }
+
+/** "Clear my drive history": removes every recorded trip from this device. */
+export function clearTrips() {
+  try {
+    localStorage.removeItem(KEY);
+  } catch {
+    // Nothing stored.
+  }
+}
+
+/** Pure: all-time totals for the profile header. Smooth average is null with no drives. */
+export function lifetime(all: TripRecord[]): { drives: number; miles: number; smoothAvg: number | null } {
+  return {
+    drives: all.length,
+    miles: all.reduce((a, t) => a + t.distanceMi, 0),
+    smoothAvg: all.length ? all.reduce((a, t) => a + t.slideScore, 0) / all.length : null,
+  };
+}

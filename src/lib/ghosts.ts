@@ -35,25 +35,12 @@ export function samplesFromLine(coords: [number, number][]): GhostSample[] {
   return out;
 }
 
-export function seedGhosts(coords: [number, number][], yourTag: string): GhostCar[] {
-  if (coords.length < 8) return [];
-  const base = samplesFromLine(coords);
-  const roster = [
-    { tag: "NOVA", color: "#b388ff", offset: 0.12, speed: 1.04 },
-    { tag: "KITE", color: "#8fd3ff", offset: 0.31, speed: 0.92 },
-    { tag: "VEX", color: "#ff8a4c", offset: 0.58, speed: 1.12 },
-    { tag: yourTag.slice(0, 8) || "YOU", color: "#ffffff", offset: 0.78, speed: 0.97 },
-  ];
-  return roster.map((r, i) => ({
-    id: `g${i}`,
-    tag: r.tag,
-    color: r.color,
-    offset: r.offset,
-    speed: r.speed,
-    samples: base,
-    t: r.offset,
-  }));
-}
+/*
+ * No invented drivers. The old seedGhosts() put fake cars ("NOVA", "KITE",
+ * "VEX", plus a pretend "you") on every route as if they were real people.
+ * Ghosts come back only from real data: your own recorded run on the same
+ * route (pace ghost), or opt-in friends once presence exists (docs/STRATEGY.md).
+ */
 
 export function stepGhost(g: GhostCar, dt: number): GhostSample {
   g.t = (g.t + dt * g.speed * 0.018) % 1;

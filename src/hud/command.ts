@@ -16,6 +16,7 @@ export type CommandHooks = {
   driverName: () => string;
   onSearch: () => void;
   onGarage: () => void;
+  onProfile: () => void;
   onLocate: () => void;
   onSelectRoute: (id: string) => void;
   /** Driver's Avoid-tolls option, so the alert list can say when it couldn't be honoured. */
@@ -163,7 +164,7 @@ export function mountCommand(h: CommandHooks): CommandView {
     <button type="button" class="cmd-search">${ICON.search}<span>Search places, addresses, or routes…</span></button>
     <button type="button" class="cmd-bell" aria-label="Alerts" aria-expanded="false" aria-controls="cmd-alerts-drop">${ICON.bell}<i hidden></i></button>
     <div class="cmd-alerts-drop" id="cmd-alerts-drop" role="region" aria-label="Alerts" hidden></div>
-    <div class="cmd-avatar" aria-label="Driver"></div>`;
+    <button type="button" class="cmd-avatar" aria-label="Your profile"></button>`;
 
   const left = document.createElement("aside");
   left.className = "cmd-rail cmd-left";
@@ -222,6 +223,7 @@ export function mountCommand(h: CommandHooks): CommandView {
     })
   );
   const avatar = top.querySelector<HTMLElement>(".cmd-avatar")!;
+  avatar.addEventListener("click", h.onProfile);
   const paintAvatar = () => { avatar.textContent = (h.driverName().trim()[0] ?? "S").toUpperCase(); };
 
   // --- map overlay controls

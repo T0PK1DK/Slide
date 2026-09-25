@@ -23,7 +23,7 @@ import {
 import { loadGarage, saveGarage, TRAILS, type GarageConfig, type SavedPlace } from "./lib/garage";
 import { bubbleCandidates, mergeVariantTrips, pickFree, tollLabel, variantsFor } from "./plan/routeset";
 import { dropIndex, MAX_STOPS, moveItem, stopsReached } from "./plan/stops";
-import { chasePoint, seedGhosts, stepGhost, type GhostCar } from "./lib/ghosts";
+import { chasePoint, stepGhost, type GhostCar } from "./lib/ghosts";
 import {
   buildSteps,
   formatShortDistance,
@@ -40,6 +40,7 @@ import {
   routeLayerPaints,
 } from "./lib/maplook";
 import { ensureSignedIn, lockApp } from "./hud/login";
+import { mountProfile } from "./hud/profile";
 import { createYouMarker } from "./map/you";
 import { mountCommand } from "./hud/command";
 import { recordTrip } from "./lib/history";
@@ -169,7 +170,7 @@ app.innerHTML = `
         <div class="limit" id="limit" hidden><span>Speed limit</span><b id="limit-n">—</b></div>
         <div class="live"><div class="n" id="speed-n">0</div><div class="u" id="speed-src">Est</div></div>
       </div>
-      <div class="ghost-delta" id="ghost-delta">GHOST ±0.0s</div>
+      <div class="ghost-delta" id="ghost-delta" hidden>GHOST ±0.0s</div>
     </div>
     <button class="panel recenter drive-only" id="recenter" hidden>Recenter</button>
     <div class="panel speed-rail" id="speeds" hidden></div>
@@ -179,6 +180,7 @@ app.innerHTML = `
       <button class="end" id="end-drive" type="button">End</button>
     </div>
     <div class="panel overflow" id="overflow">
+      <button type="button" id="ov-profile">Profile</button>
       <button type="button" id="ov-tune">Tune garage</button>
       <button type="button" id="ov-help">How to Slide</button>
       <button type="button" id="ov-rail">Speed rail</button>
@@ -410,6 +412,14 @@ $("#ov-rail").addEventListener("click", () => {
 $("#ov-home").addEventListener("click", () => { overflowEl.classList.remove("open"); savePlace("home"); });
 $("#ov-work").addEventListener("click", () => { overflowEl.classList.remove("open"); savePlace("work"); });
 $("#ov-lock").addEventListener("click", lockApp);
+const profileSheet = mountProfile({
+  places: () => ({ home: garage.home, work: garage.work }),
+  clearPlace: (which) => { garage[which] = null; persist(); },
+  openGarage: () => garageEl.classList.add("open"),
+  onChange: () => command.refreshHistory(),
+  onHistoryCleared: () => command.refreshHistory(),
+});
+$("#ov-profile").addEventListener("click", () => { overflowEl.classList.remove("open"); profileSheet.open(); });
 map.on("moveend", () => {
   if ((hudMode === "review" || hudMode === "plan") && routes.length && Math.abs(map.getZoom() - chipLayoutZoom) > 0.25) paintRouteChips();
 });
@@ -418,6 +428,7 @@ const command = mountCommand({
   driverName: () => loadProfile()?.name ?? "",
   onSearch: () => { $("#search-card").classList.add("open"); toInput.focus(); },
   onGarage: () => garageEl.classList.add("open"),
+  onProfile: () => profileSheet.open(),
   onLocate: () => { if (!tracker) locateMe(); else if (liveFix) map.easeTo({ center: [liveFix.pos.lon, liveFix.pos.lat], zoom: 15, duration: 700 }); },
   onSelectRoute: (id) => selectRoute(id),
   avoidTolls: () => garage.avoid.tolls,
@@ -1239,7 +1250,8 @@ function restylePlayer() {
 }
 function spawnGhosts() {
   ghostMarkers.forEach((m) => m.remove()); ghostMarkers = [];
-  ghosts = garage.showGhosts ? seedGhosts(selectedCoords, garage.tag) : [];
+  // Real ghosts only (your recorded pace run, opt-in friends) — none are wired yet, so none are drawn.
+  ghosts = [];
   if (!garage.shareGhost) ghosts = ghosts.filter((g) => g.tag !== garage.tag.slice(0, 8));
   $("#stat-ghosts").textContent = String(ghosts.length);
   const trails: Feature[] = [];
@@ -1325,8 +1337,9 @@ function tick(ts: number) {
     const wrapped = ((ghosts[0].t - selfT + 0.5) % 1 + 1) % 1 - 0.5;
     const lead = (wrapped * (route?.durationSec ?? 0)).toFixed(1);
     $("#ghost-delta").textContent = `GHOST ${Number(lead) >= 0 ? "+" : ""}${lead}s`;
+    $("#ghost-delta").removeAttribute("hidden");
   } else {
-    $("#ghost-delta").textContent = "NO GHOSTS";
+    $("#ghost-delta").setAttribute("hidden", "");
   }
   raf = requestAnimationFrame(tick);
 }

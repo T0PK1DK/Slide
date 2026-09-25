@@ -24,6 +24,11 @@ Work top-down. Check the box in the same PR.
 - [x] Desktop Command view: SEKAI Live Network pass (tiles + trends, week sparkline, alert list, navigation intelligence + Switch) — phones unchanged
 - [ ] Live incidents in the alert list — needs the traffic provider
 
+- [x] Remove bot data: seeded ghost drivers and the old demo preview page
+- [x] Profile: driver, My car, all-time stats, places, privacy (on-device)
+- [ ] **Friends & followers** — owner decision needed: accounts backend (Supabase is connected) + presence/privacy design (who sees you, precision, hide-me, never while driving)
+- [ ] Real pace ghost: record your own GPS run per route and replay it (replaces the removed fake ghosts)
+
 ## Phase 2–5 (not started): save + learn, transit/walk/bike, home sheet, worker features — see the owner prompt in the 2026-09-25 session log
 
 ## P0 — make the demo reliable
