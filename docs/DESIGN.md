@@ -196,7 +196,8 @@ Night (default), Ember and Sand. Switch them from the desktop top bar or Garage 
 ## Clean pass rules (2026-10-04)
 
 - **Radius scale:** 28 px floating sheets, 18 px cards, 12 px inner fields and tiles, pills for buttons and controls. Don't add new radii.
-- **Glow:** only for live, you-are-here and danger. Never decorative.
+- **Glow:** Slide's signature only: the Garage accent on the main action, the active tab, the live dot and the route ribbon, plus live / you-are-here / danger. Nowhere else.
+- **Keep Slide's identity:** the spaced SLIDE wordmark, the mono tag chip, uppercase mono HUD labels (FROM, speeds), the copper/Garage glow accent and the glowing route. The clean pass tidies around these; it never removes them.
 - **Borders:** 1 px hairlines on cards only. Inner tiles step up in surface brightness instead of getting a border.
 - **Type:** system font (SF Pro on iPhone and Mac), then Geist, with tabular numerals. Thin display numerals on the desktop dashboard only; driving numbers stay heavy.
 - **Buttons:** flat fills, with the primary button as an accent pill. Touch targets are at least 44 px.
