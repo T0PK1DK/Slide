@@ -105,7 +105,7 @@ src/hud/profile.ts     Profile sheet: driver, My car, all-time stats, places, pr
 src/lib/cloud.ts       optional Supabase client (persistSession, autoRefreshToken, detectSessionInUrl always on)
 src/lib/cloud.test.ts  tests for the email-link return parser + production redirect URL
 src/lib/social.ts      email-code sign-in, profiles, follow/unfollow, friends, search
-src/lib/reports.ts     radar items, heading-up geometry, alerts, report/vote RPCs
+src/lib/reports.ts     radar items, heading-up geometry, alerts, report/vote RPCs, reports-around-you count
 src/lib/sources/fl511.ts  FL511 event → radar item (pure, tested)
 src/lib/sources/fdot.ts   FDOT DIVAS event → radar item, South Florida query URL (pure, tested)
 src/lib/sources/mdpd.ts   Miami-Dade Police traffic call → radar item, Miami local time → UTC (pure, tested)
@@ -348,6 +348,7 @@ Read `TASKS.md` top unchecked item. Do not rebase history. Do not rename the pro
 
 - 2026-10-04 Leon: **3D car models.** Branch `leon/car-models` on `leon/game-wire`. Replaced the box-and-stripes stage meshes with original lofted hulls in `src/lib/game/carMeshes.ts` (starter six + Nimbus + Glider, each a distinct silhouette). Liveries are materials (Solid / Stripes / Fade / Halo / Dusk). Soft studio lights + ground shadow. Still lazy `three`, no model files, no licensed brands, idle spin respects `prefers-reduced-motion`. No Grim layout CSS. Preview: `window.slidePreviewGame.ride(id, livery)`.
 - 2026-10-04 Leon: **Car-stage review fix (PR #37).** Removed the under-glow slab so stripes stay on body UVs only (`liveryU` is paint on the underside). Slipstream spoiler sits on the deck with body-colored struts. `deepenHull` + `hullLift` (rocker at `wheelR * 0.34`) tucks tires into side arches; wheels are tire + sidewall + rim dish. `frameCar` now fits the AABB to ~70% at a low 3/4 front (no longer uses length vs vertical FOV). Soft dual-blob contact shadow. `dataset.stageHold` still pauses spin for shots.
+- 2026-10-04 Nard: **"N reports around you" rebased onto main** (`f16ac7d`). `countReportsAroundYou` tallies driver `reports_near` + `/api/incidents` inside 1.5 mi. Cameras/transit excluded. `.radar-count` uses Grim's existing pill tokens and stays hidden when N = 0. Rebased again onto `main` @ `5cc2cac` (2026-10-06): TomTom incident details (source `tomtom`, already deduped against FDOT/MDPD by `/api/incidents`) count too.
 
 ## Teammate slots (stable IDs — do not rename)
 
@@ -509,6 +510,7 @@ Follow **Owner setup for accounts + radar** above, step by step:
 
 - [x] **Lane guidance** into Grim's `#lane-strip` (based on PR #35).
 - [x] **Voice** listens to Grim's `#drive-mute` (`slide:voice-mute` / `html[data-voice]`) on #35.
+- [x] **"N reports around you"** from `reportsNear()` + `/api/incidents` (1.5 mi). Hidden when none.
 - [ ] **Your usual:** learn the routes you repeat between the same places (on-device only), and tag that line "Your usual".
 - [ ] **Real pace ghost:** record your own GPS run on a route and replay it next time (TASKS P2). This replaces the removed fake ghosts. Never draw invented drivers.
 - [ ] Leave-by (`leaveByForTarget` exists), the upcoming speed-limit chip, and fitting the camera to the route on the first plan.
