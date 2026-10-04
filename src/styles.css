@@ -1139,3 +1139,31 @@ button.ghost:hover, button.icon:hover { background: rgba(255,255,255,.1); }
 @media (prefers-reduced-motion: reduce) { .showroom-stage { animation: none; } }
 
 .garage .swatch { box-shadow: inset 0 0 0 1px rgba(255,255,255,.18); }
+
+/* ==========================================================================
+   Finish pass: every screen on the same system (2026-10-04 audit)
+   ========================================================================== */
+/* Radar: graphite glass + Slide accent sweep (was a separate green theme) */
+.radar-disc {
+  border: 1px solid rgba(255,255,255,.09);
+  background: radial-gradient(circle, color-mix(in srgb, var(--surface, #16171a) 92%, transparent) 0%, rgba(8,9,11,.94) 72%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 14px 30px -8px rgba(0,0,0,.6);
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+}
+.radar .ring { stroke: rgba(255,255,255,.08); }
+.radar .ring.outer { stroke: color-mix(in srgb, var(--glow) 45%, transparent); }
+.radar .axis { stroke: rgba(255,255,255,.05); }
+.radar .sweep path { fill: color-mix(in srgb, var(--glow) 16%, transparent); }
+.radar-count { background: var(--surface, #16171a); border-color: rgba(255,255,255,.1); color: var(--glow); }
+.radar-report { border: 0; background: rgba(22,23,26,.86); box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 10px 24px -8px rgba(0,0,0,.6); }
+
+/* Drive stack (phone): turn card → speed chip → radar, no overlaps */
+@media (max-width: 1099px) {
+  body[data-mode="drive"] .posted-chip { top: calc(150px + env(safe-area-inset-top)); }
+  body[data-mode="drive"] .radar-banner { top: calc(150px + env(safe-area-inset-top)); }
+  body[data-mode="drive"] .radar { top: calc(200px + env(safe-area-inset-top)); }
+}
+/* Desktop: radar sits top-left of the map, clear of the route sheet */
+@media (min-width: 1100px) {
+  body.cmd .radar { left: calc(var(--rail) + 44px); top: 146px; bottom: auto; }
+}

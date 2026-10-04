@@ -251,6 +251,14 @@ Read `TASKS.md` top unchecked item. Do not rebase history. Do not rename the pro
 - 2026-10-04 Claude: **Merged vibe.** The owner asked to keep Slide's original identity inside the clean pass. Restored the copper (Garage glow) underline with a soft glow on the active tab, a soft accent halo on the main action, and uppercase mono HUD labels (FROM). The SLIDE wordmark, mono tag chip and glowing route were never changed. DESIGN.md now lists these as identity elements the clean rules must not remove.
 
 - 2026-10-04 Claude: **Rides (pick your car).** The owner wants a Google Maps-style car marker plus Hot Wheels-style customisation and a game feel, with future game collabs in mind, as a Waze competitor. Added `src/lib/vehicles.ts`: six original top-down designs (Slipstream hypercar, Brawler muscle, Pocket hatch, Ridge SUV, Hauler pickup, and Classic, the original Slide wedge). Each has paint, the Garage glow as accent (underglow and trim) and a livery (Solid / Stripes / Fade). The Garage now opens with a **showroom**: the selected car idling on a glowing stage, a card per ride, livery pills, and a 10-colour paint palette. Your ride is the drive marker, and in Plan/Explore the blue dot turns into your car while you're moving (like Google Maps). Saved as `vehicle` / `livery` in the garage, with migration. Every entry has a `pack` ("Slide Originals"): a licensed collab pack is just new registry entries, and **no real brands or game cars without a signed licence**. 70 tests pass; browser-checked with no page errors.
+
+- 2026-10-04 Claude: **Finish pass.** Walked every screen in a headless browser (search, route review, route options, drive, menu, desktop review), faking Photon/Valhalla in the test harness only. Fixes:
+  - Desktop: the radar and Report button overlapped the route sheet. They now sit top-left of the map.
+  - The radar was still a separate green theme. It's now graphite glass with the Slide accent sweep.
+  - Phone drive: the speed chip overlapped the turn card. The stack is now turn card → chip → radar.
+  - Menu copy: "Save destination as Home/Work".
+
+  No page errors.
   - SF Pro via the system font on Apple devices (Geist elsewhere) and tabular numerals
   - a radius scale: 28 sheets, 18 cards, 12 inner, pills for controls
   - flat pill buttons with 44 px+ targets, and filled borderless inputs
