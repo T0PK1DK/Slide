@@ -7,6 +7,8 @@ export type LonLat = { lon: number; lat: number };
 
 export type SearchHit = {
   label: string;
+  /** Photon's `name` when it sent one — never invented. */
+  name?: string;
   lon: number;
   lat: number;
   kind: string;
@@ -212,6 +214,7 @@ export async function searchPlaces(query: string, bias?: LonLat): Promise<Search
       .filter((v: string, i: number, a: string[]) => a.indexOf(v) === i);
     hits.push({
       label: parts.join(", "),
+      name: typeof p.name === "string" ? p.name : undefined,
       lon,
       lat,
       kind: p.osm_value || p.type || "place",

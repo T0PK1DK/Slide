@@ -99,22 +99,22 @@ Status: ✅ done · 🟡 partial · ❌ missing.
 |---|---|---|
 | **Voice guidance** | ❌ | No speech at all. Waze, Google and Apple all talk. Use `speechSynthesis`, announce at 0.5 mi / 0.1 mi / now, with a mute button in the drive bar. **Biggest functional gap.** |
 | Lane guidance | ❌ | Valhalla maneuvers carry lane data. Show a lane strip under the turn card (as Google does). |
-| Route alternatives list (phone) | 🟡 | Only map bubbles exist. Add a swipeable card per route in the review sheet (time, tag, tolls). |
+| Route alternatives list (phone) | ✅ | Swipeable review cards from real ranked routes (`#route-carousel`). Map bubbles stay. |
 | Leave-by / best time to leave | ❌ | `leaveByForTarget()` exists in `src/lib/smooth.ts` with no UI. Only show real typical times; the traffic chart waits for the traffic provider. |
-| Offline / no route / permission denied states | ❌ | Needs designed sheets, not text errors. |
+| Offline / no route / permission denied states | ✅ | `#net-sheet` (offline / no-route / busy) and `#loc-banner` (denied / unavailable / timeout / insecure). |
 | Route-loading skeleton | ❌ | |
-| Place card (name, address, save, Go) | ❌ | Search jumps straight to routing. |
+| Place card (name, address, save, Go) | ✅ | `#place-card` after a real search pick. Save is on-device recents. |
 | Search: recents, Home/Work, categories (gas, food, parking) | 🟡 | |
 | Upcoming events on the route progress bar | ❌ | Radar items and speed drops as icons on a line (Waze drive overview). |
-| Arrival summary | 🟡 | Make it the shareable **trip card** (see the game layer). |
+| Arrival summary | 🟡 | Trip card chrome + Share (`#arr-share`). `#arr-xp` / `#share-card-mount` still Leon. |
 | Auto day/night map | ❌ | Night is the default. Optional "Day" map for sunlight readability is a separate decision for King. |
 
 ### Waze-parity social
 
 | Gap | Status | Note |
 |---|---|---|
-| Report button bottom-right, speedometer bottom-left | 🟡 | Today Report sits under the radar, top-right. Move it to the Waze/thumb position. |
-| Report grid with icons and a sub-type step | 🟡 | 5 kinds today, no sub-types and no icons. Draw icons in Slide style (glass circle, one colour each), not cartoons. |
+| Report button bottom-right, speedometer bottom-left | ✅ | `#drive-report` BR, `#speedo` BL. Radar disc stays up-right. |
+| Report grid with icons and a sub-type step | ✅ | Glass icons + subtype step, then Send / Later. Submit still sends the kind only. |
 | "N reports around you" pill | ❌ | A real count from `reports_near()` only. |
 | Friends on the map as their cars | 🟡 | Today friends show as rough-area circles. Show their **chosen ride** inside the circle, still never precise. |
 | My impact (reports confirmed, drivers helped) | ❌ | Real counts only. |
@@ -138,7 +138,7 @@ Status: ✅ done · 🟡 partial · ❌ missing.
 
 | Gap | Status | Note |
 |---|---|---|
-| Empty states | 🟡 | New users see "—" everywhere. Write one-line explanations and show the first-drive CTA. |
+| Empty states | ✅ | Explanations instead of "—" (`src/lib/empty.ts`). |
 | LUMEN fidelity (city-lights map, phone mockup, flow chart) | 🟡 | Map lights depend on tiles. The phone mockup is decorative, so leave it out. |
 
 ### Accessibility and quality
@@ -152,14 +152,7 @@ Status: ✅ done · 🟡 partial · ❌ missing.
 ## 4. Build order (one PR each, screenshots before and after on phone and desktop)
 
 1. **Grim: Design system rebuild.** ✅ One token file (`src/styles/tokens.css`) from `design/premium-glass-kit/css/tokens.css`, mapped to Slide's themes (Night default, Ember, Sand) and the Garage glow accent. `styles.css` is tokens → base → components → screens. Targets met (see HANDOFF session log). **No visual regression** on the screens in `docs/DESIGN.md`.
-2. **Grim: Screen pass** against the gap list:
-   - review sheet with a route card carousel
-   - drive (Report bottom-right, speedo bottom-left, lane strip slot, mute)
-   - report grid and sub-types
-   - place card
-   - offline / no-route / permission states
-   - arrival trip card
-   - empty states
+2. **Grim: Screen pass** ✅ against the gap list (review carousel, drive thumbs, report grid, place card, fail sheets, arrival trip card, empty states).
 3. **Nard: Voice guidance** (`speechSynthesis`) and **lane data** from Valhalla maneuvers. Then **leave-by** UI. Wire the "reports around you" count.
 4. **Leon: Game layer.** XP from smooth score, badges, unlocks on an Opal-style stage, the trip share card, the friend leaderboard (Supabase, opt-in, mutual friends). Later, a 3D ride on a MapLibre custom layer.
 5. **Everyone:** split `main.ts` before step 2 lands, if possible.

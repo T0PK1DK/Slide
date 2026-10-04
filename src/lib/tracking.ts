@@ -97,6 +97,13 @@ export type TrackerHandle = { stop: () => void };
 /** Why there is no fix. Each gets its own message; none of them fall back to a fake position. */
 export type LocationProblem = "denied" | "unavailable" | "timeout" | "insecure";
 
+export const LOCATION_TITLES: Record<LocationProblem, string> = {
+  denied: "Location is off",
+  unavailable: "Can't find you",
+  timeout: "Still looking",
+  insecure: "Needs a secure page",
+};
+
 export const LOCATION_MESSAGES: Record<LocationProblem, string> = {
   denied: "Location is off for Slide. Allow it in your browser or phone settings (Settings → Privacy → Location), then tap Try again.",
   unavailable: "Your phone can't find its location right now. Check that Location Services are on, or search a start point instead.",

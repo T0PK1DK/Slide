@@ -134,7 +134,7 @@ function tileHtml(label: string, t: Tile, fmt: (n: number) => string, unit: stri
   const trend = d === null || Math.abs(d) < 0.05
     ? `<span class="cmd-tile-d flat">${d === null ? "no prior week" : "same as last week"}</span>`
     : `<span class="cmd-tile-d ${good ? "up" : "down"}">${d > 0 ? "+" : "−"}${fmt(Math.abs(d))} vs last week</span>`;
-  return `<div class="cmd-tile"><span class="cmd-tile-l">${label}</span><b>${t.value === null ? "—" : fmt(t.value)}<small>${t.value === null ? "" : unit}</small></b>${trend}</div>`;
+  return `<div class="cmd-tile"><span class="cmd-tile-l">${label}</span><b>${t.value === null ? "Soon" : fmt(t.value)}<small>${t.value === null ? "" : unit}</small></b>${t.value === null ? `<span class="cmd-tile-d flat">Appears after your first week of drives</span>` : trend}</div>`;
 }
 
 /** Seven-day sparkline (minutes driven per day), today last. */
@@ -322,7 +322,7 @@ export function mountCommand(h: CommandHooks): CommandView {
       </section>
       <section class="cmd-card">
         <header><h2 class="cmd-sub">Smooth score</h2>${delta !== null ? `<span class="cmd-delta ${delta >= 0 ? "up" : "down"}">${delta >= 0 ? "↑" : "↓"} ${Math.abs(delta).toFixed(1)}</span>` : ""}</header>
-        <div class="cmd-big">${o.smoothAvg !== null ? `${o.smoothAvg.toFixed(1)}<small>%</small>` : `—`}</div>
+        <div class="cmd-big">${o.smoothAvg !== null ? `${o.smoothAvg.toFixed(1)}<small>%</small>` : `After a drive`}</div>
         ${trendSvg(o.trend)}
       </section>
       <section class="cmd-trips">
@@ -405,8 +405,8 @@ export function mountCommand(h: CommandHooks): CommandView {
         <header class="cmd-narrow"><div><h2>Route intelligence</h2><p class="cmd-dim">Scored from Valhalla routes and posted limits. No live traffic yet.</p></div></header>
         <div class="cmd-narrow cmd-intel">${verdict}${alt}</div>
         <article class="cmd-intel-card"><span class="cmd-ico">${ICON.bars}</span><div>
-          <em>Arrival accuracy</em><b>${onTime === null ? "—" : `${Math.round(onTime * 100)}%`}</b>
-          <p>${onTime === null ? "Shows how close Slide's ETA is to your real arrival." : "Drives that arrived within 2 min of the ETA."}</p>
+          <em>Arrival accuracy</em><b>${onTime === null ? "After saved drives" : `${Math.round(onTime * 100)}%`}</b>
+          <p>${onTime === null ? "Shows how close Slide's ETA is to your real arrival after you save drives." : "Drives that arrived within 2 min of the ETA."}</p>
           <div class="cmd-segbar" aria-hidden="true">${Array.from({ length: segs }, (_, i) => `<i${i < lit ? ' class="on"' : ""}></i>`).join("")}</div>
         </div></article>
       </section>
