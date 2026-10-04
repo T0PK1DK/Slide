@@ -191,3 +191,12 @@ Built from the owner's `sekai-live-network.html`. **Applies at ≥1100px only; t
 ## Themes (owner's LUMEN reference, 2026-10-04)
 
 Night (default), Ember and Sand. Switch them from the desktop top bar or Garage → Theme. A theme changes surfaces, lines, text and the basemap palette only. The Garage glow stays the accent, and layout is unchanged. All three are night themes; a daytime light mode would be a separate decision.
+
+
+## Clean pass rules (2026-10-04)
+
+- **Radius scale:** 28 px floating sheets, 18 px cards, 12 px inner fields and tiles, pills for buttons and controls. Don't add new radii.
+- **Glow:** only for live, you-are-here and danger. Never decorative.
+- **Borders:** 1 px hairlines on cards only. Inner tiles step up in surface brightness instead of getting a border.
+- **Type:** system font (SF Pro on iPhone and Mac), then Geist, with tabular numerals. Thin display numerals on the desktop dashboard only; driving numbers stay heavy.
+- **Buttons:** flat fills, with the primary button as an accent pill. Touch targets are at least 44 px.

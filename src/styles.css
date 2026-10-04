@@ -1007,3 +1007,97 @@ body[data-mode="drive"] .friend-spot { display: none; }
   .cmd-looks button:focus-visible { outline: 2px solid var(--glow); outline-offset: 1px; }
 }
 @media (min-width: 1100px) and (max-width: 1360px) { .cmd-looks button span { display: none; } }
+
+/* ==========================================================================
+   Clean pass: Apple-grade restraint (design recon: Apple Maps sheets and
+   controls, Mintlify / Copilot / Plain dashboards; owner's premium-glass-kit
+   rules). Subtracts rather than adds:
+   - one type family: SF Pro on Apple devices (system), Geist elsewhere; tabular numerals
+   - one radius scale: 28 floating sheet · 18 card · 12 inner · pill for controls
+   - flat fills, 1px hairlines, no decorative glow (glow = live / you / danger only)
+   - map controls merged into a single capsule
+   Driving-critical numbers stay heavy for glanceability; only the desktop
+   dashboard uses thin display numerals.
+   ========================================================================== */
+:root {
+  --r-sheet: 28px; --r-card: 18px; --r-inner: 12px;
+  --ease: cubic-bezier(.22, 1, .36, 1);
+}
+html, body, button, input, select, textarea {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Geist", "Helvetica Neue", "Segoe UI", sans-serif;
+}
+body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; font-feature-settings: "tnum" 1, "cv11" 1; }
+
+/* Floating sheets (phone): one radius, one hairline, one soft shadow */
+.panel { border-color: rgba(255,255,255,.07); box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 18px 48px -12px rgba(0,0,0,.6); }
+.search-card, .review-sheet, .dash, .profile-sheet .pf-card, .options-sheet, .garage { border-radius: var(--r-sheet) !important; }
+.brand h1 { letter-spacing: .28em; font-weight: 500; }
+
+/* Inputs: filled, no outline box, like Apple's search field */
+.field input { border: 0; background: rgba(255,255,255,.06); border-radius: var(--r-inner); min-height: 44px; font-size: 16px; }
+.field input:focus { background: rgba(255,255,255,.09); box-shadow: 0 0 0 2px color-mix(in srgb, var(--glow) 55%, transparent); }
+.field label { letter-spacing: .06em; font-size: 11px; text-transform: none; font-weight: 500; }
+.suggest { border-radius: var(--r-inner); border-color: rgba(255,255,255,.08); }
+.where-row input, .garage input[type="text"], .garage select { border: 0 !important; background: rgba(255,255,255,.06); border-radius: var(--r-inner); }
+.where-row input:focus { background: rgba(255,255,255,.09); box-shadow: 0 0 0 2px color-mix(in srgb, var(--glow) 55%, transparent); }
+.suggest button { min-height: 44px; }
+
+/* Buttons: flat fills, pill primary, consistent 44px+ targets */
+button.primary, button.ghost, button.icon { min-height: 44px; border-radius: 999px; font-size: 14px; transition: background-color 140ms var(--ease), transform 140ms var(--ease); }
+button.primary { background: var(--glow); color: #0a0a0b; font-weight: 600; box-shadow: none; }
+button.primary:active, button.ghost:active, button.icon:active { transform: scale(.98); }
+button.ghost, button.icon { border: 0; background: rgba(255,255,255,.07); color: var(--text); }
+button.ghost:hover, button.icon:hover { background: rgba(255,255,255,.1); }
+.stat { border: 0; background: rgba(255,255,255,.04); border-radius: var(--r-inner); }
+
+@media (min-width: 1100px) {
+  /* Top bar: quiet, no underline glow */
+  body.cmd .cmd-top { border-bottom: 1px solid rgba(255,255,255,.05); backdrop-filter: none; -webkit-backdrop-filter: none; }
+  .cmd-brand span { letter-spacing: .32em; font-weight: 500; font-size: 14px; }
+  .cmd-tabs button { font-size: 13.5px; }
+  .cmd-tabs button.on::after { height: 1.5px; box-shadow: none; background: var(--text); }
+  .cmd-tabs i { box-shadow: none; }
+  .cmd-search { border: 0; background: rgba(255,255,255,.05); border-radius: 999px; }
+  body.cmd .cmd-looks { border: 0; background: rgba(255,255,255,.05); border-radius: 999px; }
+  .cmd-looks button { border-radius: 999px; }
+  .cmd-looks button.on { background: rgba(255,255,255,.11); box-shadow: none; }
+
+  /* Cards: one radius, hairline, no outer shadow on flat columns */
+  body.cmd .cmd-card, body.cmd .cmd-intel-card, body.cmd .cmd-trip {
+    border-radius: var(--r-card); border-color: rgba(255,255,255,.06);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.05);
+  }
+  body.cmd #map { border-radius: 22px; border-color: rgba(255,255,255,.06); }
+  /* Inner tiles separate by surface step, not by another border */
+  body.cmd .cmd-tile, body.cmd .cmd-sel { border: 0; border-radius: var(--r-inner); background: rgba(255,255,255,.035); box-shadow: none; }
+  .cmd-tile b { font-size: 30px; font-weight: 300; letter-spacing: -0.03em; }
+  .cmd-sel b { font-size: 28px; font-weight: 300; letter-spacing: -0.03em; }
+  .cmd-tile b small, .cmd-sel b small { font-size: 13px; color: var(--muted); }
+  body.cmd .cmd-rail h2 { font-size: 15px; font-weight: 500; }
+
+  /* Glow only where it means something: live/you/danger */
+  body.cmd .dot.ok, body.cmd .cmd-segbar i.on { box-shadow: none; }
+  .cmd-alert.green .sev, .cmd-alert.orange .sev { box-shadow: none; }
+
+  /* Map controls: one capsule (layers · zoom · locate), like Apple Maps */
+  body.cmd .cmd-stack {
+    gap: 0; padding: 0; border-radius: 999px; overflow: hidden;
+    background: color-mix(in srgb, var(--cmd-panel) 80%, transparent);
+    backdrop-filter: blur(20px) saturate(1.3); -webkit-backdrop-filter: blur(20px) saturate(1.3);
+    border: 1px solid rgba(255,255,255,.08);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.07), 0 14px 32px -10px rgba(0,0,0,.6);
+  }
+  body.cmd .cmd-stack .cmd-ctl, body.cmd .cmd-stack .cmd-zoom {
+    background: transparent; border: 0; border-radius: 0; box-shadow: none;
+    backdrop-filter: none; -webkit-backdrop-filter: none;
+  }
+  body.cmd .cmd-stack .cmd-ctl { width: 46px; height: 46px; }
+  body.cmd .cmd-stack > * + * { border-top: 1px solid rgba(255,255,255,.07); }
+  body.cmd .cmd-stack .cmd-ctl:hover { background: rgba(255,255,255,.06); }
+  body.cmd .cmd-seg, body.cmd .cmd-clock, body.cmd .cmd-route-card { border-radius: 999px; border-color: rgba(255,255,255,.08); }
+  body.cmd .cmd-route-card { border-radius: var(--r-card); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0ms !important; animation-duration: 0ms !important; }
+}
