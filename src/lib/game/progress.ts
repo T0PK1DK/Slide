@@ -224,7 +224,6 @@ function previewAward(input: DriveInput, samples: TelemetrySample[], stored: Sto
   const xpEarned = xpForTrip(distanceMi, score.total);
   const xp = stored.xp + xpEarned;
   const level = levelForXp(xp);
-  const streak = deltas["smooth-streak"] ?? 0;
   const earned = newlyEarned(stored.badges, badges);
   const unlocks = newlyUnlocked(
     { level: stored.level, badges: stored.badges },

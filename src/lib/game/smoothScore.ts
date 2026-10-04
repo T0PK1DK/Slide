@@ -88,11 +88,6 @@ export function limitFactor(speedMph: number, postedMph: number): number {
   return 0.6 * (1 - (over - LIMIT_GRACE_MPH) / (LIMIT_ZERO_OVER_MPH - LIMIT_GRACE_MPH));
 }
 
-function mean(xs: number[]): number | null {
-  if (!xs.length) return null;
-  return xs.reduce((a, b) => a + b, 0) / xs.length;
-}
-
 function segmentDistanceMi(a: TelemetrySample, b: TelemetrySample, dtS: number): number {
   if (
     a.lon != null && a.lat != null && b.lon != null && b.lat != null &&
