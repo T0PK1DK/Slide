@@ -670,12 +670,21 @@ button.ghost.on { color: var(--glow); }
 }
 
 /* ---------- Guidance ---------- */
-.maneuver {
+.drive-guide {
   position: absolute;
   top: var(--space-4);
   left: 50%;
   transform: translateX(-50%);
   width: min(420px, calc(100vw - 32px));
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-2);
+}
+.maneuver {
+  position: relative;
+  width: 100%;
   border-radius: var(--radius-xl);
   padding: var(--space-3) var(--space-4);
   display: flex;
@@ -720,10 +729,10 @@ button.ghost.on { color: var(--glow); }
 .man-bar i { display: block; height: 100%; width: 0; background: var(--glow); transition: width 0.2s linear; }
 
 .posted-chip {
-  position: absolute;
-  top: 84px;
-  left: 50%;
-  transform: translateX(-50%);
+  position: relative;
+  align-self: center;
+  width: max-content;
+  max-width: 100%;
   border-radius: var(--radius-pill);
   padding: 7px var(--space-3);
   font-size: var(--fs-xs);
@@ -2088,11 +2097,7 @@ body[data-mode="drive"] .friend-spot { display: none; }
 
 /* ---------- Teammate slots (empty until Nard / Leon fill them) ---------- */
 .lane-strip:not([hidden]) {
-  position: absolute;
-  left: var(--space-4);
-  right: var(--space-4);
-  top: calc(108px + env(safe-area-inset-top));
-  z-index: 5;
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2263,7 +2268,8 @@ body[data-mode="drive"] .friend-spot { display: none; }
 /* =====================================================================
    SCREENS — plan / drive / review / arrive / command / phone
    ===================================================================== */
-body[data-mode="drive"] .maneuver { width: min(520px, calc(100vw - 28px)); padding: var(--space-4); }
+body[data-mode="drive"] .drive-guide { width: min(520px, calc(100vw - 28px)); }
+body[data-mode="drive"] .maneuver { padding: var(--space-4); }
 body[data-mode="drive"] .man-text b { font-size: var(--fs-hero); }
 body[data-mode="drive"] .man-text b.is-empty { font-size: var(--fs-lg); }
 body[data-mode="drive"] .man-text span {
@@ -2282,7 +2288,6 @@ body[data-mode="drive"] .speedo .cluster { justify-content: flex-start; }
 body[data-mode="drive"] .speedo .n { font-size: clamp(var(--fs-3xl), 14vw, var(--fs-hero)); }
 body[data-mode="drive"] .limit { width: 56px; height: 72px; }
 body[data-mode="drive"] .limit b { font-size: clamp(var(--fs-xl), 5.4vw, var(--fs-2xl)); }
-body[data-mode="drive"] .posted-chip { top: 148px; }
 body[data-mode="drive"] .recenter {
   left: 50%;
   right: auto;
@@ -2300,8 +2305,7 @@ body[data-mode="drive"] .radar-banner { top: calc(112px + env(safe-area-inset-to
 
 @media (max-width: 820px) {
   .search-card,
-  .maneuver,
-  .posted-chip,
+  .drive-guide,
   .dash,
   .speedo,
   .speed-rail,
@@ -2376,10 +2380,8 @@ body[data-mode="drive"] .radar-banner { top: calc(112px + env(safe-area-inset-to
     width: min(220px, calc(100vw - 32px));
   }
   .review-sheet { bottom: calc(12px + env(safe-area-inset-bottom)); padding: var(--space-4) var(--space-3) var(--space-3); }
-  .maneuver { top: calc(12px + env(safe-area-inset-top)); left: var(--gutter); right: var(--gutter); }
+  .drive-guide { top: calc(12px + env(safe-area-inset-top)); left: var(--gutter); right: var(--gutter); width: auto; transform: none; }
   body[data-mode="drive"] .maneuver { padding: var(--space-3) var(--space-4); }
-  .posted-chip { top: calc(108px + env(safe-area-inset-top)); left: 50%; right: auto; width: auto; transform: translateX(-50%); }
-  body[data-mode="drive"] .posted-chip { top: calc(168px + env(safe-area-inset-top)); }
   .status-pill { top: calc(12px + env(safe-area-inset-top)); left: 50%; right: auto; width: auto; transform: translateX(-50%); }
   .dash { display: none; }
   .speed-rail { bottom: calc(12px + env(safe-area-inset-bottom)); }
@@ -2395,8 +2397,13 @@ body[data-mode="drive"] .radar-banner { top: calc(112px + env(safe-area-inset-to
   .cluster { justify-content: center; }
 }
 
+@media (max-width: 820px) and (orientation: portrait) {
+  /* Lanes flow under a wrapping banner in #drive-guide; keep the radar disc clear of the strip + posted chip. */
+  body[data-mode="drive"]:has(#lane-strip:not([hidden])) .radar { top: calc(272px + env(safe-area-inset-top)); }
+}
+
 @media (max-width: 820px) and (orientation: landscape) {
-  .maneuver { width: min(420px, 52vw); right: auto; }
+  .drive-guide { width: min(420px, 52vw); right: auto; }
   .drive-bar,
   .review-sheet { left: var(--gutter); right: auto; width: min(360px, 52vw); }
   body[data-mode="drive"] .speedo { left: var(--gutter); right: auto; transform: none; bottom: calc(16px + env(safe-area-inset-bottom)); }
@@ -2430,10 +2437,8 @@ body[data-mode="drive"] .radar-banner { top: calc(112px + env(safe-area-inset-to
     background: var(--surface);
     color: var(--text);
   }
-  body[data-mode="drive"] .posted-chip { top: calc(168px + env(safe-area-inset-top)); }
   body[data-mode="drive"] .radar-banner { top: calc(150px + env(safe-area-inset-top)); }
   body[data-mode="drive"] .radar { top: calc(200px + env(safe-area-inset-top)); }
-  body[data-mode="drive"] .lane-strip:not([hidden]) { top: calc(118px + env(safe-area-inset-top)); }
 }
 
 @media (min-width: 1100px) {
@@ -2606,7 +2611,7 @@ body[data-mode="drive"] .radar-banner { top: calc(112px + env(safe-area-inset-to
   /* Drive: banner parks in the top row and shrinks; weather hides so the clock stays a chip. */
   body.cmd[data-mode="drive"] .cmd-wx { display: none; }
   body.cmd[data-mode="drive"] .cmd-clock { gap: 0; }
-  body.cmd[data-mode="drive"] .cmd-banner-slot .maneuver {
+  body.cmd[data-mode="drive"] .cmd-banner-slot .drive-guide {
     position: relative;
     top: auto;
     left: auto;
@@ -2617,7 +2622,7 @@ body[data-mode="drive"] .radar-banner { top: calc(112px + env(safe-area-inset-to
     min-width: 0;
     flex: 1;
   }
-  body.cmd[data-mode="drive"] .posted-chip { top: 148px; }
+  body.cmd[data-mode="drive"] .cmd-banner-slot .maneuver { width: 100%; min-width: 0; }
   body.cmd[data-mode="drive"] .cmd-stack { bottom: calc(128px + env(safe-area-inset-bottom)); }
   body.cmd .search-card { top: 76px; }
   body.cmd .menu-fab,

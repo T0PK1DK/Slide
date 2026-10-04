@@ -46,7 +46,7 @@ Everything below is on `main` (PR #13, 2026-09-25): 0 TS errors, 54/54 unit test
 
 ```
 src/boot.ts            entry: paints HUD + login gate, warms the map style, then loads main.ts + MapLibre
-src/hud/shell.ts       HUD markup (painted by boot.ts before MapLibre arrives)
+src/hud/shell.ts       HUD markup (painted by boot.ts before MapLibre arrives). `#drive-guide` stacks `#maneuver` + `#lane-strip` + `#posted` in flow.
 src/map/warm.ts        style fetch + sprite/glyph preload once MapLibre has downloaded (pure warmUrls tested)
 src/plan/failure.ts    offline / no-route / busy / unreachable wording for the Try again sheet (pure)
 src/plan/failure.test.ts  tests for failure wording + warmUrls
@@ -348,12 +348,13 @@ Read `TASKS.md` top unchecked item. Do not rebase history. Do not rename the pro
 
 - 2026-10-04 Leon: **3D car models.** Branch `leon/car-models` on `leon/game-wire`. Replaced the box-and-stripes stage meshes with original lofted hulls in `src/lib/game/carMeshes.ts` (starter six + Nimbus + Glider, each a distinct silhouette). Liveries are materials (Solid / Stripes / Fade / Halo / Dusk). Soft studio lights + ground shadow. Still lazy `three`, no model files, no licensed brands, idle spin respects `prefers-reduced-motion`. No Grim layout CSS. Preview: `window.slidePreviewGame.ride(id, livery)`.
 - 2026-10-04 Leon: **Car-stage review fix (PR #37).** Removed the under-glow slab so stripes stay on body UVs only (`liveryU` is paint on the underside). Slipstream spoiler sits on the deck with body-colored struts. `deepenHull` + `hullLift` (rocker at `wheelR * 0.34`) tucks tires into side arches; wheels are tire + sidewall + rim dish. `frameCar` now fits the AABB to ~70% at a low 3/4 front (no longer uses length vs vertical FOV). Soft dual-blob contact shadow. `dataset.stageHold` still pauses spin for shots.
+- 2026-10-04 Nard: **`#lane-strip` in flow under the banner.** `#drive-guide` is the absolutely placed stack; `#maneuver`, `#lane-strip`, and `#posted` sit in normal column flow with `--space-2` gap. No fixed `top` on the strip or chip, so a wrapping instruction never covers lanes or the posted-speed chip. Tokens only; speedo / Report / drive-bar unchanged. Rebased onto `main` @ `5cc2cac` (2026-10-06): keeps Grim #40 (`.is-empty` turn distance, 56×72 limit sign, phone drive banner padding); on wide Command drive `parkDriveBanner` now parks the whole `#drive-guide` (banner + lanes + posted chip) in `.cmd-banner-slot` instead of `#maneuver` alone, so the stack flows there too and returns to its home slot outside drive. Phone portrait: while `#lane-strip` is showing, the radar disc drops to `272px` (`:has()`) so the flowed strip + chip never sit under it.
 
 ## Teammate slots (stable IDs — do not rename)
 
 | Who | Slot | Selector | Where |
 |---|---|---|---|
-| Nard | Lane strip | `#lane-strip` / `[data-slot="lane-strip"]` | After `#maneuver`. Filled from Valhalla `lanes`; hidden when none. |
+| Nard | Lane strip | `#lane-strip` / `[data-slot="lane-strip"]` | In `#drive-guide` under `#maneuver`. Filled from Valhalla `lanes`; hidden when none. |
 | Nard | Mute button | `#drive-mute` / `[data-slot="drive-mute"]` | Grim owns the button. Speech listens for `slide:voice-mute` and mirrors `slide.voice.v1`. |
 | Nard | Drive report | `#drive-report` | Bottom-right in drive. Calls `radar.openReport()`. |
 | Leon | XP / badges | `#arr-xp` / `[data-slot="arrival-xp"]` | Inside `#arrival`, under `.arr-stats`. Still empty/`hidden`. |
