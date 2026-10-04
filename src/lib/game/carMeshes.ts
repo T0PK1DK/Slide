@@ -235,11 +235,11 @@ export function hullLift(stations: readonly { y: number; h: number }[], wheelR: 
 
 /** Extra side depth so arches can cover the tire without lifting the roof. */
 export function deepenHull<T extends { y: number; h: number }>(stations: readonly T[], wheelR: number): T[] {
-  const skirt = wheelR * 0.48;
+  const skirt = wheelR * 0.26;
   return stations.map((s) => ({ ...s, h: s.h + skirt, y: s.y - skirt / 2 }));
 }
 
-function loft(THREE: ThreeMod, stations: Station[], segs: number, round: number, yLift = 0) {
+function loft(THREE: ThreeMod, stations: Station[], segs: number, round: number, yLift = 0, pinchBottom = 1) {
   const positions: number[] = [];
   const uvs: number[] = [];
   const indices: number[] = [];
@@ -247,10 +247,11 @@ function loft(THREE: ThreeMod, stations: Station[], segs: number, round: number,
   for (let i = 0; i < stations.length; i++) {
     const s = stations[i];
     for (let j = 0; j < segs; j++) {
-      const t = (j / segs) * Math.PI * 2;
+      const t = (j / segs) * Math.PI * 2 + Math.PI * 1.5;
       const ct = Math.cos(t);
       const st = Math.sin(t);
-      const x = (s.w / 2) * Math.sign(ct || 1) * Math.pow(Math.abs(ct), pwr);
+      const pinch = st >= 0 ? 1 : pinchBottom + (1 - pinchBottom) * (st + 1);
+      const x = (s.w / 2) * pinch * Math.sign(ct || 1) * Math.pow(Math.abs(ct), pwr);
       const y = s.y + yLift + (s.h / 2) * Math.sign(st || 1) * Math.pow(Math.abs(st), pwr * 1.15);
       positions.push(x, y, s.z);
       uvs.push(liveryU(x, s.w / 2, st >= -0.05), i / (stations.length - 1));
@@ -388,7 +389,7 @@ export function buildCar(THREE: ThreeMod, look: CarStageLook) {
   const segs = 12;
   const body = deepenHull(hull, spec.wheelR);
   const lift = hullLift(body, spec.wheelR);
-  group.add(new THREE.Mesh(loft(THREE, body, segs, spec.round, lift), bodyMat));
+  group.add(new THREE.Mesh(loft(THREE, body, segs, spec.round, lift, 0.64), bodyMat));
 
   const cabin = CABINS[id];
   if (cabin) {
@@ -422,15 +423,20 @@ export function buildCar(THREE: ThreeMod, look: CarStageLook) {
 
   if (id === "slipstream") {
     const last = body[body.length - 1];
-    const deck = last.y + lift + last.h * 0.4;
-    const wingZ = last.z + 0.03;
-    const rise = 0.075;
-    const wing = new THREE.Mesh(new THREE.BoxGeometry(0.84, 0.028, 0.15), bodyMat);
+    const deck = last.y + lift + last.h * 0.5;
+    const wingZ = last.z - 0.05;
+    const rise = 0.14;
+    const wing = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.03, 0.16), bodyMat);
     wing.position.set(0, deck + rise, wingZ);
-    for (const x of [-0.24, 0.24]) {
-      const strut = new THREE.Mesh(new THREE.BoxGeometry(0.038, rise, 0.055), bodyMat);
-      strut.position.set(x, deck + rise / 2, wingZ);
+    for (const x of [-0.26, 0.26]) {
+      const strut = new THREE.Mesh(new THREE.BoxGeometry(0.04, rise, 0.06), bodyMat);
+      strut.position.set(x, deck + rise / 2, last.z);
       group.add(strut);
+    }
+    for (const x of [-0.45, 0.45]) {
+      const plate = new THREE.Mesh(new THREE.BoxGeometry(0.022, 0.09, 0.16), bodyMat);
+      plate.position.set(x, deck + rise, wingZ);
+      group.add(plate);
     }
     group.add(wing);
   }
@@ -468,7 +474,7 @@ export function buildCar(THREE: ThreeMod, look: CarStageLook) {
   const wheelY = spec.wheelR;
   const frontZ = hull[1]?.z ?? spec.l * 0.28;
   const rearZ = (id === "hauler" ? -0.82 : hull[hull.length - 2]?.z) ?? -spec.l * 0.3;
-  const axleX = spec.w * 0.34;
+  const axleX = spec.w * 0.38;
   const width = spec.shape === "suv" || spec.shape === "pickup" ? 0.22 : 0.18;
   for (const [x, z] of [
     [-axleX, frontZ],
