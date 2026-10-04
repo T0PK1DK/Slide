@@ -1,5 +1,5 @@
 import { scopedKey } from "./account-store";
-import { LIVERIES, VEHICLE_IDS, type Livery, type VehicleId } from "./vehicles";
+import { ALL_LIVERIES, VEHICLE_IDS, type Livery, type VehicleId } from "./vehicles";
 
 export type CameraMode = "cinematic" | "chase" | "top";
 export type TrailStyle = "plasma" | "ember" | "ice" | "volt";
@@ -112,7 +112,7 @@ export function migrateGarage(saved: unknown): GarageConfig {
   if (typeof saved.carColor === "string" && HEX.test(saved.carColor)) out.carColor = saved.carColor;
   if (typeof saved.glow === "string" && HEX.test(saved.glow)) out.glow = saved.glow;
   if (typeof saved.vehicle === "string" && (VEHICLE_IDS as readonly string[]).includes(saved.vehicle)) out.vehicle = saved.vehicle as VehicleId;
-  if (typeof saved.livery === "string" && (LIVERIES as readonly string[]).includes(saved.livery)) out.livery = saved.livery as Livery;
+  if (typeof saved.livery === "string" && (ALL_LIVERIES as readonly string[]).includes(saved.livery)) out.livery = saved.livery as Livery;
   if (typeof saved.trail === "string" && saved.trail in TRAILS) out.trail = saved.trail as TrailStyle;
   if (typeof saved.camera === "string" && (CAMERAS as readonly string[]).includes(saved.camera)) out.camera = saved.camera as CameraMode;
   // The flat night skin was once called "waze"; it's Slide's own look now.
