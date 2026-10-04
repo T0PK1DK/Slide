@@ -300,25 +300,28 @@ function addWheel(
   hub: unknown,
 ) {
   const out = Math.sign(x) || 1;
-  const tire = new THREE.Mesh(new THREE.CylinderGeometry(r, r, width, 24), rubber);
-  tire.rotation.z = Math.PI / 2;
+  const tire = new THREE.Mesh(new THREE.TorusGeometry(r * 0.78, r * 0.22, 12, 28), rubber);
+  tire.rotation.y = Math.PI / 2;
   tire.position.set(x, y, z);
-  const sidewall = new THREE.Mesh(new THREE.TorusGeometry(r * 0.86, r * 0.14, 8, 22), rubber);
-  sidewall.rotation.y = Math.PI / 2;
-  sidewall.position.set(x + out * width * 0.28, y, z);
-  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.62, r * 0.62, width * 0.58, 18), rim);
+  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.55, r * 0.55, width * 0.7, 20), rim);
   barrel.rotation.z = Math.PI / 2;
-  barrel.position.set(x + out * width * 0.02, y, z);
-  const dish = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.6, r * 0.48, width * 0.16, 18), rim);
+  barrel.position.set(x, y, z);
+  const dish = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.52, r * 0.4, width * 0.14, 18), rim);
   dish.rotation.z = Math.PI / 2;
-  dish.position.set(x + out * width * 0.3, y, z);
-  const lip = new THREE.Mesh(new THREE.TorusGeometry(r * 0.62, r * 0.03, 8, 20), rim);
+  dish.position.set(x + out * width * 0.22, y, z);
+  const lip = new THREE.Mesh(new THREE.TorusGeometry(r * 0.56, r * 0.03, 8, 22), rim);
   lip.rotation.y = Math.PI / 2;
-  lip.position.set(x + out * width * 0.36, y, z);
-  const cap = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.2, r * 0.16, width * 0.22, 12), hub);
+  lip.position.set(x + out * width * 0.26, y, z);
+  const cap = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.18, r * 0.15, width * 0.28, 12), hub);
   cap.rotation.z = Math.PI / 2;
-  cap.position.set(x + out * width * 0.38, y, z);
-  group.add(tire, sidewall, barrel, dish, lip, cap);
+  cap.position.set(x + out * width * 0.28, y, z);
+  for (let i = 0; i < 5; i++) {
+    const spoke = new THREE.Mesh(new THREE.BoxGeometry(width * 0.1, r * 0.07, r * 0.48), rim);
+    spoke.position.set(x + out * width * 0.1, y, z);
+    spoke.rotation.x = (i / 5) * Math.PI * 2;
+    group.add(spoke);
+  }
+  group.add(tire, barrel, dish, lip, cap);
 }
 
 function addArch(
@@ -368,13 +371,14 @@ export function buildCar(THREE: ThreeMod, look: CarStageLook) {
     emissiveIntensity: look.livery === "dusk" ? 0.08 : 0,
   });
   const glassMat = new THREE.MeshStandardMaterial({
-    color: 0x8fb4d8,
-    metalness: 0.85,
-    roughness: 0.08,
+    color: 0x6d8aa8,
+    metalness: 0.72,
+    roughness: 0.12,
     transparent: true,
-    opacity: 0.38,
+    opacity: 0.62,
     envMapIntensity: 1,
   });
+  const cabinDark = new THREE.MeshStandardMaterial({ color: 0x16191d, roughness: 0.9, metalness: 0.08 });
   const rubber = new THREE.MeshStandardMaterial({ color: 0x141518, roughness: 0.92, metalness: 0.05 });
   const rim = new THREE.MeshStandardMaterial({ color: 0xc9cdd2, metalness: 0.75, roughness: 0.28 });
   const hub = new THREE.MeshStandardMaterial({ color: accent, metalness: 0.55, roughness: 0.35 });
@@ -388,6 +392,8 @@ export function buildCar(THREE: ThreeMod, look: CarStageLook) {
 
   const cabin = CABINS[id];
   if (cabin) {
+    const inner = cabin.map((s) => ({ ...s, w: s.w * 0.84, h: s.h * 0.62, y: s.y - 0.01 }));
+    group.add(new THREE.Mesh(loft(THREE, inner, 8, Math.min(0.7, spec.round + 0.08), lift), cabinDark));
     const cabStations = cabin.map((s) => ({ ...s, y: s.y + 0.02, h: s.h + 0.06 }));
     const cabMesh = new THREE.Mesh(loft(THREE, cabStations, 10, Math.min(0.75, spec.round + 0.12), lift), look.livery === "dusk" ? roofMat : glassMat);
     group.add(cabMesh);
@@ -416,13 +422,13 @@ export function buildCar(THREE: ThreeMod, look: CarStageLook) {
 
   if (id === "slipstream") {
     const last = body[body.length - 1];
-    const deck = last.y + lift + last.h * 0.42;
-    const wingZ = last.z + 0.02;
-    const rise = 0.06;
-    const wing = new THREE.Mesh(new THREE.BoxGeometry(0.78, 0.024, 0.12), bodyMat);
+    const deck = last.y + lift + last.h * 0.4;
+    const wingZ = last.z + 0.03;
+    const rise = 0.075;
+    const wing = new THREE.Mesh(new THREE.BoxGeometry(0.84, 0.028, 0.15), bodyMat);
     wing.position.set(0, deck + rise, wingZ);
-    for (const x of [-0.22, 0.22]) {
-      const strut = new THREE.Mesh(new THREE.BoxGeometry(0.032, rise, 0.045), bodyMat);
+    for (const x of [-0.24, 0.24]) {
+      const strut = new THREE.Mesh(new THREE.BoxGeometry(0.038, rise, 0.055), bodyMat);
       strut.position.set(x, deck + rise / 2, wingZ);
       group.add(strut);
     }
@@ -462,7 +468,7 @@ export function buildCar(THREE: ThreeMod, look: CarStageLook) {
   const wheelY = spec.wheelR;
   const frontZ = hull[1]?.z ?? spec.l * 0.28;
   const rearZ = (id === "hauler" ? -0.82 : hull[hull.length - 2]?.z) ?? -spec.l * 0.3;
-  const axleX = spec.w * 0.4;
+  const axleX = spec.w * 0.34;
   const width = spec.shape === "suv" || spec.shape === "pickup" ? 0.22 : 0.18;
   for (const [x, z] of [
     [-axleX, frontZ],

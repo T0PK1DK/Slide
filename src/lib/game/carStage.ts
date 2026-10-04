@@ -67,10 +67,10 @@ export function mountCarStage(host: HTMLElement): CarStageHandle {
     const box = new THREE.Box3().setFromObject(obj);
     const size = box.getSize(new THREE.Vector3());
     const center = box.getCenter(new THREE.Vector3());
-    const fov = 32;
+    const fov = 34;
     camera.fov = fov;
     const aspect = Math.max(0.55, camera.aspect || 1);
-    const dir = new THREE.Vector3(1.05, 0.36, 1.22).normalize();
+    const dir = new THREE.Vector3(1.42, 0.2, 0.82).normalize();
     const forward = dir.clone().negate();
     const worldUp = new THREE.Vector3(0, 1, 0);
     const right = new THREE.Vector3().crossVectors(forward, worldUp).normalize();
@@ -78,14 +78,14 @@ export function mountCarStage(host: HTMLElement): CarStageHandle {
     const sx = Math.abs(right.x) * size.x + Math.abs(right.y) * size.y + Math.abs(right.z) * size.z;
     const sy = Math.abs(camUp.x) * size.x + Math.abs(camUp.y) * size.y + Math.abs(camUp.z) * size.z;
     const vHalf = Math.tan(((fov * Math.PI) / 180) / 2);
-    const fill = 0.7;
-    const tight = 0.72;
-    const dist = Math.max((sy * tight * 0.5) / (vHalf * fill), (sx * tight * 0.5) / (vHalf * aspect * fill), 1.35);
-    camera.position.set(center.x + dir.x * dist, center.y + dir.y * dist, center.z + dir.z * dist);
-    camera.lookAt(center.x, center.y * 0.86, center.z);
+    const fill = 0.72;
+    const tight = 0.84;
+    const dist = Math.max((sy * tight * 0.5) / (vHalf * fill), (sx * tight * 0.5) / (vHalf * aspect * fill), 1.2);
+    camera.position.set(center.x + dir.x * dist, Math.max(0.28, center.y * 0.35 + dir.y * dist), center.z + dir.z * dist);
+    camera.lookAt(center.x - size.x * 0.04, Math.max(0.12, center.y * 0.55), center.z);
     camera.updateProjectionMatrix();
-    shadow?.scale.set(Math.max(0.85, size.x * 0.78), Math.max(1.15, size.z * 0.82), 1);
-    coreShadow?.scale.set(Math.max(0.5, size.x * 0.42), Math.max(0.7, size.z * 0.48), 1);
+    shadow?.scale.set(Math.max(0.95, size.x * 0.9), Math.max(1.25, size.z * 0.88), 1);
+    coreShadow?.scale.set(Math.max(0.55, size.x * 0.5), Math.max(0.75, size.z * 0.52), 1);
   };
 
   const sizeToHost = () => {
@@ -149,13 +149,13 @@ export function mountCarStage(host: HTMLElement): CarStageHandle {
     floor.rotation.x = -Math.PI / 2;
     const blob = new THREE.Mesh(
       new THREE.CircleGeometry(1, 40),
-      new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.3, depthWrite: false })
+      new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.38, depthWrite: false })
     );
     blob.rotation.x = -Math.PI / 2;
     blob.position.y = 0.01;
     const core = new THREE.Mesh(
       new THREE.CircleGeometry(0.55, 32),
-      new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.2, depthWrite: false })
+      new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.24, depthWrite: false })
     );
     core.rotation.x = -Math.PI / 2;
     core.position.y = 0.014;
