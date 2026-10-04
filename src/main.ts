@@ -29,6 +29,7 @@ import { cardAriaLabel, routeCards } from "./plan/review-cards";
 import { EMPTY } from "./lib/empty";
 import { splitPlaceLabel } from "./lib/place";
 import { mountVoiceMute } from "./hud/voice-mute";
+import { resetVoice, startVoice, stopVoice, tickVoice } from "./voice";
 import { stepGhost, type GhostCar } from "./lib/ghosts";
 import {
   buildSteps,
@@ -697,6 +698,7 @@ function startDrive() {
   hideLocationProblem();
   renderSpeedRail();
   bootDrive();
+  startVoice();
   setHudMode("drive");
   startLocation({ center: false });
   if (!liveFix) setStatus("Waiting for GPS…");
@@ -716,6 +718,7 @@ function stopDriveLoop() {
   ghostMarkers = [];
 }
 function endDrive() {
+  stopVoice();
   saveDriveToHistory();
   stopDriveLoop();
   followCamera = true;
@@ -732,6 +735,7 @@ function endDrive() {
 }
 /** Within ~40 m of the destination: stop live guidance and show the Arrival screen (DESIGN.md 07). */
 function arrive() {
+  stopVoice();
   const route = routes.find((r) => r.id === selectedId);
   const startedAt = driveLog.startedAt;
   const drivenMi = driveLog.drivenMi;
@@ -1037,6 +1041,7 @@ async function reroute(from: LonLat) {
     origin = from;
     originLabel = "Current location";
     loadDriveRoute();
+    resetVoice();
     paintRoutes();
     renderDash();
     spawnGhosts();
@@ -1462,6 +1467,7 @@ function renderGuidance(mi: number, mph: number) {
     $("#man-fill").style.width = `${Math.round(move.proximity * 100)}%`;
     maneuverEl.classList.toggle("imminent", move.distanceMi < 0.08);
     renderLaneStrip(hudMode === "drive" ? move.lanes : null, move.distanceMi);
+    if (hudMode === "drive") tickVoice(steps, mi);
   } else {
     maneuverEl.setAttribute("hidden", "");
     renderLaneStrip(null);
