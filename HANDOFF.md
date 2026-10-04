@@ -45,7 +45,12 @@ Everything below is on `main` (PR #13, 2026-09-25): 0 TS errors, 54/54 unit test
 ## Layout
 
 ```
-src/main.ts            HUD + map + plan + drive loop
+src/boot.ts            entry: paints HUD + login gate, warms the map style, then loads main.ts + MapLibre
+src/hud/shell.ts       HUD markup (painted by boot.ts before MapLibre arrives)
+src/map/warm.ts        style fetch + sprite/glyph preload once MapLibre has downloaded (pure warmUrls tested)
+src/plan/failure.ts    offline / no-route / busy / unreachable wording for the Try again sheet (pure)
+src/plan/failure.test.ts  tests for failure wording + warmUrls
+src/main.ts            map + plan + drive loop (HUD listeners)
 src/styles.css         night glass HUD
 src/lib/valhalla.ts    route / trace / search
 src/lib/smooth.ts      Slide score + speed bands
@@ -238,6 +243,15 @@ Read `TASKS.md` top unchecked item. Do not rebase history. Do not rename the pro
 - 2026-10-04 Nard: **Data turned on (part), verified on a preview.** `kings-slide` is a Direct Upload Pages project, so `VITE_SUPABASE_URL` now lives in a committed `.env.production`; dashboard env vars would never reach the bundle. `TRANSIT_FEEDS` is set as a production + preview secret with the three feeds that work without a key: Broward (105 buses), Tri-Rail (6 trains) and Brightline (8 trains), each fetched and decoded with our decoder. Miami-Dade needs a Swiftly key. Production (2026-09-24 build) predates the Functions, so `/api/*` there returns HTML. On a preview of `main` (`https://nard-verify-main.kings-slide.pages.dev`), `/api/transit` returned all three agencies `ok` (90 BCT + 2 Tri-Rail + 1 Brightline within 20 km of Fort Lauderdale), `/api/incidents` returned `configured:false` (no FL511 key yet), and `/api/cameras` returned "Overpass unreachable" because public Overpass answered 504 at the time. Then the anon key (`role: anon`) went into `.env.production` and production was redeployed from this branch's tree (main + `.env.production`).
 - 2026-10-04 Nard: **Sign in by tapping the emailed link.** Supabase won't let us edit the Magic Link template (to add `{{ .Token }}`) without custom SMTP, so the email only has a link. `sendCode()` now sets `emailRedirectTo` to the current page. On return, `authReturn()` spots `#access_token=…` (implicit flow, the supabase-js default) or `#error=…`, the client is created with `detectSessionInUrl` on for that load only, the tokens are stripped from the address bar, and Profile opens on Friends & followers (signed in, or "pick your handle"). An expired link shows "That sign-in link has expired…". The code box stays as an option ("Or enter the code, if the email shows one"). Redirects: GoTrue accepts any `redirect_to` on the Site URL's host, so production needs no Redirect URL entry. Previews (`*.kings-slide.pages.dev`) need `https://*.kings-slide.pages.dev/**` in Auth → URL Configuration → Redirect URLs, or their links land on production. Limit: on iPhone the link opens in Safari, so a Home Screen install is signed in only if the code is entered there (needs `{{ .Token }}` → custom SMTP).
 
+- 2026-10-04 Nard: **Block 3 stability: offline/no-route sheet + faster first load.**
+  - **Try again sheet** (`#net-sheet`, wording in `src/plan/failure.ts`): it says which of these happened: offline ("You're offline", which turns into "Back online" when the connection returns), no road between the points (Valhalla 442/170/171/443; `fetchJson` now keeps Valhalla's error code instead of a bare "400"), rate-limited (429), or server unreachable. It covers planning and search; before this, search failures silently closed the list. **Try again** re-runs the same plan or search.
+  - **HUD + login before MapLibre:** new entry `src/boot.ts` paints the HUD (`src/hud/shell.ts`) and the login gate from an 8 kB chunk, then dynamic-imports `main.ts`. A small Vite plugin adds `modulepreload` for `main` + `maplibre`, so they still download from the first byte. `main.ts` waits on `driverReady` instead of calling `ensureSignedIn`. The service worker is registered from boot; the old `load` listener in main would have never fired once main loaded late.
+  - **Map style warm-up:** `index.html` preloads the style JSON + TileJSON. boot fetches the style and hands the object to MapLibre (no second request), and preloads the sprite + first glyph range once the MapLibre file has downloaded, so they don't compete with it. Phones start at the flat plan pitch they eased to anyway. Geist fonts load after the first map render (or 4 s).
+  - **`public/sw.js`:** pre-caches the style JSON + TileJSON on install, and serves style / TileJSON / sprite / glyphs stale-while-revalidate (`slide-mapstyle-v1`). It still never caches vector tiles, routes, search or weather.
+  - **Measured** (headless Chrome on the box → Cloudflare, iPhone 13 emulation, Lighthouse Slow 4G = 1.6 Mbps / 150 ms / 4× CPU, cache disabled for cold; median of 5): HUD/login **2.66 s → 0.79 s**; map style loaded 5.18 s → 4.16 s; map fully rendered **5.97 s → 5.03 s**. Repeat visit (SW + HTTP cache): HUD 0.60 s → 0.19 s, map rendered 2.56 s → 2.57 s (under 3 s both before and after). Good 4G (9 Mbps / 85 ms / 4× CPU, median of 3): HUD 1.19 s → 0.45 s, map rendered 3.26 s → 2.86 s.
+  - **Why cold Slow 4G is still ~5 s:** it's the bytes. MapLibre is 277 kB, sprite@2x + glyphs 160 kB, and downtown-Miami z14 vector tiles are ~60–90 kB each (4–6 on screen). That's ≈ 800 kB, or ≈ 4 s at 1.6 Mbps before any CPU time. Under 3 s on a first visit needs fewer bytes: self-hosted, slimmer tiles or a 1× sprite.
+  - Verified on the preview with headless Chrome: login gate first, then the HUD; returning driver goes straight in; Photon down → "Can't reach search" → Try again → real suggestions; a test-only Valhalla 442 → "No drivable route found"; offline → "You're offline" → "Back online" → Try again → real Valhalla route (review, 3 min); the email-link return still works; 0 page errors. The `wood-pattern` sprite warning is OpenFreeMap's and also shows on production.
+
 ## Owner setup for accounts + radar
 
 ### Supabase (done by Claude on 2026-10-04; two functions left)
@@ -350,8 +364,8 @@ Follow **Owner setup for accounts + radar** above, step by step:
 
 ### 3. Stability (from TASKS.md P0)
 
-- [ ] Offline / no-route sheet (when Valhalla or Photon fail, or no route is found), with a "Try again" button.
-- [ ] Map under 3 s on Slow 4G (today ≈5.8 s): show the HUD and login before MapLibre loads, and pre-cache the style in `public/sw.js`.
+- [x] Offline / no-route sheet (when Valhalla or Photon fail, or no route is found), with a "Try again" button (2026-10-04).
+- [~] Map under 3 s on Slow 4G: HUD/login now paint before MapLibre (0.79 s), style pre-cached in `public/sw.js`. Repeat visits render the map in ≈2.6 s; a cold first visit is ≈5.0 s (was 6.0), limited by ≈800 kB of engine + sprite + tiles (see session log 2026-10-04).
 - [ ] Split `src/main.ts` into `hud/ drive/ plan/ map/` with no behavior change. Do it as its own PR, after the verification above passes.
 
 ### 4. Features (owner's Phase 2–5, one PR each)

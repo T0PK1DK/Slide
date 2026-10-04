@@ -18,3 +18,16 @@ describe("classifyFailure", () => {
     expect(classifyFailure(new HttpError(502, null, ""), true, "route").kind).toBe("unreachable");
   });
 });
+
+import { warmUrls } from "../map/warm";
+describe("warmUrls", () => {
+  const style = { sprite: "https://t.example/sprites/ofm", glyphs: "https://t.example/fonts/{fontstack}/{range}.pbf",
+    layers: [{ layout: { "text-font": ["Noto Sans Regular"] } }, { layout: { "text-font": ["Noto Sans Regular"] } }, { layout: { "text-font": ["Noto Sans Bold"] } }, { layout: {} }] };
+  it("picks the sprite for the pixel ratio and the most used font's first range", () => {
+    expect(warmUrls(style, 3)).toEqual(["https://t.example/sprites/ofm@2x.json", "https://t.example/sprites/ofm@2x.png", "https://t.example/fonts/Noto%20Sans%20Regular/0-255.pbf"]);
+    expect(warmUrls(style, 1)[0]).toBe("https://t.example/sprites/ofm.json");
+  });
+  it("skips what the style doesn't name", () => {
+    expect(warmUrls({}, 2)).toEqual([]);
+  });
+});

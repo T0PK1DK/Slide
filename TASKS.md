@@ -52,9 +52,10 @@ Work top-down. Check the box in the same PR.
 - [x] Installable PWA: PNG + maskable + apple-touch icons, shell-only service worker (Chrome reports no installability errors)
 - [x] Posted speed double-converted (30 mph showed as 19) — fixed in `buildBands()`
 - [ ] **Human device test:** real iPhone (Safari) + Android (Chrome) drive, and Add to Home Screen → opens full screen, stays signed in
-- [ ] Map under 3 s on Slow 4G (today ≈5.8 s; ≈3.0 s on good 4G): load HUD/login before MapLibre, pre-cache style
+- [x] HUD/login before MapLibre (Slow 4G 2.66 → 0.79 s) + style pre-cached in sw.js; map rendered 5.97 → 5.03 s cold, ≈2.6 s repeat, 2.86 s good 4G
+- [ ] Map under 3 s on a *cold* Slow-4G visit: needs fewer bytes (self-hosted/slimmer tiles, 1× sprite)
 - [ ] Faster alternative rarely exists on public Valhalla (same trip from both costings) — needs self-host or a real alternate strategy
-- [ ] Offline / no-route sheet + one fetch retry
+- [x] Offline / no-route sheet + one fetch retry
 
 - [x] `npm run build` is clean (fix TS, unused, layer add-before-style-load)
 - [x] If Valhalla returns one trip, fire a second `/route` with higher `use_highways` / lower `maneuver_penalty` so Faster exists (preview)
@@ -69,7 +70,7 @@ Work top-down. Check the box in the same PR.
 - [ ] Snap player marker to shape from live GPS (map matching later)
 - [ ] Leave-by: user sets arrival clock → show depart time + 3 min buffer (`leaveByForTarget` already exists)
 - [ ] Door-level destination note in UI (entrance / garage) even if pin is still centroid
-- [ ] Offline message when Photon/Valhalla fail
+- [x] Offline message when Photon/Valhalla fail
 
 ## P2 — ghosts that can become real
 
