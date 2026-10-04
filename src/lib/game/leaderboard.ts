@@ -195,6 +195,7 @@ export function createLeaderboard(store: KVStore = defaultStore()): LeaderboardA
       persist({ ...state, optIn: on === true });
     },
     recordTrip(score, miles, at) {
+      if (!state.optIn) return;
       if (!Number.isFinite(score) || score < 0) return;
       const id = weekOf(at);
       const prev = state.weeks[id] ?? { trips: 0, scoreSum: 0, smoothMiles: 0 };

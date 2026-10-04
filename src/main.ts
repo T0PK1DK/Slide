@@ -62,7 +62,8 @@ import type { TrafficSummary } from "./lib/traffic";
 import { createYouMarker } from "./map/you";
 import { mountCommand } from "./hud/command";
 import { recordTrip } from "./lib/history";
-import { useGameProgress } from "./lib/game";
+import { useGameProgress, useLeaderboard } from "./lib/game";
+import { bindBoardToggle, currentRide, demoAward, mountGameSlots } from "./hud/gameSlots";
 import { loadProfile } from "./lib/profile";
 import {
   cumulativeMiles,
@@ -106,6 +107,7 @@ type DriveLog = { startedAt: number; live: boolean; offRouteEvents: number; wasO
 const freshLog = (): DriveLog => ({ startedAt: 0, live: false, offRouteEvents: 0, wasOff: false, drivenMi: 0, lastPos: null });
 let driveLog = freshLog();
 const game = useGameProgress();
+const board = useLeaderboard();
 map.addControl(new maplibregl.AttributionControl({ compact: true }), "top-right");
 
 let origin: LonLat | null = null;
@@ -156,6 +158,15 @@ const dashEl = $("#dash");
 const routesEl = $("#routes");
 const speedsEl = $("#speeds");
 const garageEl = $("#garage");
+const slots = mountGameSlots({
+  game,
+  onSelect: (next) => {
+    if (next.vehicle) garage.vehicle = next.vehicle;
+    if (next.livery) garage.livery = next.livery;
+    persist();
+    restylePlayer();
+  },
+});
 const maneuverEl = $("#maneuver");
 const postedEl = $("#posted");
 const recenterEl = $("#recenter");
@@ -275,8 +286,8 @@ toInput.addEventListener("input", () => {
   if (msg === "Set a destination." || msg.startsWith("No match")) showError("");
 });
 $("#go").addEventListener("click", plan);
-$("#tune").addEventListener("click", () => garageEl.classList.toggle("open"));
-$("#g-close").addEventListener("click", () => garageEl.classList.remove("open"));
+$("#tune").addEventListener("click", () => openGarage(!garageEl.classList.contains("open")));
+$("#g-close").addEventListener("click", () => openGarage(false));
 recenterEl.addEventListener("click", () => {
   followCamera = true;
   recenterEl.setAttribute("hidden", "");
@@ -296,7 +307,7 @@ $("#coach-ok").addEventListener("click", () => {
   showCoach(false);
 });
 moreBtn.addEventListener("click", () => overflowEl.classList.toggle("open"));
-$("#ov-tune").addEventListener("click", () => { overflowEl.classList.remove("open"); garageEl.classList.add("open"); });
+$("#ov-tune").addEventListener("click", () => { overflowEl.classList.remove("open"); openGarage(true); });
 $("#ov-help").addEventListener("click", () => { overflowEl.classList.remove("open"); showCoach(true); });
 $("#ov-rail").addEventListener("click", () => {
   overflowEl.classList.remove("open");
@@ -308,7 +319,7 @@ $("#ov-lock").addEventListener("click", lockApp);
 const profileSheet = mountProfile({
   places: () => ({ home: garage.home, work: garage.work }),
   clearPlace: (which) => { garage[which] = null; persist(); },
-  openGarage: () => garageEl.classList.add("open"),
+  openGarage: () => openGarage(true),
   onChange: () => command.refreshHistory(),
   onHistoryCleared: () => command.refreshHistory(),
   sharing: () => garage.shareWithFriends,
@@ -335,7 +346,7 @@ const command = mountCommand({
   map,
   driverName: () => loadProfile()?.name ?? "",
   onSearch: () => { $("#search-card").classList.add("open"); toInput.focus(); },
-  onGarage: () => garageEl.classList.add("open"),
+  onGarage: () => openGarage(true),
   onProfile: () => profileSheet.open(),
   onLocate: () => { if (!tracker) locateMe(); else if (liveFix) map.easeTo({ center: [liveFix.pos.lon, liveFix.pos.lat], zoom: 15, duration: 700 }); },
   onSelectRoute: (id) => selectRoute(id),
@@ -510,6 +521,11 @@ function persist() {
   const chip = document.querySelector("#rank-chip");
   if (chip) chip.textContent = garage.tag;
   refreshPlaceChips();
+}
+function openGarage(on: boolean) {
+  garageEl.classList.toggle("open", on);
+  if (on) slots.showStage(currentRide(garage));
+  else slots.hideStage();
 }
 function rememberRecent(hit: { label: string; lon: number; lat: number }) {
   const recents = [
@@ -706,6 +722,7 @@ function wireGarage() {
   trafficBox.addEventListener("change", () => { garage.showTraffic = trafficBox.checked; persist(); traffic.setEnabled(trafficBox.checked); });
   ghostsBox.addEventListener("change", () => { garage.showGhosts = ghostsBox.checked; persist(); setGhostVisibility(garage.showGhosts); });
   share.addEventListener("change", () => { garage.shareGhost = share.checked; persist(); });
+  bindBoardToggle(board);
 }
 function paintSwatches(el: HTMLElement, colors: string[], current: string, onPick: (c: string) => void) {
   el.innerHTML = "";
@@ -737,7 +754,7 @@ function setHudMode(mode: HudMode) {
     $("#search-card").classList.remove("open");
   } else {
     overflowEl.classList.remove("open", "from-plan");
-    garageEl.classList.remove("open");
+    openGarage(false);
     maneuverEl.setAttribute("hidden", "");
     postedEl.setAttribute("hidden", "");
     $("#speedo").setAttribute("hidden", "");
@@ -818,6 +835,9 @@ function arrive() {
   setMaybeEmpty($("#arr-line"), route?.tags[0] ?? route?.label ?? EMPTY.line);
   $("#arr-note").textContent = drivenMi >= 0.2 ? "Saved to Your trips on this phone." : "Short drive — not saved to Your trips.";
   $("#arr-ride").innerHTML = carSvg(garage.carColor, garage.glow);
+  const award = game.lastAward();
+  const tripId = startedAt ? `t${startedAt}` : "";
+  slots.showAward(award && award.tripId === tripId ? award : null, currentRide(garage));
   setHudMode("arrive");
   if (dest) map.easeTo({ center: [dest.lon, dest.lat], zoom: 16, pitch: 30, bearing: 0, duration: 900 });
 }
@@ -831,6 +851,7 @@ function finishArrival() {
   toInput.value = "";
   paintRoutes();
   dashEl.setAttribute("hidden", "");
+  slots.hideAward();
   setHudMode("plan");
 }
 function saveDriveToHistory() {
@@ -855,12 +876,13 @@ function saveDriveToHistory() {
     postedProfile: route.bands.filter((_, i) => i % step === 0).map((b) => b.postedMph ?? b.expectedMph),
     tollRoad: route.hasToll,
   });
-  game.commit({
+  const award = game.commit({
     tripId: `t${log.startedAt}`,
     startedAt: log.startedAt,
     endedAt: Date.now(),
     distanceMi: Math.round(log.drivenMi * 100) / 100,
   });
+  if (award.score.total != null) board.recordTrip(award.score.total, award.shareCard.miles, Date.now());
   command.refreshHistory();
 }
 function backToSearch() {
@@ -1399,6 +1421,7 @@ function spawnPlayer() {
 function restylePlayer() {
   paintShowroom();
   you.setCar(carSvg(garage.carColor, garage.glow));
+  slots.refreshStage(currentRide(garage));
   if (!playerMarker) return;
   playerMarker.getElement().innerHTML = carSvg(garage.carColor, garage.glow);
 }
@@ -1623,4 +1646,29 @@ function showError(text: string) { errorEl.textContent = text; errorEl.toggleAtt
 const ESCAPES: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
 function esc(s: string): string { return s.replace(/[&<>"']/g, (c) => ESCAPES[c]); }
 persist();
+window.slidePreviewGame = {
+  arrival() {
+    openGarage(false);
+    $("#arr-kicker").textContent = "ARRIVED · 4:12 PM";
+    $("#arr-dest").textContent = "Bayside";
+    $("#arr-time").textContent = "18 min";
+    $("#arr-dist").textContent = "3.2 mi";
+    $("#arr-line").textContent = "Slide pick";
+    $("#arr-note").textContent = "Saved to Your trips on this phone.";
+    setHudMode("arrive");
+    slots.preview.arrival(demoAward(), currentRide(garage));
+  },
+  share() {
+    openGarage(false);
+    setHudMode("arrive");
+    $("#arrival").hidden = true;
+    slots.preview.share(demoAward(), currentRide(garage));
+  },
+  stage() {
+    slots.hideAward();
+    setHudMode("plan");
+    openGarage(false);
+    slots.preview.stage(currentRide(garage));
+  },
+};
 // The service worker is registered by boot.ts.

@@ -98,8 +98,8 @@ Work top-down. Check the box in the same PR.
 - [x] On-device progress (`slide.game.v1`) + `useGameProgress()` for Grim's slots (`docs/GAME-LAYER.md`)
 - [x] Share card renderer + `mountShareCard` / `shareTrip` (1080×1350 PNG, no addresses) — Grim still places the slot
 - [x] Opt-in weekly leaderboard local model + `rankWeek` + sync contract in `docs/GAME-LAYER.md` (default OFF, no fake friends)
-- [ ] Opal-style unlock stage + 3D car (Grim / later)
-- [ ] Arrival share-card slot wired to `mountShareCard` (Grim)
+- [x] Opal-style unlock stage + lazy 3D car (`#car-stage`, original low-poly, unlock labels)
+- [x] Arrival XP + share-card slots wired (`#arr-xp`, `#share-card-mount` + `#g-board` opt-in)
 - [ ] Friends leaderboard UI + backend sync (later; opt-in, mutual friends, contract in GAME-LAYER.md)
 
 ## P3 — cars and camera

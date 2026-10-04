@@ -193,6 +193,7 @@ export const HUD_HTML = `
       <div class="toggle"><span>Live traffic</span><input id="g-traffic" type="checkbox" /></div>
       <div class="toggle"><span>Show ghosts</span><input id="g-ghosts" type="checkbox" /></div>
       <div class="toggle"><span>Share my ghost</span><input id="g-share" type="checkbox" /></div>
+      <div class="toggle"><span>Weekly board<small>Opt in to this week's smooth average. Off by default.</small></span><input id="g-board" type="checkbox" /></div>
     </div>
     <div id="car-stage" class="car-stage" data-slot="car-stage" hidden aria-label="3D car stage"></div>
   </div>

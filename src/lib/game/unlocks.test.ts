@@ -6,6 +6,7 @@ import {
   newlyUnlocked,
   STARTER_VEHICLE_IDS,
   unlockCatalog,
+  unlockLabel,
   unlockedLiveries,
   unlockedVehicles,
 } from "./unlocks";
@@ -42,6 +43,13 @@ describe("unlocks", () => {
     const gained = newlyUnlocked(starter, { level: 5, badges: {} });
     expect(gained.some((u) => u.id === "nimbus")).toBe(true);
     expect(gained.some((u) => u.id === "slipstream")).toBe(false);
+  });
+
+  it("names the unlock requirement for the stage", () => {
+    expect(unlockLabel({ kind: "starter" })).toBe("Unlocked");
+    expect(unlockLabel({ kind: "level", level: 5 })).toBe("Level 5");
+    expect(unlockLabel({ kind: "badge", badge: "night-owl", tier: "silver" })).toBe("Night Owl Silver");
+    expect(unlockLabel({ kind: "badge", badge: "gentle-brake", tier: "silver" })).toBe("Soft Pedal Silver");
   });
 
   it("does not break vehicleById for the new originals", () => {

@@ -42,6 +42,7 @@ export {
   unlockedVehicles,
   unlockedLiveries,
   newlyUnlocked,
+  unlockLabel,
   meetsUnlock,
   VEHICLE_UNLOCKS,
   LIVERY_UNLOCKS,

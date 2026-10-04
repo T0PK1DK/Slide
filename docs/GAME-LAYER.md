@@ -1,8 +1,6 @@
-# Game layer (logic only)
+# Game layer
 
-On-device progress for Slide. Logic and storage — no HUD CSS, no edits to existing screens.
-Grim leaves slots on Arrival (XP / badge), a share-card mount, and a 3D-car stage.
-Those slots should call `useGameProgress()` and `mountShareCard(el)`.
+On-device progress for Slide. Logic lives in `src/lib/game/*`. Grim's slots in `src/hud/shell.ts` are filled by `src/hud/gameSlots.ts` (unhide with `el.hidden = false`). New styles stay inside `src/styles.css` using his tokens — no override layer.
 
 Nard owns voice and lane data. No server calls in the game layer yet.
 
@@ -82,7 +80,7 @@ Starter six + Solid / Stripes / Fade stay free (existing Garage unchanged).
 | Halo livery | Soft Pedal silver |
 | Dusk livery | Night Owl bronze |
 
-`canUseVehicle` / `canUseLivery` are the gates for Grim's picker and stage. The Garage still lists only the starter six / three liveries so this PR does not change screen layout.
+`canUseVehicle` / `canUseLivery` are the gates for the stage picker. `unlockLabel(req)` is the one-line requirement (e.g. `Level 5`, `Night Owl Silver`). The Garage picker still lists only the starter six / three liveries; `#car-stage` shows the full catalog.
 
 ## Storage
 
@@ -218,8 +216,8 @@ Local model. **Opt-in defaults OFF.** Week is Monday 00:00 – next Monday 00:00
 
 ```ts
 const board = useLeaderboard();
-board.setOptIn(true);                    // required before anything is shareable
-board.recordTrip(award.score.total, award.shareCard.miles, endedAt);
+board.setOptIn(true);                    // required before anything is recorded or shareable
+board.recordTrip(award.score.total, award.shareCard.miles, endedAt); // no-op unless opted in
 const me = board.shareableEntry(handle); // null if opted out or no trips this week
 const rows = board.rank([me, ...friends].filter(Boolean), board.weekId());
 ```
@@ -250,10 +248,17 @@ Rules the server must keep:
 6. Stopping opt-in deletes the published row for the current week and stops reads of friends' rows.
 7. Transport: existing Supabase session. No new `VITE_` keys. Rate-limit writes (e.g. once per trip commit, not per GPS fix).
 
-Until that lands, `useLeaderboard()` stores `slide.game.board.v1` on the phone. `eraseDeviceData()` wipes it with every other `slide.*` key.
+Until that lands, `useLeaderboard()` stores `slide.game.board.v1` on the phone. `eraseDeviceData()` wipes it with every other `slide.*` key. The Garage `#g-board` toggle is the opt-in (default off). `recordTrip` is a no-op until that box is checked.
+
+## Wired slots (Grim `#arr-xp` / `#share-card-mount` / `#car-stage`)
+
+`src/hud/gameSlots.ts` + `src/lib/game/carStage.ts`:
+
+- `#arr-xp` — after commit, XP earned, `xpBar()`, and the new badge from `lastAward()`. Hidden unless `hasArrivalAward`.
+- `#share-card-mount` — `mountShareCard` with `lastAward().shareCard` + current ride/livery, Share → `shareTrip`.
+- `#car-stage` — Opal-style unlock stage. Lazy `import('three')` (own chunk), original low-poly geometry, livery colors. Locked items show `unlockLabel`. Unlocked picks go through `canUseVehicle` / `canUseLivery`. `prefers-reduced-motion` skips spin.
+- After `game.commit`, `board.recordTrip(score, miles)` (no-op unless opted in).
 
 ## Later PRs
 
-- Opal-style unlock stage + 3D car
-- Arrival slot that calls `mountShareCard` (Grim)
 - Friends leaderboard UI + the sync above (opt-in, mutual friends)

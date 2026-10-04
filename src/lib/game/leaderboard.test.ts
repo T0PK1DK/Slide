@@ -127,14 +127,16 @@ describe("rankWeek", () => {
 });
 
 describe("opt-in store", () => {
-  it("defaults OFF and does not publish until the driver opts in", () => {
+  it("defaults OFF and does not record until the driver opts in", () => {
     const board = createLeaderboard(memoryStore());
     expect(board.isOptedIn()).toBe(false);
     expect(emptyBoard().optIn).toBe(false);
     board.recordTrip(80, 2, monday.getTime());
-    expect(board.myWeek("me", monday.getTime())?.smoothAvg).toBe(80);
+    expect(board.myWeek("me", monday.getTime())).toBeNull();
     expect(board.shareableEntry("me", monday.getTime())).toBeNull();
     board.setOptIn(true);
+    board.recordTrip(80, 2, monday.getTime());
+    expect(board.myWeek("me", monday.getTime())?.smoothAvg).toBe(80);
     expect(board.shareableEntry("me", monday.getTime())?.handle).toBe("me");
   });
 

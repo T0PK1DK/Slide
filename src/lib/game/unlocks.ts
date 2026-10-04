@@ -3,7 +3,7 @@
  * Starter six + Solid/Stripes/Fade stay free so the existing Garage still works.
  * No licensed brands — unlocks are original Slide designs only.
  */
-import { TIER_ORDER, type BadgeId, type BadgeTier } from "./badges";
+import { BADGE_BY_ID, TIER_ORDER, type BadgeId, type BadgeTier } from "./badges";
 import {
   ALL_LIVERIES,
   ALL_VEHICLES,
@@ -101,6 +101,15 @@ export function unlockedVehicles(progress: UnlockProgress): Vehicle[] {
 
 export function unlockedLiveries(progress: UnlockProgress): Livery[] {
   return ALL_LIVERIES.filter((l) => isLiveryUnlocked(l, progress));
+}
+
+/** One-line unlock requirement for the stage picker. */
+export function unlockLabel(req: UnlockReq): string {
+  if (req.kind === "starter") return "Unlocked";
+  if (req.kind === "level") return `Level ${req.level}`;
+  const badge = BADGE_BY_ID[req.badge].name;
+  const tier = req.tier.charAt(0).toUpperCase() + req.tier.slice(1);
+  return `${badge} ${tier}`;
 }
 
 export function newlyUnlocked(

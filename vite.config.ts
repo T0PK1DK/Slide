@@ -58,7 +58,10 @@ export default defineConfig({
     chunkSizeWarningLimit: 1100,
     rollupOptions: {
       output: {
-        manualChunks: (id) => (id.includes("node_modules/maplibre-gl") ? "maplibre" : undefined),
+        manualChunks: (id) => {
+          if (id.includes("node_modules/maplibre-gl")) return "maplibre";
+          if (id.includes("node_modules/three")) return "three";
+        },
       },
     },
   },
