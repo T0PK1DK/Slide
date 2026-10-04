@@ -234,7 +234,7 @@ Read `TASKS.md` top unchecked item. Do not rebase history. Do not rename the pro
 
 - 2026-10-04 Claude: **Supabase project created.** King asked Claude to set up Supabase through the connector as its own project and to hand the rest to Nard. Created `slide` (us-east-1, ref `zmriqctjkhwmhuvxyhdd`) and applied the schema in six small migrations, because the connector times out on large payloads and on any statement containing `delete`. Two functions, `stop_presence` and `delete_my_account`, are left for Nard to paste (SQL in Owner setup). The advisor warnings are the intended RPC design. Nard now does Auth settings, Cloudflare env, FL511, transit feeds and the redeploy.
 
-- 2026-10-04 Nard: **Data turned on (part), verified on a preview.** `kings-slide` is a Direct Upload Pages project, so `VITE_SUPABASE_URL` now lives in a committed `.env.production`; dashboard env vars would never reach the bundle. `TRANSIT_FEEDS` is set as a production + preview secret with the three feeds that work without a key: Broward (105 buses), Tri-Rail (6 trains) and Brightline (8 trains), each fetched and decoded with our decoder. Miami-Dade needs a Swiftly key. Production (2026-09-24 build) predates the Functions, so `/api/*` there returns HTML. On a preview of `main` (`https://nard-verify-main.kings-slide.pages.dev`), `/api/transit` returned all three agencies `ok` (90 BCT + 2 Tri-Rail + 1 Brightline within 20 km of Fort Lauderdale), `/api/incidents` returned `configured:false` (no FL511 key yet), and `/api/cameras` returned "Overpass unreachable" because public Overpass answered 504 at the time. Production was not redeployed; it waits for the anon key.
+- 2026-10-04 Nard: **Data turned on (part), verified on a preview.** `kings-slide` is a Direct Upload Pages project, so `VITE_SUPABASE_URL` now lives in a committed `.env.production`; dashboard env vars would never reach the bundle. `TRANSIT_FEEDS` is set as a production + preview secret with the three feeds that work without a key: Broward (105 buses), Tri-Rail (6 trains) and Brightline (8 trains), each fetched and decoded with our decoder. Miami-Dade needs a Swiftly key. Production (2026-09-24 build) predates the Functions, so `/api/*` there returns HTML. On a preview of `main` (`https://nard-verify-main.kings-slide.pages.dev`), `/api/transit` returned all three agencies `ok` (90 BCT + 2 Tri-Rail + 1 Brightline within 20 km of Fort Lauderdale), `/api/incidents` returned `configured:false` (no FL511 key yet), and `/api/cameras` returned "Overpass unreachable" because public Overpass answered 504 at the time. Then the anon key (`role: anon`) went into `.env.production` and production was redeployed from this branch's tree (main + `.env.production`).
 
 ## Owner setup for accounts + radar
 
@@ -273,7 +273,7 @@ grant execute on function public.delete_my_account() to authenticated;
    - **Email sending:** the built-in sender allows only a few emails per hour, which is fine for testing. For friends at scale, add SMTP (e.g. Resend, which has a free tier).
 2. **Cloudflare Pages `kings-slide`** (account `f52402ec…`). It is a **Direct Upload** project (no Git connection), so Cloudflare never builds the app: `VITE_` values are baked in on the machine that runs `npm run build`, and dashboard env vars never reach the bundle. Server keys are Pages **secrets** read by the Functions at runtime.
    - `VITE_SUPABASE_URL` is in the committed `.env.production` (public value).
-   - `VITE_SUPABASE_ANON_KEY` (public by design): add it to `.env.production`, or pass it in the shell at build time.
+   - `VITE_SUPABASE_ANON_KEY` (public by design, `role: anon`) is in `.env.production` too (2026-10-04). The same two values are also stored as Pages secrets for the record, but the bundle only gets them from `.env.production`.
    - `FL511_API_KEY` (secret): a free key from fl511.com (Developers / API), requested by King.
    - `TRANSIT_FEEDS` (secret): **set on 2026-10-04** for production and preview, with the three feeds that work without a key (see below).
    - Cameras need no key: they use the public Overpass API with OSM attribution.
@@ -283,8 +283,8 @@ grant execute on function public.delete_my_account() to authenticated;
      export CLOUDFLARE_ACCOUNT_ID=f52402ec949a9f17b451e9ec801a9c68
      # FL511 key → production secret (repeat with --env preview for preview deploys)
      printf %s "$FL511_KEY" | npx wrangler pages secret put FL511_API_KEY --project-name kings-slide
-     # Anon key at build time, then deploy production
-     VITE_SUPABASE_ANON_KEY="$ANON_KEY" npm run build && npx wrangler pages deploy dist --project-name kings-slide --branch main
+     # Build (reads .env.production) and deploy production
+     npm run build && npx wrangler pages deploy dist --project-name kings-slide --branch main
      # Preview only (does not touch production): --branch <name> → https://<name>.kings-slide.pages.dev
      ```
 
@@ -327,10 +327,11 @@ Updated 2026-09-25, after PR #13. Claude built everything in **What already work
 
 Follow **Owner setup for accounts + radar** above, step by step:
 - [x] Supabase project `slide` created and the schema applied by Claude (2026-10-04).
-- [ ] Run the short SQL block in **Owner setup → Supabase** (stop sharing + delete account).
-- [ ] Supabase Auth: set the Site URL to `https://kings-slide.pages.dev`, and add `{{ .Token }}` to the Magic Link email template.
+- [x] Run the short SQL block in **Owner setup → Supabase** (stop sharing + delete account) — done 2026-10-04.
+- [x] Supabase Auth Site URL `https://kings-slide.pages.dev` (2026-10-04). The Magic Link template can't be edited without custom SMTP, so the email has a link and no code; the app accepts the link (separate PR).
 - [x] `VITE_SUPABASE_URL` in `.env.production`; `TRANSIT_FEEDS` secret set (production + preview) with Broward, Tri-Rail and Brightline (2026-10-04).
-- [ ] `VITE_SUPABASE_ANON_KEY` + `FL511_API_KEY`, then **redeploy `main`** (commands in Owner setup). Production today is the 2026-09-24 build, which has **no Functions**: `/api/*` on kings-slide.pages.dev returns the app's HTML until the redeploy.
+- [x] `VITE_SUPABASE_ANON_KEY` in `.env.production`; production redeployed with Functions (2026-10-04).
+- [ ] `FL511_API_KEY` secret (King requests the key), then redeploy.
 - [ ] FL511 key: request it free at fl511.com (Developers / API).
 - [x] Transit: Broward, Tri-Rail and Brightline work without a key (table in Owner setup). Miami-Dade needs a Swiftly key (King signs up). Never hard-code a URL in the repo code.
 
