@@ -28,7 +28,8 @@ Work top-down. Check the box in the same PR.
 - [x] Profile: driver, My car, all-time stats, places, privacy (on-device)
 - [x] Accounts (Supabase, email code), profiles, follow/unfollow, friends = mutual follows, driver search
 - [x] Radar mini map + driver reports (police, crash, hazard, closure, jam) with votes, heads-up banner, FL511 incidents
-- [ ] **Owner:** create the Supabase project, set Auth URL + `{{ .Token }}` template, set Pages env vars + FL511 key (HANDOFF → Owner setup)
+- [x] Supabase project `slide` created + schema applied (2026-10-04); 2 functions left to paste (HANDOFF → Owner setup)
+- [ ] **Nard:** Auth URL + `{{ .Token }}` template, Pages env vars + FL511 key + TRANSIT_FEEDS, redeploy (HANDOFF → Owner setup)
 - [ ] Verify FL511 field names against the first real payload
 - [x] Live buses/trains on the radar (GTFS-realtime via TRANSIT_FEEDS) — **owner:** add each agency's feed URL/key
 - [x] Speed / red-light cameras on the radar (OpenStreetMap via Overpass)
