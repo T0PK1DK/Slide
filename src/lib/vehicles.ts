@@ -8,8 +8,14 @@
  * cars) are added as new entries with their own `pack` name — the marker,
  * Garage and save format don't change.
  */
-export type VehicleId = "slipstream" | "brawler" | "hatch" | "ridge" | "hauler" | "classic";
-export type Livery = "solid" | "stripes" | "fade";
+export type StarterVehicleId = "slipstream" | "brawler" | "hatch" | "ridge" | "hauler" | "classic";
+/** Extra original rides. Locked by the game layer until a level or badge opens them. */
+export type UnlockVehicleId = "nimbus" | "glider";
+export type VehicleId = StarterVehicleId | UnlockVehicleId;
+export type StarterLivery = "solid" | "stripes" | "fade";
+/** Extra original liveries. Locked by the game layer; no licensed brands. */
+export type UnlockLivery = "halo" | "dusk";
+export type Livery = StarterLivery | UnlockLivery;
 
 export type Vehicle = {
   id: VehicleId;
@@ -33,8 +39,18 @@ export type Vehicle = {
   tail: [number, number];
 };
 
-export const LIVERIES: readonly Livery[] = ["solid", "stripes", "fade"];
-export const LIVERY_LABEL: Record<Livery, string> = { solid: "Solid", stripes: "Stripes", fade: "Fade" };
+/** Liveries the Garage already lists. Unlockables live on `ALL_LIVERIES`. */
+export const STARTER_LIVERIES: readonly StarterLivery[] = ["solid", "stripes", "fade"];
+export const UNLOCK_LIVERIES: readonly UnlockLivery[] = ["halo", "dusk"];
+export const LIVERIES: readonly Livery[] = STARTER_LIVERIES;
+export const ALL_LIVERIES: readonly Livery[] = [...STARTER_LIVERIES, ...UNLOCK_LIVERIES];
+export const LIVERY_LABEL: Record<Livery, string> = {
+  solid: "Solid",
+  stripes: "Stripes",
+  fade: "Fade",
+  halo: "Halo",
+  dusk: "Dusk",
+};
 
 export const VEHICLES: readonly Vehicle[] = [
   {
@@ -94,10 +110,38 @@ export const VEHICLES: readonly Vehicle[] = [
   },
 ];
 
-export const VEHICLE_IDS: readonly VehicleId[] = VEHICLES.map((v) => v.id);
+/**
+ * Unlockable originals. Not listed in the Garage picker yet (Grim's stage
+ * will show them). `vehicleById` and garage migration still recognise them.
+ */
+export const UNLOCK_VEHICLES: readonly Vehicle[] = [
+  {
+    id: "nimbus", name: "Nimbus", kind: "Touring coupe", pack: "Slide Originals",
+    body: "M24 5C32 5 37 12 38 22L40 50C41 64 38 76 32 80H16C10 76 7 64 8 50L10 22C11 12 16 5 24 5Z",
+    glass: ["M16 26H32L34 36H14Z", "M15 58H33L32 66H16Z"],
+    panels: ["M14 36H34V58H14Z"],
+    details: ["M18 42H30", "M19 48H29"],
+    wheels: [[5, 16, 5, 12], [38, 16, 5, 12], [4, 56, 6, 13], [38, 56, 6, 13]],
+    lights: [[17, 10], [31, 10]],
+    tail: [78, 9],
+  },
+  {
+    id: "glider", name: "Glider", kind: "Low touring wagon", pack: "Slide Originals",
+    body: "M11 10H37C41 10 43 14 43 20V70C43 75 39 78 33 78H15C9 78 5 75 5 70V20C5 14 7 10 11 10Z",
+    glass: ["M10 22H38L36 30H12Z", "M12 62H36L35 70H13Z"],
+    panels: ["M11 30H37V62H11Z"],
+    details: ["M14 36H34", "M14 46H34", "M14 56H34"],
+    wheels: [[3, 16, 6, 12], [39, 16, 6, 12], [3, 58, 6, 13], [39, 58, 6, 13]],
+    lights: [[15, 13], [33, 13]],
+    tail: [76, 11],
+  },
+];
+
+export const ALL_VEHICLES: readonly Vehicle[] = [...VEHICLES, ...UNLOCK_VEHICLES];
+export const VEHICLE_IDS: readonly VehicleId[] = ALL_VEHICLES.map((v) => v.id);
 
 export function vehicleById(id: string): Vehicle {
-  return VEHICLES.find((v) => v.id === id) ?? VEHICLES[0];
+  return ALL_VEHICLES.find((v) => v.id === id) ?? VEHICLES[0];
 }
 
 let uid = 0;
@@ -116,18 +160,25 @@ export function vehicleSvg(look: VehicleLook): string {
   const fade = look.livery === "fade"
     ? `<path d="${v.body}" fill="url(#${id}f)"/>`
     : "";
+  const dusk = look.livery === "dusk"
+    ? `<path d="${v.body}" fill="url(#${id}d)"/>`
+    : "";
+  const halo = look.livery === "halo"
+    ? `<g clip-path="url(#${id}c)"><rect x="22" y="0" width="4" height="84" fill="${accent}" opacity=".9"/></g><ellipse cx="24" cy="18" rx="8" ry="4.5" fill="none" stroke="${accent}" stroke-width="1.4" opacity=".85"/>`
+    : "";
   const [ty, tx] = v.tail;
   return `<svg viewBox="0 0 48 84" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" opacity="${op}">
 <defs>
 <clipPath id="${id}c"><path d="${v.body}"/></clipPath>
 <linearGradient id="${id}s" x1="0" x2="1" y1="0" y2="0"><stop offset="0" stop-color="#000" stop-opacity=".38"/><stop offset=".22" stop-color="#000" stop-opacity="0"/><stop offset=".5" stop-color="#fff" stop-opacity=".14"/><stop offset=".78" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".38"/></linearGradient>
 <linearGradient id="${id}f" x1="0" x2="0" y1="1" y2="0"><stop offset="0" stop-color="${accent}" stop-opacity=".95"/><stop offset=".55" stop-color="${accent}" stop-opacity="0"/></linearGradient>
+<linearGradient id="${id}d" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="${accent}" stop-opacity=".9"/><stop offset=".45" stop-color="${paint}" stop-opacity="0"/></linearGradient>
 <filter id="${id}g" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="3"/></filter>
 </defs>
 <ellipse cx="24" cy="44" rx="19" ry="38" fill="${accent}" opacity=".45" filter="url(#${id}g)"/>
 ${v.wheels.map(([x, y, w, h]) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="2" fill="#0a0b0d"/>`).join("")}
 <path d="${v.body}" fill="${paint}"/>
-${fade}${stripes}
+${fade}${dusk}${stripes}${halo}
 ${(v.panels ?? []).map((d) => `<path d="${d}" fill="#fff" opacity=".07"/>`).join("")}
 <path d="${v.body}" fill="url(#${id}s)"/>
 ${(v.details ?? []).map((d) => `<path d="${d}" fill="none" stroke="#000" stroke-opacity=".35" stroke-width="1.2" stroke-linecap="round"/>`).join("")}

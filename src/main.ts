@@ -53,6 +53,7 @@ import { mountFriends } from "./map/friends";
 import { createYouMarker } from "./map/you";
 import { mountCommand } from "./hud/command";
 import { recordTrip } from "./lib/history";
+import { useGameProgress } from "./lib/game";
 import { loadProfile } from "./lib/profile";
 import {
   cumulativeMiles,
@@ -93,6 +94,7 @@ you.setCar(carSvg(garage.carColor, garage.glow));
 type DriveLog = { startedAt: number; live: boolean; offRouteEvents: number; wasOff: boolean; drivenMi: number; lastPos: LonLat | null };
 const freshLog = (): DriveLog => ({ startedAt: 0, live: false, offRouteEvents: 0, wasOff: false, drivenMi: 0, lastPos: null });
 let driveLog = freshLog();
+const game = useGameProgress();
 map.addControl(new maplibregl.AttributionControl({ compact: true }), "top-right");
 
 let origin: LonLat | null = null;
@@ -641,6 +643,7 @@ function setHudMode(mode: HudMode) {
 function startDrive() {
   if (!routes.length) return;
   driveLog = { ...freshLog(), startedAt: Date.now() };
+  game.beginDrive();
   offSince = 0;
   disp = null;
   followCamera = true;
@@ -733,6 +736,12 @@ function saveDriveToHistory() {
     offRouteEvents: log.offRouteEvents,
     postedProfile: route.bands.filter((_, i) => i % step === 0).map((b) => b.postedMph ?? b.expectedMph),
     tollRoad: route.hasToll,
+  });
+  game.commit({
+    tripId: `t${log.startedAt}`,
+    startedAt: log.startedAt,
+    endedAt: Date.now(),
+    distanceMi: Math.round(log.drivenMi * 100) / 100,
   });
   command.refreshHistory();
 }
@@ -872,6 +881,16 @@ function startLocation(opts: { center: boolean }) {
             if (m < 500) driveLog.drivenMi += m / 1609.344;
           }
           driveLog.lastPos = fix.pos;
+          const route = routes.find((r) => r.id === selectedId);
+          const postedMph = route ? postedOutlook(route.bands, progressMi)?.currentMph ?? null : null;
+          game.recordSample({
+            at: fix.at,
+            speedMph: fix.speedMph,
+            headingDeg: fix.headingDeg,
+            postedMph,
+            lon: fix.pos.lon,
+            lat: fix.pos.lat,
+          });
         }
       }
       if (!first) return;
