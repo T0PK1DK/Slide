@@ -35,6 +35,7 @@ export const HUD_HTML = `
           <button class="icon" id="tune">Tune</button>
         </div>
         <div class="error" id="error" hidden></div>
+        <div id="leave-by" class="leave-by" aria-label="Leave by"></div>
       </div>
     </div>
     <div class="panel status-pill" id="status">Locking a 3D line…</div>
