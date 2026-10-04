@@ -95,6 +95,8 @@ src/lib/sources/weather.ts  Open-Meteo current conditions for the clock card (CC
 public/                web manifest, PNG/maskable/apple-touch icons, shell-only sw.js, Pages _headers (Add to Home Screen)
 docs/PRODUCT.md        scoring contract
 docs/DESIGN.md         VIA style contract + screen-by-screen build spec
+docs/DESIGN-RESEARCH.md  design research (Waze/Google/Apple/game apps), root cause, full gap list, build order — read before any UI work
+design/premium-glass-kit/  owner's design kit: tokens.css, DESIGN-SYSTEM.md, COMPONENTS.md (source for the token rebuild)
 docs/STRATEGY.md       why Slide wins, Effort metric, design recon (Borrowed / Rejected / Unique)
 HANDOFF.md             this file
 .env.production        public build values (Supabase URL; anon key goes here) — kings-slide is Direct Upload
@@ -253,6 +255,8 @@ Read `TASKS.md` top unchecked item. Do not rebase history. Do not rename the pro
 - 2026-10-04 Claude: **Rides (pick your car).** The owner wants a Google Maps-style car marker plus Hot Wheels-style customisation and a game feel, with future game collabs in mind, as a Waze competitor. Added `src/lib/vehicles.ts`: six original top-down designs (Slipstream hypercar, Brawler muscle, Pocket hatch, Ridge SUV, Hauler pickup, and Classic, the original Slide wedge). Each has paint, the Garage glow as accent (underglow and trim) and a livery (Solid / Stripes / Fade). The Garage now opens with a **showroom**: the selected car idling on a glowing stage, a card per ride, livery pills, and a 10-colour paint palette. Your ride is the drive marker, and in Plan/Explore the blue dot turns into your car while you're moving (like Google Maps). Saved as `vehicle` / `livery` in the garage, with migration. Every entry has a `pack` ("Slide Originals"): a licensed collab pack is just new registry entries, and **no real brands or game cars without a signed licence**. 70 tests pass; browser-checked with no page errors.
 
 - 2026-10-04 Claude: **Finish pass.** Walked every screen in a headless browser (search, route review, route options, drive, menu, desktop review), faking Photon/Valhalla in the test harness only. Fixes:
+
+- 2026-10-04 Claude: **Design research handed to Grim, Nard and Leon.** Wrote `docs/DESIGN-RESEARCH.md`. **Root cause** of the repeated UI mistakes: `styles.css` is 6 stacked override layers, with 16 radii, 67 raw hex colours, 30 font sizes and 19 `!important`. It also has Mobbin research (Waze, Google Maps, Apple Maps, dashboards, game/reward apps) with links, a full gap list (voice guidance missing, lanes, route cards, report grid, place card, offline states, game layer, 3D ride, share card) and a build order per person. Copied the owner's premium-glass-kit into `design/premium-glass-kit/` as the token source.
   - Desktop: the radar and Report button overlapped the route sheet. They now sit top-left of the map.
   - The radar was still a separate green theme. It's now graphite glass with the Slide accent sweep.
   - Phone drive: the speed chip overlapped the turn card. The stack is now turn card → chip → radar.

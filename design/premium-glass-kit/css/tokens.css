@@ -1,0 +1,294 @@
+/* =====================================================================
+   PREMIUM GLASS KIT — DESIGN TOKENS
+   Every visual decision lives here. Components only read variables.
+   Add a theme: copy one [data-theme] block, rename, change values.
+   ===================================================================== */
+
+/* ---------- 1. Theme-independent scales ---------- */
+:root {
+  /* Typography */
+  --font-sans: "Inter", "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-display: "Inter", "SF Pro Display", -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", ui-monospace, Menlo, monospace;
+
+  --fw-thin: 200;      /* hero numerals (78.3) */
+  --fw-light: 300;     /* large numbers, slide headlines */
+  --fw-regular: 400;   /* body, titles */
+  --fw-medium: 500;    /* labels that need weight, buttons */
+  --fw-semibold: 600;  /* rarely: tiny caps labels */
+
+  --fs-2xs: 10px;   /* axis ticks */
+  --fs-xs: 11px;    /* meta, captions */
+  --fs-sm: 12px;    /* secondary text */
+  --fs-md: 13px;    /* body / card titles */
+  --fs-lg: 15px;    /* section titles */
+  --fs-xl: 18px;    /* panel titles */
+  --fs-2xl: 24px;   /* medium stats (2.5 min) */
+  --fs-3xl: 32px;   /* KPI numbers (12 / 4) */
+  --fs-4xl: 44px;   /* hero stat (78.3%) */
+  --fs-5xl: 64px;   /* marketing slide headline */
+
+  --lh-tight: 1.1;
+  --lh-snug: 1.3;
+  --lh-normal: 1.5;
+  --tracking-tight: -0.02em;   /* big numerals */
+  --tracking-normal: -0.005em;
+  --tracking-caps: 0.08em;     /* LIVE NETWORK style labels */
+
+  /* Spacing — 4px base */
+  --space-0: 0;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* Radii */
+  --radius-xs: 6px;     /* chips inside cards, segment bars */
+  --radius-sm: 10px;    /* icon tiles, inputs */
+  --radius-md: 14px;    /* cards */
+  --radius-lg: 18px;    /* panels / columns */
+  --radius-xl: 26px;    /* hero/map panel, device mockup */
+  --radius-pill: 999px;
+
+  /* Layout */
+  --nav-h: 56px;
+  --col-left: 300px;
+  --col-right: 320px;
+  --gutter: 12px;
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);       /* soft settle */
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1); /* tiny overshoot, use rarely */
+  --dur-fast: 140ms;   /* hover, press */
+  --dur-base: 240ms;   /* toggles, theme swap */
+  --dur-slow: 520ms;   /* entrance */
+  --dur-ambient: 2.4s; /* pulses, live dots */
+
+  /* Glass */
+  --blur-sm: 12px;
+  --blur-md: 20px;
+  --blur-lg: 32px;
+  --saturate: 140%;
+}
+
+/* ---------- 2. NIGHT — graphite, closest to the reference ---------- */
+:root,
+[data-theme="night"] {
+  color-scheme: dark;
+
+  /* Surfaces (sampled from reference) */
+  --bg-0: #05090c;          /* app background, near-black blue-graphite */
+  --bg-1: #0a0e11;          /* column backdrop */
+  --surface-1: #0f1316;     /* card */
+  --surface-2: #161a1e;     /* raised card / panel */
+  --surface-3: #1c2023;     /* hover */
+  --surface-sel: #262a2e;   /* selected list item */
+
+  /* Glass recipe */
+  --glass-fill: rgba(22, 26, 30, 0.62);
+  --glass-fill-strong: rgba(30, 34, 38, 0.78);
+  --glass-tint: linear-gradient(180deg, rgba(255,255,255,0.045) 0%, rgba(255,255,255,0.012) 100%);
+  --glass-border: rgba(255, 255, 255, 0.07);
+  --glass-border-strong: rgba(255, 255, 255, 0.12);
+  --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  --glass-shadow: 0 1px 2px rgba(0,0,0,0.4), 0 12px 32px -12px rgba(0, 0, 0, 0.7);
+  --glass-shadow-float: 0 24px 60px -16px rgba(0, 0, 0, 0.85), 0 2px 6px rgba(0,0,0,0.5);
+
+  /* Text */
+  --text-1: #f2f4f5;        /* primary */
+  --text-2: #9aa0a6;        /* secondary / descriptions */
+  --text-3: #5f666c;        /* tertiary / axis ticks */
+  --text-inverse: #0b0e10;
+
+  /* Lines */
+  --line: rgba(255, 255, 255, 0.06);
+  --line-strong: rgba(255, 255, 255, 0.11);
+  --grid-line: rgba(255, 255, 255, 0.05);
+
+  /* Brand accent — King's warm orange, used sparingly */
+  --accent: #e79d58;
+  --accent-strong: #f0a35e;
+  --accent-soft: rgba(231, 157, 88, 0.14);
+  --accent-glow: 0 0 12px rgba(231, 157, 88, 0.65);
+
+  /* Status semantics */
+  --ok: #5dd17e;            /* live dot */
+  --ok-muted: #4e8a64;      /* segmented bar fill */
+  --ok-soft: rgba(93, 209, 126, 0.12);
+  --info: #4a8ae0;
+  --info-solid: #2f66b8;    /* icon tile */
+  --info-text: #8bb4e5;
+  --info-soft: rgba(74, 138, 224, 0.12);
+  --danger: #e5484d;
+  --danger-dot: #dd3633;
+  --danger-text: #ff8a8a;
+  --danger-soft: rgba(229, 72, 77, 0.12);
+  --danger-tile: #5a1f25;
+  --danger-glow: 0 0 18px rgba(229, 72, 77, 0.55);
+  --warn: var(--accent);
+
+  /* Data viz */
+  --viz-line: rgba(255, 255, 255, 0.82);
+  --viz-area-top: rgba(255, 255, 255, 0.16);
+  --viz-area-bottom: rgba(255, 255, 255, 0);
+  --viz-bar: rgba(255, 255, 255, 0.22);
+  --viz-bar-top: rgba(255, 255, 255, 0.42);
+  --viz-bar-peak: #e79d58;
+  --viz-seg-empty: rgba(255, 255, 255, 0.14);
+
+  /* Map / hero */
+  --map-water: #04080b;
+  --map-land: #11171c;
+  --map-land-edge: rgba(255, 255, 255, 0.05);
+  --map-light: 255, 214, 170;      /* rgb triplet for city lights */
+  --map-light-cool: 210, 225, 240;
+  --map-path: #ffffff;
+  --map-path-glow: rgba(255, 255, 255, 0.55);
+  --map-vignette: rgba(3, 6, 8, 0.85);
+
+  /* App backdrop */
+  --app-bg: radial-gradient(1200px 600px at 50% -10%, rgba(255,255,255,0.035), transparent 60%), var(--bg-0);
+}
+
+/* ---------- 3. EMBER — warm dark (espresso + amber) — optional extra theme ---------- */
+[data-theme="ember"] {
+  color-scheme: dark;
+
+  --bg-0: #0d0907;
+  --bg-1: #130e0b;
+  --surface-1: #19130f;
+  --surface-2: #211913;
+  --surface-3: #2a2018;
+  --surface-sel: #33271d;
+
+  --glass-fill: rgba(36, 26, 19, 0.6);
+  --glass-fill-strong: rgba(44, 32, 23, 0.8);
+  --glass-tint: linear-gradient(180deg, rgba(255,214,170,0.06) 0%, rgba(255,214,170,0.012) 100%);
+  --glass-border: rgba(255, 210, 160, 0.09);
+  --glass-border-strong: rgba(255, 210, 160, 0.16);
+  --glass-highlight: inset 0 1px 0 rgba(255, 225, 190, 0.08);
+  --glass-shadow: 0 1px 2px rgba(0,0,0,0.45), 0 12px 32px -12px rgba(10, 4, 0, 0.8);
+  --glass-shadow-float: 0 24px 60px -16px rgba(10, 4, 0, 0.9), 0 2px 6px rgba(0,0,0,0.5);
+
+  --text-1: #f7efe6;
+  --text-2: #b9a896;
+  --text-3: #7a6b5c;
+  --text-inverse: #140e0a;
+
+  --line: rgba(255, 220, 180, 0.07);
+  --line-strong: rgba(255, 220, 180, 0.13);
+  --grid-line: rgba(255, 220, 180, 0.06);
+
+  --accent: #ff9f43;
+  --accent-strong: #ffb45e;
+  --accent-soft: rgba(255, 159, 67, 0.16);
+  --accent-glow: 0 0 14px rgba(255, 159, 67, 0.75);
+
+  --ok: #7fd67a;
+  --ok-muted: #6c8f4f;
+  --ok-soft: rgba(127, 214, 122, 0.12);
+  --info: #6aa6e8;
+  --info-solid: #3a6ea8;
+  --info-text: #a9c8ec;
+  --info-soft: rgba(106, 166, 232, 0.12);
+  --danger: #f0544a;
+  --danger-dot: #f0544a;
+  --danger-text: #ff9a8f;
+  --danger-soft: rgba(240, 84, 74, 0.13);
+  --danger-tile: #5e2219;
+  --danger-glow: 0 0 18px rgba(240, 84, 74, 0.55);
+  --warn: var(--accent);
+
+  --viz-line: rgba(255, 228, 196, 0.85);
+  --viz-area-top: rgba(255, 170, 90, 0.2);
+  --viz-area-bottom: rgba(255, 170, 90, 0);
+  --viz-bar: rgba(255, 220, 180, 0.2);
+  --viz-bar-top: rgba(255, 220, 180, 0.4);
+  --viz-bar-peak: #ff9f43;
+  --viz-seg-empty: rgba(255, 220, 180, 0.14);
+
+  --map-water: #0b0705;
+  --map-land: #17110c;
+  --map-land-edge: rgba(255, 200, 140, 0.06);
+  --map-light: 255, 176, 96;
+  --map-light-cool: 255, 220, 170;
+  --map-path: #fff3e2;
+  --map-path-glow: rgba(255, 170, 90, 0.6);
+  --map-vignette: rgba(8, 4, 2, 0.85);
+
+  --app-bg: radial-gradient(1000px 520px at 50% -10%, rgba(255,150,60,0.08), transparent 60%), var(--bg-0);
+}
+
+/* ---------- 4. WARM — warm light (daytime), King's oranges ---------- */
+[data-theme="warm"] {
+  color-scheme: light;
+
+  --bg-0: #efe9e1;
+  --bg-1: #ebe4da;
+  --surface-1: #f7f3ee;
+  --surface-2: #fbf8f4;
+  --surface-3: #f1ebe3;
+  --surface-sel: #ffffff;
+
+  --glass-fill: rgba(255, 252, 248, 0.62);
+  --glass-fill-strong: rgba(255, 252, 248, 0.82);
+  --glass-tint: linear-gradient(180deg, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.25) 100%);
+  --glass-border: rgba(70, 45, 20, 0.09);
+  --glass-border-strong: rgba(70, 45, 20, 0.15);
+  --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  --glass-shadow: 0 1px 2px rgba(70,45,20,0.06), 0 12px 32px -14px rgba(70, 45, 20, 0.22);
+  --glass-shadow-float: 0 24px 60px -18px rgba(70, 45, 20, 0.35), 0 2px 6px rgba(70,45,20,0.08);
+
+  --text-1: #1f1a15;
+  --text-2: #6e645a;
+  --text-3: #a09486;
+  --text-inverse: #fffaf4;
+
+  --line: rgba(70, 45, 20, 0.08);
+  --line-strong: rgba(70, 45, 20, 0.14);
+  --grid-line: rgba(70, 45, 20, 0.07);
+
+  --accent: #e0782a;
+  --accent-strong: #d16a1c;
+  --accent-soft: rgba(224, 120, 42, 0.12);
+  --accent-glow: 0 0 12px rgba(224, 120, 42, 0.45);
+
+  --ok: #2f9e57;
+  --ok-muted: #59a174;
+  --ok-soft: rgba(47, 158, 87, 0.1);
+  --info: #2f6fd0;
+  --info-solid: #2f6fd0;
+  --info-text: #2a5fae;
+  --info-soft: rgba(47, 111, 208, 0.09);
+  --danger: #d43d3d;
+  --danger-dot: #d43d3d;
+  --danger-text: #b42d2d;
+  --danger-soft: rgba(212, 61, 61, 0.08);
+  --danger-tile: #d43d3d;
+  --danger-glow: 0 0 14px rgba(212, 61, 61, 0.35);
+  --warn: var(--accent);
+
+  --viz-line: #2a231d;
+  --viz-area-top: rgba(224, 120, 42, 0.18);
+  --viz-area-bottom: rgba(224, 120, 42, 0);
+  --viz-bar: rgba(60, 40, 20, 0.16);
+  --viz-bar-top: rgba(60, 40, 20, 0.32);
+  --viz-bar-peak: #e0782a;
+  --viz-seg-empty: rgba(60, 40, 20, 0.12);
+
+  --map-water: #dcd3c6;
+  --map-land: #ece5db;
+  --map-land-edge: rgba(70, 45, 20, 0.1);
+  --map-light: 150, 110, 70;
+  --map-light-cool: 120, 100, 80;
+  --map-path: #2a231d;
+  --map-path-glow: rgba(224, 120, 42, 0.35);
+  --map-vignette: rgba(239, 233, 225, 0.6);
+
+  --app-bg: radial-gradient(1200px 600px at 50% -10%, rgba(255,255,255,0.8), transparent 60%), var(--bg-0);
+}
