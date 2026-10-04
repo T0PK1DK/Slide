@@ -6,11 +6,14 @@ import type { Fix } from "../lib/tracking";
  * slow pulse rings (SEKAI reference), a heading cone when the phone knows which
  * way it's moving, and an accuracy halo sized in real metres. Shown whenever
  * location is on, in Plan and Explore. Drive mode hides it because the 3D car
- * takes over the same spot.
+ * takes over the same spot. While moving (heading known, >2 mph) the dot
+ * becomes the driver's Garage ride, like Google Maps' car icon.
  */
 export type YouMarker = {
   update(fix: Fix): void;
   setVisible(on: boolean): void;
+  /** Your Garage ride, shown in place of the dot while you're moving. */
+  setCar(svg: string): void;
   remove(): void;
 };
 
@@ -26,9 +29,11 @@ export function createYouMarker(map: maplibregl.Map): YouMarker {
     <span class="you-pulse"></span>
     <span class="you-pulse you-pulse-2"></span>
     <span class="you-cone" hidden></span>
-    <span class="you-dot"></span>`;
+    <span class="you-dot"></span>
+    <span class="you-car" hidden></span>`;
   const acc = el.querySelector<HTMLElement>(".you-acc")!;
   const cone = el.querySelector<HTMLElement>(".you-cone")!;
+  const car = el.querySelector<HTMLElement>(".you-car")!;
 
   const marker = new maplibregl.Marker({ element: el, anchor: "center", rotationAlignment: "map", pitchAlignment: "map" });
   let added = false;
@@ -50,11 +55,16 @@ export function createYouMarker(map: maplibregl.Map): YouMarker {
       if (!added) { marker.addTo(map); map.on("zoom", sizeAccuracy); added = true; }
       const moving = fix.headingDeg !== null && fix.speedMph > 2;
       cone.hidden = !moving;
+      car.hidden = !moving;
+      el.classList.toggle("moving", moving);
       if (moving) marker.setRotation(fix.headingDeg!);
       el.classList.remove("stale");
       window.clearTimeout(staleTimer);
       staleTimer = window.setTimeout(() => el.classList.add("stale"), STALE_MS);
       sizeAccuracy();
+    },
+    setCar(svg) {
+      car.innerHTML = svg;
     },
     setVisible(on) {
       el.style.display = on ? "" : "none";

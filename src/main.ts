@@ -20,6 +20,7 @@ import {
   viaLine,
   type SlideRoute,
 } from "./lib/smooth";
+import { LIVERIES, LIVERY_LABEL, VEHICLES, vehicleById, vehicleSvg, type Livery, type VehicleId } from "./lib/vehicles";
 import { loadGarage, saveGarage, TRAILS, type GarageConfig, type Look, type SavedPlace } from "./lib/garage";
 import { bubbleCandidates, mergeVariantTrips, pickFree, tollLabel, variantsFor } from "./plan/routeset";
 import { dropIndex, MAX_STOPS, moveItem, stopsReached } from "./plan/stops";
@@ -84,7 +85,10 @@ const map = new maplibregl.Map({
   attributionControl: false,
   maxPitch: 75,
 });
+/** Garage paints (game palette). */
+const PAINTS = ["#e8eef2", "#111318", "#d7263d", "#ff8a4c", "#f6c945", "#3ddc84", "#2f7cff", "#b388ff", "#7cf0d8", "#8fd3ff"];
 const you = createYouMarker(map);
+you.setCar(carSvg(garage.carColor, garage.glow));
 /** Recorded into on-device history only when the drive ran on live GPS (never a false start). */
 type DriveLog = { startedAt: number; live: boolean; offRouteEvents: number; wasOff: boolean; drivenMi: number; lastPos: LonLat | null };
 const freshLog = (): DriveLog => ({ startedAt: 0, live: false, offRouteEvents: 0, wasOff: false, drivenMi: 0, lastPos: null });
@@ -581,8 +585,9 @@ function wireGarage() {
   const share = $("#g-share") as HTMLInputElement;
   tag.value = garage.tag; trail.value = garage.trail; cam.value = garage.camera;
   build.checked = garage.showBuildings; ghostsBox.checked = garage.showGhosts; share.checked = garage.shareGhost;
-  paintSwatches($("#g-body"), ["#e8eef2","#7cf0d8","#b388ff","#ff8a4c","#8fd3ff","#111318"], garage.carColor, (c) => { garage.carColor = c; persist(); restylePlayer(); });
-  paintSwatches($("#g-glow"), ["#f0a04b","#78e0c8","#b388ff","#8fd3ff","#d6ff3c"], garage.glow, (c) => { garage.glow = c; persist(); });
+  paintSwatches($("#g-body"), PAINTS, garage.carColor, (c) => { garage.carColor = c; persist(); restylePlayer(); });
+  paintSwatches($("#g-glow"), ["#f0a04b","#78e0c8","#b388ff","#8fd3ff","#d6ff3c","#ff4d6d"], garage.glow, (c) => { garage.glow = c; persist(); restylePlayer(); });
+  paintShowroom();
   tag.addEventListener("change", () => { garage.tag = tag.value.toUpperCase() || "SLIDE-01"; persist(); });
   trail.addEventListener("change", () => { garage.trail = trail.value as GarageConfig["trail"]; persist(); paintRoutes(); });
   cam.addEventListener("change", () => { garage.camera = cam.value as GarageConfig["camera"]; persist(); applyCamera(garage.camera); });
@@ -1162,9 +1167,9 @@ function bootDrive() {
   if (!raf) { lastTs = performance.now(); raf = requestAnimationFrame(tick); }
 }
 function carSvg(color: string, glow: string, ghost = false): string {
-  const opacity = ghost ? 0.6 : 1;
-  const id = `cg${Math.random().toString(36).slice(2, 8)}`;
-  return `<svg viewBox="0 0 44 72" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${glow}" stop-opacity=".95"/><stop offset="1" stop-color="${color}" stop-opacity="${opacity}"/></linearGradient></defs><ellipse cx="22" cy="66" rx="12" ry="4.5" fill="${glow}" opacity=".4"/><path d="M13 58 L22 8 L31 58 Z" fill="url(#${id})" stroke="${glow}" stroke-width="1.8"/><path d="M17 32 L22 16 L27 32 Z" fill="#0b1218" opacity=".4"/><circle cx="16" cy="14" r="2.2" fill="#fff6c8"/><circle cx="28" cy="14" r="2.2" fill="#fff6c8"/></svg>`;
+  return ghost
+    ? vehicleSvg({ model: "classic", paint: color, accent: glow, livery: "solid", ghost: true })
+    : vehicleSvg({ model: garage.vehicle, paint: color, accent: glow, livery: garage.livery });
 }
 function spawnPlayer() {
   playerMarker?.remove();
@@ -1174,8 +1179,30 @@ function spawnPlayer() {
   playerMarker = new maplibregl.Marker({ element: el, anchor: "center", pitchAlignment: "map", rotationAlignment: "map" }).setLngLat(selectedCoords[0]).addTo(map);
 }
 function restylePlayer() {
+  paintShowroom();
+  you.setCar(carSvg(garage.carColor, garage.glow));
   if (!playerMarker) return;
   playerMarker.getElement().innerHTML = carSvg(garage.carColor, garage.glow);
+}
+/** Garage showroom: big preview, a card per ride, livery pills. */
+function paintShowroom() {
+  const stage = document.querySelector<HTMLElement>("#g-preview");
+  if (!stage) return;
+  const v = vehicleById(garage.vehicle);
+  stage.innerHTML = carSvg(garage.carColor, garage.glow);
+  $("#g-ride-name").textContent = v.name;
+  $("#g-ride-kind").textContent = v.kind;
+  $("#g-ride-pack").textContent = v.pack;
+  const rides = $("#g-rides");
+  rides.innerHTML = VEHICLES.map((r) => `<button type="button" role="radio" class="ride${r.id === garage.vehicle ? " on" : ""}" aria-checked="${r.id === garage.vehicle}" data-ride="${r.id}" aria-label="${r.name}, ${r.kind}">${vehicleSvg({ model: r.id, paint: garage.carColor, accent: garage.glow, livery: garage.livery })}<span>${r.name}</span></button>`).join("");
+  rides.querySelectorAll<HTMLButtonElement>("[data-ride]").forEach((b) => b.addEventListener("click", () => {
+    garage.vehicle = b.dataset.ride as VehicleId; persist(); restylePlayer();
+  }));
+  const liv = $("#g-livery");
+  liv.innerHTML = LIVERIES.map((l) => `<button type="button" role="radio" class="${l === garage.livery ? "on" : ""}" aria-checked="${l === garage.livery}" data-livery="${l}">${LIVERY_LABEL[l]}</button>`).join("");
+  liv.querySelectorAll<HTMLButtonElement>("[data-livery]").forEach((b) => b.addEventListener("click", () => {
+    garage.livery = b.dataset.livery as Livery; persist(); restylePlayer();
+  }));
 }
 function spawnGhosts() {
   ghostMarkers.forEach((m) => m.remove()); ghostMarkers = [];

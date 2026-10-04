@@ -1,3 +1,5 @@
+import { LIVERIES, VEHICLE_IDS, type Livery, type VehicleId } from "./vehicles";
+
 export type CameraMode = "cinematic" | "chase" | "top";
 export type TrailStyle = "plasma" | "ember" | "ice" | "volt";
 export type MapSkin = "cinematic" | "apple" | "slide";
@@ -20,6 +22,9 @@ export type SavedPlace = { label: string; lon: number; lat: number };
 export type GarageConfig = {
   tag: string;
   carColor: string;
+  /** Your ride on the map (src/lib/vehicles.ts) and its livery. */
+  vehicle: VehicleId;
+  livery: Livery;
   glow: string;
   trail: TrailStyle;
   camera: CameraMode;
@@ -51,6 +56,8 @@ export const TRAILS: Record<TrailStyle, { line: string; ghost: string }> = {
 export const DEFAULT_GARAGE: GarageConfig = {
   tag: "SLIDE-01",
   carColor: "#e8eef2",
+  vehicle: "slipstream",
+  livery: "stripes",
   glow: "#f0a04b",
   trail: "plasma",
   camera: "cinematic",
@@ -100,6 +107,8 @@ export function migrateGarage(saved: unknown): GarageConfig {
   if (typeof saved.tag === "string" && saved.tag.trim()) out.tag = saved.tag.trim().slice(0, 12);
   if (typeof saved.carColor === "string" && HEX.test(saved.carColor)) out.carColor = saved.carColor;
   if (typeof saved.glow === "string" && HEX.test(saved.glow)) out.glow = saved.glow;
+  if (typeof saved.vehicle === "string" && (VEHICLE_IDS as readonly string[]).includes(saved.vehicle)) out.vehicle = saved.vehicle as VehicleId;
+  if (typeof saved.livery === "string" && (LIVERIES as readonly string[]).includes(saved.livery)) out.livery = saved.livery as Livery;
   if (typeof saved.trail === "string" && saved.trail in TRAILS) out.trail = saved.trail as TrailStyle;
   if (typeof saved.camera === "string" && (CAMERAS as readonly string[]).includes(saved.camera)) out.camera = saved.camera as CameraMode;
   // The flat night skin was once called "waze"; it's Slide's own look now.
