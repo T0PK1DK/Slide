@@ -1,3 +1,4 @@
+import { HttpError } from "../plan/failure";
 export const VALHALLA_URL =
   "https://valhalla1.openstreetmap.de";
 export const PHOTON_URL = "https://photon.komoot.io/api";
@@ -171,7 +172,12 @@ async function fetchJson(url: string, init: RequestInit = {}, ms = 8000): Promis
     try {
       const res = await fetch(url, { ...init, signal: ctrl.signal });
       status = res.status;
-      if (!res.ok) throw new Error(`${res.status}`);
+      if (!res.ok) {
+        // Keep Valhalla's own reason (e.g. 442 "No path could be found") so the UI can say "no route" instead of "offline".
+        let code: number | null = null, detail = "";
+        try { const j = await res.json(); code = typeof j?.error_code === "number" ? j.error_code : null; detail = String(j?.error ?? ""); } catch { /* not JSON */ }
+        throw new HttpError(res.status, code, detail);
+      }
       return await res.json();
     } catch (err) {
       last = err;

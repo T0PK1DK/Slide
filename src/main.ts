@@ -24,6 +24,7 @@ import {
 import { loadGarage, saveGarage, TRAILS, type GarageConfig, type SavedPlace } from "./lib/garage";
 import { bubbleCandidates, mergeVariantTrips, pickFree, tollLabel, variantsFor } from "./plan/routeset";
 import { dropIndex, MAX_STOPS, moveItem, stopsReached } from "./plan/stops";
+import { classifyFailure, type FailWhat } from "./plan/failure";
 import { stepGhost, type GhostCar } from "./lib/ghosts";
 import {
   buildSteps,
@@ -110,6 +111,14 @@ app.innerHTML = `
         <button class="ghost" id="loc-search" type="button">Search a start point instead</button>
         <button class="primary" id="loc-retry" type="button">Try again</button>
         <button class="icon loc-close" id="loc-close" type="button" aria-label="Dismiss">×</button>
+      </div>
+    </div>
+    <div class="panel loc-banner net-sheet" id="net-sheet" role="alert" hidden>
+      <b class="net-title" id="net-title"></b>
+      <p id="net-msg"></p>
+      <div class="loc-actions">
+        <button class="primary" id="net-retry" type="button">Try again</button>
+        <button class="icon loc-close" id="net-close" type="button" aria-label="Dismiss">×</button>
       </div>
     </div>
     <div class="panel maneuver drive-only" id="maneuver" hidden>
@@ -358,6 +367,14 @@ $("#ro-done").addEventListener("click", () => {
 });
 $("#locate").addEventListener("click", locateMe);
 $("#loc-close").addEventListener("click", hideLocationProblem);
+$("#net-close").addEventListener("click", hideFailure);
+$("#net-retry").addEventListener("click", () => { const again = netRetry; hideFailure(); again?.(); });
+window.addEventListener("online", () => {
+  const sheet = $("#net-sheet");
+  if (sheet.hidden || sheet.dataset.kind !== "offline") return;
+  $("#net-title").textContent = "Back online";
+  $("#net-msg").textContent = "Your connection is back. Tap Try again.";
+});
 $("#loc-retry").addEventListener("click", () => {
   hideLocationProblem();
   if (hudMode === "plan" && dest) void plan();
@@ -633,6 +650,24 @@ function showLocationProblem(problem: LocationProblem) {
 function hideLocationProblem() {
   $("#loc-banner").setAttribute("hidden", "");
 }
+/** Offline / server down / no road between the points: say which, with one Try again. */
+let netRetry: (() => void) | null = null;
+let netWhat: FailWhat | null = null;
+function showFailure(err: unknown, what: FailWhat, retry: () => void) {
+  const f = classifyFailure(err, navigator.onLine, what);
+  $("#net-title").textContent = f.title;
+  $("#net-msg").textContent = f.body;
+  const sheet = $("#net-sheet");
+  sheet.dataset.kind = f.kind;
+  netRetry = retry;
+  netWhat = what;
+  sheet.removeAttribute("hidden");
+}
+function hideFailure() {
+  $("#net-sheet").setAttribute("hidden", "");
+  netRetry = null;
+  netWhat = null;
+}
 function applyPlanView() {
   const phone = window.innerWidth < 820;
   toggleBuildings(phone ? false : garage.showBuildings);
@@ -898,7 +933,11 @@ function bindSearch(input: HTMLInputElement, box: HTMLElement, onPick: (hit: Sea
         active = -1;
         draw();
         box.hidden = items.length === 0;
-      } catch { close(); }
+        if (netWhat === "search") hideFailure();
+      } catch (err) {
+        close();
+        if (input.value.trim().length >= 2) showFailure(err, "search", () => input.dispatchEvent(new Event("input")));
+      }
     }, 200);
   });
 
@@ -1034,6 +1073,7 @@ async function plan() {
   if (planning) return;
   showError("");
   hideLocationProblem();
+  hideFailure();
   if (!dest) return showError("Set a destination.");
   planning = true;
   const goBtn = $("#go") as HTMLButtonElement;
@@ -1045,6 +1085,7 @@ async function plan() {
     if (!originPicked) originLabel = "Current location";
     setStatus("Scoring the smoothest 3D line…");
     routes = await fetchRanked(start, dest);
+    if (!routes.length) throw new Error("No routes returned.");
     selectedId = routes[0]?.id ?? "";
     loadSelectedRoute();
     paintRoutes();
@@ -1053,9 +1094,8 @@ async function plan() {
     setHudMode("review");
     setStatus("");
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "Routing failed.";
     $("#search-card").classList.add("open");
-    showError(/failed|network|fetch|load|abort|\d{3}/i.test(msg) ? "Can't reach routing right now. Check your connection and try again." : msg);
+    showFailure(err, "route", () => void plan());
     setStatus("");
   } finally {
     planning = false;

@@ -952,3 +952,7 @@ body[data-mode="drive"] .friend-spot { display: none; }
 .share-pill { left: 70px; right: auto; transform: none; max-width: calc(100vw - 82px); }
 .share-pill span { overflow: hidden; text-overflow: ellipsis; }
 @media (min-width: 1100px) { body.cmd .share-pill { left: 50%; transform: translateX(-50%); } }
+
+/* Offline / no-route sheet: same glass banner as the location one, with a title line. */
+.net-sheet .net-title { display: block; margin: 0 32px 4px 0; font-size: 15px; font-weight: 500; color: var(--text); }
+.net-sheet[data-kind="no-route"] { border-color: var(--line); }
