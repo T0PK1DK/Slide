@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ALL_VEHICLES } from "../vehicles";
-import { rideNamesAreOriginal, rideSilhouette, rideSpec } from "./carMeshes";
+import { deepenHull, hullLift, liveryU, rideNamesAreOriginal, rideSilhouette, rideSpec } from "./carMeshes";
 
 describe("original 3D ride silhouettes", () => {
   it("covers every vehicles.ts ride with a unique shape", () => {
@@ -23,5 +23,17 @@ describe("original 3D ride silhouettes", () => {
 
   it("never uses a licensed brand name", () => {
     expect(rideNamesAreOriginal()).toBe(true);
+  });
+
+  it("maps stripes across the top only and seats the hull on the wheels", () => {
+    expect(liveryU(0, 0.5, true)).toBeCloseTo(0.5);
+    expect(liveryU(-0.4, 0.5, true)).toBeLessThan(0.2);
+    expect(liveryU(0, 0.5, false)).toBe(0.02);
+    const raw = [{ y: 0.3, h: 0.34 }];
+    const body = deepenHull(raw, 0.2);
+    const lift = hullLift(body, 0.2);
+    const belly = body[0].y + lift - body[0].h / 2;
+    expect(belly).toBeCloseTo(0.2 * 0.34);
+    expect(belly).toBeLessThan(0.2);
   });
 });

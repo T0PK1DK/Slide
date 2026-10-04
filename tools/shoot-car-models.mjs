@@ -43,10 +43,12 @@ const GARAGE = {
 const SHOTS = [
   { file: "slipstream-stripes", id: "slipstream", livery: "stripes" },
   { file: "brawler-fade", id: "brawler", livery: "fade" },
+  { file: "pocket-stripes", id: "hatch", livery: "stripes" },
   { file: "ridge-solid", id: "ridge", livery: "solid" },
   { file: "hauler-dusk", id: "hauler", livery: "dusk" },
   { file: "classic-halo", id: "classic", livery: "halo" },
   { file: "nimbus-stripes", id: "nimbus", livery: "stripes" },
+  { file: "glider-fade", id: "glider", livery: "fade" },
 ];
 
 const chrome = process.env.CHROME || "/usr/bin/google-chrome-stable";
@@ -77,7 +79,10 @@ try {
   );
   await page.goto(baseUrl, { waitUntil: "domcontentloaded", timeout: 30000 });
   await page.waitForFunction(() => typeof window.slidePreviewGame?.ride === "function", { timeout: 20000 });
-  await page.evaluate(() => document.querySelector(".login")?.remove());
+  await page.evaluate(() => {
+    document.querySelector(".login")?.remove();
+    document.documentElement.dataset.stageHold = "1";
+  });
 
   for (const shot of SHOTS) {
     await page.evaluate((id, livery) => window.slidePreviewGame.ride(id, livery), shot.id, shot.livery);
