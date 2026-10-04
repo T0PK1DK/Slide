@@ -76,9 +76,9 @@ src/lanes/             Valhalla turn-lane strip for Grim's `#lane-strip` slot
 src/lib/tracking.ts    live GPS watch + snap-to-route progress
 src/lib/maplook.ts     night basemap lift (per theme), route ribbon, HUD fit padding
 src/lib/vehicles.ts    rides: original top-down car designs (SVG), starter + unlockable liveries, pack field for future collabs (tested)
-src/lib/game/          smooth score, XP/levels, badges, unlocks, on-device progress (`useGameProgress`)
-src/lib/game/*.test.ts game-layer unit tests (speed never raises XP)
-docs/GAME-LAYER.md     exported game API for Grim's arrival / share / stage slots
+src/lib/game/          smooth score, XP/levels, badges, unlocks, share card, weekly board, `useGameProgress`
+src/lib/game/*.test.ts game-layer unit tests (speed never raises XP; share-card privacy; week rank)
+docs/GAME-LAYER.md     exported game API + share card + future leaderboard sync contract
 src/lib/profile.ts     on-device driver profile, session, PIN hash, persistent storage (keyed to the signed-in account)
 src/lib/auth-storage.ts  supabase-js storage: localStorage + 90-day SameSite=Lax cookie (Safari ↔ Home Screen)
 src/lib/account-store.ts  per-account local keys for home/work, history, ghosts, XP
@@ -329,6 +329,8 @@ Read `TASKS.md` top unchecked item. Do not rebase history. Do not rename the pro
 - 2026-10-05 Cursor: **Persistent accounts (Supabase email OTP + magic link, not D1).** King was getting logged out. Root cause: the session lived in Safari-only storage, and iOS Home Screen apps have their own jar (cookies included), so a cookie bridge cannot move a Safari login into the installed app. Fix: email a 6-digit `{{ .Token }}` plus the link; the driver types the code in whichever app they are in (`verifyOtp` type `email`); that app gets the session and `persistSession` / `autoRefreshToken` keep it. Magic link stays for Safari / desktop. Sign in / Create account + a dedicated code screen. Home/work/history/ghosts/XP keyed to `auth.uid()`. **No D1. No new SQL.** Nard: paste the Magic Link template in Owner setup, confirm Site URL + Redirect URLs, redeploy. Verify on https://kings-slide.pages.dev from the Home Screen by typing the code.
 
 - 2026-10-04 Leon: **Game layer 1 (logic only).** Branch `leon/game-core`. Per-trip smooth score from real GPS speed / heading / timestamps and posted limit when present (`src/lib/game/smoothScore.ts`). Missing signals are skipped, never faked. Faster driving never raises score or XP; time over the limit zeros that segment. XP/levels use `xpAtLevel(n) = 40·(n−1)·n` and trip XP = smooth-miles × 10 + a score-only bonus (`src/lib/game/xp.ts`). Tiered badges (First Line, Glass Line, Soft Pedal, Night Owl, Long Slide, Sign Reader, Causeway) in `src/lib/game/badges.ts`. Unlocks: Nimbus at level 5, Glider at Night Owl silver, Halo / Dusk liveries via badges — starter six + Solid/Stripes/Fade stay free so the Garage picker is unchanged. Progress is `slide.game.v1` in localStorage (wiped by `eraseDeviceData`). `useGameProgress()` is the hook for Grim's arrival XP/badge slot, share-card mount, and 3D stage. Drive loop records samples and commits next to history; no CSS or screen layout. API in `docs/GAME-LAYER.md`. Later: Opal stage + 3D car, share card UI, opt-in friends leaderboard.
+
+- 2026-10-04 Leon: **Game layer 2 (share card + local board).** Branch `leon/share-card` stacked on `leon/game-core`. `src/lib/game/shareCard.ts` paints `TripAward.shareCard` plus ride/livery names onto a 1080×1350 PNG (offscreen canvas). Theme reads `--bg` / `--surface` / `--text` / `--muted` / `--glow` / `--line` when Grim's tokens exist, else a neutral night palette. `mountShareCard(el)` is the preview for Grim's slot; `shareTrip()` uses Web Share with a PNG file and falls back to download. No addresses, coords, map tiles, or times of day. Weekly board (`src/lib/game/leaderboard.ts`) is local only: Mon–Sun buckets, opt-in default OFF, `rankWeek` does not invent friends. Future backend sync contract is in `docs/GAME-LAYER.md`. No CSS or screen-layout edits.
 
 ## Teammate slots (stable IDs — do not rename)
 
