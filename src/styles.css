@@ -1014,7 +1014,8 @@ body[data-mode="drive"] .friend-spot { display: none; }
    rules). Subtracts rather than adds:
    - one type family: SF Pro on Apple devices (system), Geist elsewhere; tabular numerals
    - one radius scale: 28 floating sheet · 18 card · 12 inner · pill for controls
-   - flat fills, 1px hairlines, no decorative glow (glow = live / you / danger only)
+   - flat fills and 1px hairlines; glow kept for Slide's signature (Garage accent on the
+     main action, active tab, live dot, route ribbon) and for live / you / danger
    - map controls merged into a single capsule
    Driving-critical numbers stay heavy for glanceability; only the desktop
    dashboard uses thin display numerals.
@@ -1036,7 +1037,7 @@ body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; 
 /* Inputs: filled, no outline box, like Apple's search field */
 .field input { border: 0; background: rgba(255,255,255,.06); border-radius: var(--r-inner); min-height: 44px; font-size: 16px; }
 .field input:focus { background: rgba(255,255,255,.09); box-shadow: 0 0 0 2px color-mix(in srgb, var(--glow) 55%, transparent); }
-.field label { letter-spacing: .06em; font-size: 11px; text-transform: none; font-weight: 500; }
+.field label { font-family: var(--mono); letter-spacing: .16em; font-size: 10px; text-transform: uppercase; font-weight: 500; color: var(--faint); }
 .suggest { border-radius: var(--r-inner); border-color: rgba(255,255,255,.08); }
 .where-row input, .garage input[type="text"], .garage select { border: 0 !important; background: rgba(255,255,255,.06); border-radius: var(--r-inner); }
 .where-row input:focus { background: rgba(255,255,255,.09); box-shadow: 0 0 0 2px color-mix(in srgb, var(--glow) 55%, transparent); }
@@ -1044,19 +1045,19 @@ body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; 
 
 /* Buttons: flat fills, pill primary, consistent 44px+ targets */
 button.primary, button.ghost, button.icon { min-height: 44px; border-radius: 999px; font-size: 14px; transition: background-color 140ms var(--ease), transform 140ms var(--ease); }
-button.primary { background: var(--glow); color: #0a0a0b; font-weight: 600; box-shadow: none; }
+/* Slide signature kept: the Garage glow is the accent, with a soft halo on the main action */
+button.primary { background: var(--glow); color: #0a0a0b; font-weight: 600; box-shadow: 0 8px 24px -8px color-mix(in srgb, var(--glow) 70%, transparent); }
 button.primary:active, button.ghost:active, button.icon:active { transform: scale(.98); }
 button.ghost, button.icon { border: 0; background: rgba(255,255,255,.07); color: var(--text); }
 button.ghost:hover, button.icon:hover { background: rgba(255,255,255,.1); }
 .stat { border: 0; background: rgba(255,255,255,.04); border-radius: var(--r-inner); }
 
 @media (min-width: 1100px) {
-  /* Top bar: quiet, no underline glow */
+  /* Top bar: quiet surface, Slide accent on the active tab */
   body.cmd .cmd-top { border-bottom: 1px solid rgba(255,255,255,.05); backdrop-filter: none; -webkit-backdrop-filter: none; }
   .cmd-brand span { letter-spacing: .32em; font-weight: 500; font-size: 14px; }
   .cmd-tabs button { font-size: 13.5px; }
-  .cmd-tabs button.on::after { height: 1.5px; box-shadow: none; background: var(--text); }
-  .cmd-tabs i { box-shadow: none; }
+  .cmd-tabs button.on::after { height: 2px; background: var(--glow); box-shadow: 0 0 8px color-mix(in srgb, var(--glow) 60%, transparent); }
   .cmd-search { border: 0; background: rgba(255,255,255,.05); border-radius: 999px; }
   body.cmd .cmd-looks { border: 0; background: rgba(255,255,255,.05); border-radius: 999px; }
   .cmd-looks button { border-radius: 999px; }
