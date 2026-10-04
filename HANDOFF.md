@@ -231,21 +231,52 @@ Read `TASKS.md` top unchecked item. Do not rebase history. Do not rename the pro
 
 - 2026-09-25 Claude: **Handed to Nard.** The owner asked about FL511. It covers official incidents, closures and roadwork only; police, traffic speeds, transit, cameras and routing come from the other sources listed above. Rewrote **What already works** and **Next for Nard** to match `main` after PR #13: turn on the data, verify against the real services, stability, then features. Removed the stale Claude follow-up list, since those items are done or folded into Nard's list.
 
+- 2026-10-04 Claude: **Supabase project created.** King asked Claude to set up Supabase through the connector as its own project and to hand the rest to Nard. Created `slide` (us-east-1, ref `zmriqctjkhwmhuvxyhdd`) and applied the schema in six small migrations, because the connector times out on large payloads and on any statement containing `delete`. Two functions, `stop_presence` and `delete_my_account`, are left for Nard to paste (SQL in Owner setup). The advisor warnings are the intended RPC design. Nard now does Auth settings, Cloudflare env, FL511, transit feeds and the redeploy.
+
 ## Owner setup for accounts + radar
 
-1. **Supabase project:** create a free project named `slide` (region us-east-1). Claude's permissions couldn't create it. Then apply **both** files in `supabase/migrations/`, in name order (have Claude do it, or paste each into the SQL editor).
-2. **Supabase Auth settings:**
+### Supabase (done by Claude on 2026-10-04; two functions left)
+
+- **Project:** `slide` (its own project in T0PK1DK's Org, us-east-1). Ref `zmriqctjkhwmhuvxyhdd`.
+- **URL:** `https://zmriqctjkhwmhuvxyhdd.supabase.co`
+- **Anon key:** Dashboard → Project Settings → API Keys → `anon` (legacy JWT; supabase-js accepts it). It's public by design, and RLS protects the data. The publishable key `sb_publishable_…` also works.
+- **Applied:** profiles, follows, reports, report_votes and presence, with RLS; `reports_near`, `submit_report`, `vote_report`, `my_social_counts`, `share_presence` and `friends_presence`; and the grants. These match `supabase/migrations/` except for the last two functions below.
+- **Still to run (Nard):** the connector timed out on statements containing `delete`, so paste this into Dashboard → SQL Editor and click Run. Until it's run, "Stop sharing" and "Delete my Slide account" fail:
+
+```sql
+create function public.stop_presence()
+returns void language sql security definer set search_path = '' as $$
+  delete from public.presence where user_id = auth.uid();
+$$;
+create function public.delete_my_account()
+returns void language plpgsql security definer set search_path = '' as $$
+begin
+  if auth.uid() is null then return; end if;
+  delete from auth.users where id = auth.uid();
+end $$;
+revoke all on function public.stop_presence() from public, anon;
+revoke all on function public.delete_my_account() from public, anon;
+grant execute on function public.stop_presence() to authenticated;
+grant execute on function public.delete_my_account() to authenticated;
+```
+
+- **Security advisor:** it flags the functions as `SECURITY DEFINER` and callable, which is **intended**: the app calls them over RPC, each one checks `auth.uid()` itself, and the tables with no policies are only reachable through them. No action is needed.
+
+### Nard: the rest of setup
+
+1. **Supabase Auth** (Dashboard → Authentication):
    - **URL Configuration:** Site URL `https://kings-slide.pages.dev`.
    - **Email Templates → Magic Link:** add `{{ .Token }}` so the email shows the 6-digit code the app asks for.
    - **Email sending:** the built-in sender allows only a few emails per hour, which is fine for testing. For friends at scale, add SMTP (e.g. Resend, which has a free tier).
-3. **Cloudflare Pages → kings-slide → Settings → Environment variables** (Production), then redeploy:
-   - `VITE_SUPABASE_URL` = the project URL
-   - `VITE_SUPABASE_ANON_KEY` = the publishable (anon) key. It's public by design; RLS protects the data.
-   - `FL511_API_KEY` = your key from fl511.com's developer page. Add it as a **secret**.
+2. **Cloudflare Pages → kings-slide → Settings → Environment variables** (Production), then **redeploy `main`**:
+   - `VITE_SUPABASE_URL` = `https://zmriqctjkhwmhuvxyhdd.supabase.co`
+   - `VITE_SUPABASE_ANON_KEY` = the anon key above
+   - `FL511_API_KEY` = a free key from fl511.com (Developers / API). Add it as a **secret**.
    - `TRANSIT_FEEDS` (**secret**) = a JSON list of GTFS-realtime VehiclePositions feeds. Get each URL and key from the agency's developer page (Miami-Dade Transit, Broward County Transit, Tri-Rail/SFRTA, Brightline if published), e.g. `[{"agency":"Miami-Dade Transit","mode":"bus","url":"https://…","header":"x-api-key","key":"…"},{"agency":"Tri-Rail","mode":"rail","url":"https://…"}]`
    - Cameras need no key: they use the public Overpass API with OSM attribution.
-4. **Free-tier limits:**
-   - Supabase free: 500 MB database, 50k monthly active users. The project pauses after a week without use.
+3. **Free-tier limits:**
+   - Supabase free: 500 MB database, 50k monthly active users. The project **pauses after a week without use**; restore it from the dashboard.
+   - Only 2 free projects can be active at once; King's others are paused.
    - FL511: one upstream call per minute is shared by all drivers.
 
 ## Traffic provider decision (owner to approve)
@@ -271,9 +302,10 @@ Updated 2026-09-25, after PR #13. Claude built everything in **What already work
 ### 1. Turn on the data (with the owner, ~30 min, no code)
 
 Follow **Owner setup for accounts + radar** above, step by step:
-- [ ] Create the Supabase project `slide`, then run both files in `supabase/migrations/` in name order in the SQL editor.
+- [x] Supabase project `slide` created and the schema applied by Claude (2026-10-04).
+- [ ] Run the short SQL block in **Owner setup → Supabase** (stop sharing + delete account).
 - [ ] Supabase Auth: set the Site URL to `https://kings-slide.pages.dev`, and add `{{ .Token }}` to the Magic Link email template.
-- [ ] Cloudflare Pages `kings-slide` → Production env: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `FL511_API_KEY` (secret), `TRANSIT_FEEDS` (secret, JSON list). Then **redeploy `main`**, because `VITE_` values are baked in at build time.
+- [ ] Cloudflare Pages `kings-slide` → Production env: `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` (values in Owner setup), `FL511_API_KEY` (secret), `TRANSIT_FEEDS` (secret, JSON list). Then **redeploy `main`**, because `VITE_` values are baked in at build time.
 - [ ] FL511 key: request it free at fl511.com (Developers / API).
 - [ ] Transit: find the GTFS-realtime **VehiclePositions** URL (and key, if any) for Miami-Dade Transit, Broward County Transit, Tri-Rail, and Brightline if it publishes one. Leave out any agency that has no feed. Never hard-code a URL in the repo.
 
