@@ -252,6 +252,8 @@ Read `TASKS.md` top unchecked item. Do not rebase history. Do not rename the pro
   - **Why cold Slow 4G is still ~5 s:** it's the bytes. MapLibre is 277 kB, sprite@2x + glyphs 160 kB, and downtown-Miami z14 vector tiles are ~60–90 kB each (4–6 on screen). That's ≈ 800 kB, or ≈ 4 s at 1.6 Mbps before any CPU time. Under 3 s on a first visit needs fewer bytes: self-hosted, slimmer tiles or a 1× sprite.
   - Verified on the preview with headless Chrome: login gate first, then the HUD; returning driver goes straight in; Photon down → "Can't reach search" → Try again → real suggestions; a test-only Valhalla 442 → "No drivable route found"; offline → "You're offline" → "Back online" → Try again → real Valhalla route (review, 3 min); the email-link return still works; 0 page errors. The `wood-pattern` sprite warning is OpenFreeMap's and also shows on production.
 
+- 2026-10-04 Nard: **Merged #16 → #17 → #18 and redeployed production** from `main` @ `d6b83e8` (build clean, 62/62 tests). Deploy `https://c16f0590.kings-slide.pages.dev`, live at https://kings-slide.pages.dev. Live checks in headless Chrome: login gate → HUD → map renders, 0 page errors; accounts on (Profile shows "Email me a sign-in link"); an email-link return with an expired or bogus token gives the right message and a clean URL; offline / no-route / search-down sheets and Try again work, ending in a real Valhalla route. `/api/transit` returned 104 vehicles near Fort Lauderdale (all 3 agencies ok). `/api/incidents` is `configured:false` until the FL511 key. `/api/cameras` now answers from Overpass (0 cameras mapped in the downtown-Miami tile).
+
 ## Owner setup for accounts + radar
 
 ### Supabase (done by Claude on 2026-10-04; two functions left)
@@ -355,8 +357,8 @@ Follow **Owner setup for accounts + radar** above, step by step:
 ### 2. Verify against the real services (small PR with any fixes)
 
 - [ ] `https://kings-slide.pages.dev/api/incidents?lat=25.77&lon=-80.19` returns items. If it returns `[]` while fl511.com shows events, save one raw FL511 event and fix the field mapping in `src/lib/sources/fl511.ts` (`fromFl511`, `fl511Kind`). Add that raw event as a test fixture. This closes "Verify FL511 field names" in TASKS.md.
-- [ ] `/api/cameras?lat=25.77&lon=-80.19` returns cameras (Overpass; may be slow the first time, then cached).
-- [ ] `/api/transit?lat=25.77&lon=-80.19` returns vehicles for each feed. An empty agency usually means a wrong URL or key header.
+- [x] `/api/cameras?lat=25.77&lon=-80.19` answers from Overpass (2026-10-04: 0 cameras mapped in that tile; Overpass was down earlier that morning).
+- [x] `/api/transit` returns vehicles for each feed (Broward, Tri-Rail, Brightline; 2026-10-04). An empty agency usually means a wrong URL or key header.
 - [ ] Sign in on two phones and follow each other. Check the Friends tab, then share location and see the other phone's rough spot while planning, and not while driving.
 - [ ] Drive with the radar and send a Report. Check that the other phone sees it and can vote "Not there".
 - [ ] Plan Fort Lauderdale → 9601 Collins Ave. Check that there are 3 or more lines, a "Has tolls" flag, and the Slide pick within +10% of Fastest.

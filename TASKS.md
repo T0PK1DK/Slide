@@ -30,6 +30,7 @@ Work top-down. Check the box in the same PR.
 - [x] Radar mini map + driver reports (police, crash, hazard, closure, jam) with votes, heads-up banner, FL511 incidents
 - [x] Supabase project `slide` created + schema applied (2026-10-04); the last 2 functions pasted in the SQL Editor (2026-10-04)
 - [x] `VITE_SUPABASE_URL` + anon key (`.env.production`), production redeployed, `TRANSIT_FEEDS` secret (Broward, Tri-Rail, Brightline) — 2026-10-04
+- [x] Production redeployed from `main` @ d6b83e8 (PRs #16–#18): accounts on, email-link sign-in, Try again sheet, faster load (2026-10-04)
 - [ ] **Nard:** FL511 key, redeploy (HANDOFF → Owner setup); Miami-Dade transit needs a Swiftly key from King
 - [x] Sign in by tapping the emailed link (template can't show `{{ .Token }}` without custom SMTP); code box kept as an option
 - [ ] Verify FL511 field names against the first real payload
