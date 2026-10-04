@@ -2,8 +2,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 /**
  * Slide's one optional server: Supabase, for accounts, follows and driver
- * reports. Configured at build time from Cloudflare Pages environment
- * variables (never committed):
+ * reports. Configured at build time from `.env.production` or the shell
+ * (kings-slide is a Direct Upload Pages project, so the build runs locally):
  *   VITE_SUPABASE_URL          https://<project>.supabase.co
  *   VITE_SUPABASE_ANON_KEY     the project's publishable/anon key (public by design; RLS protects data)
  * Without them the app runs exactly as before: everything on-device, social off.
