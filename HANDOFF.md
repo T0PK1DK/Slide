@@ -76,9 +76,12 @@ src/lib/cloud.test.ts  tests for the email-link return parser
 src/lib/social.ts      email-code sign-in, profiles, follow/unfollow, friends, search
 src/lib/reports.ts     radar items, heading-up geometry, alerts, report/vote RPCs
 src/lib/sources/fl511.ts  FL511 event → radar item (pure, tested)
+src/lib/sources/fdot.ts   FDOT DIVAS event → radar item, South Florida query URL (pure, tested)
+src/lib/sources/mdpd.ts   Miami-Dade Police traffic call → radar item, Miami local time → UTC (pure, tested)
+src/lib/incidents.test.ts tests for the FDOT + MDPD mappers (live-shaped fixtures)
 src/hud/radar.ts       mini radar, Report sheet, heads-up banner, Nearby list
 src/hud/social.ts      Profile → Friends & followers (sign in, handle, lists, search)
-functions/api/incidents.ts  Pages Function: FL511 proxy (key in FL511_API_KEY secret)
+functions/api/incidents.ts  Pages Function: FDOT DIVAS + Miami-Dade Police (keyless) + FL511 (if FL511_API_KEY) merged, per-source status
 functions/api/cameras.ts    Pages Function: OSM enforcement cameras via Overpass (24 h tile cache)
 functions/api/transit.ts    Pages Function: GTFS-realtime buses/trains from TRANSIT_FEEDS secret
 src/lib/sources/gtfsrt.ts   dependency-free GTFS-realtime VehiclePositions decoder (tested)
@@ -253,6 +256,7 @@ Read `TASKS.md` top unchecked item. Do not rebase history. Do not rename the pro
   - Verified on the preview with headless Chrome: login gate first, then the HUD; returning driver goes straight in; Photon down → "Can't reach search" → Try again → real suggestions; a test-only Valhalla 442 → "No drivable route found"; offline → "You're offline" → "Back online" → Try again → real Valhalla route (review, 3 min); the email-link return still works; 0 page errors. The `wood-pattern` sprite warning is OpenFreeMap's and also shows on production.
 
 - 2026-10-04 Nard: **Merged #16 → #17 → #18 and redeployed production** from `main` @ `d6b83e8` (build clean, 62/62 tests). Deploy `https://c16f0590.kings-slide.pages.dev`, live at https://kings-slide.pages.dev. Live checks in headless Chrome: login gate → HUD → map renders, 0 page errors; accounts on (Profile shows "Email me a sign-in link"); an email-link return with an expired or bogus token gives the right message and a clean URL; offline / no-route / search-down sheets and Try again work, ending in a real Valhalla route. `/api/transit` returned 104 vehicles near Fort Lauderdale (all 3 agencies ok). `/api/incidents` is `configured:false` until the FL511 key. `/api/cameras` now answers from Overpass (0 cameras mapped in the downtown-Miami tile).
+- 2026-10-04 Nard: **Official incidents without a key** (King approved). `/api/incidents` now merges two free feeds, fetched server-side with a 7 s timeout and a 60 s edge cache each, and each source fails on its own: **FDOT DIVAS** (the ArcGIS layer behind FL511's map; queried for Palm Beach → the Keys) and **Miami-Dade Police** traffic calls (`traffic.mdpd.com/api/`, which has no CORS, so server-side only). FL511 is still used if `FL511_API_KEY` is set. The response is `{configured, sources:[{source, ok, count, error?}], items}`, newest first. Mapping: DIVAS crash → crash, roadwork → roadwork, congestion/backup → jam, "all lanes closed" → closure, disabled vehicle and the rest → hazard. MDPD accident/hit-and-run → crash. MDPD times are Miami wall-clock and are converted with EST/EDT. MDPD items are labelled "dispatched call": they are crash calls, never police positions. Live on the preview at 10:30 ET: FDOT 10 events (Palm Beach 9, Monroe 1; none in Miami-Dade/Broward at the time), MDPD 5 crash calls. In headless Chrome with GPS at NW 135th St / NW 7th Ave, the radar showed 2 MDPD blips and the Nearby list showed them; at I-95 / Forest Hill Blvd it showed the FDOT crash. FDOT WZDx work zones are not added (later).
 
 ## Owner setup for accounts + radar
 
@@ -293,7 +297,7 @@ grant execute on function public.delete_my_account() to authenticated;
 2. **Cloudflare Pages `kings-slide`** (account `f52402ec…`). It is a **Direct Upload** project (no Git connection), so Cloudflare never builds the app: `VITE_` values are baked in on the machine that runs `npm run build`, and dashboard env vars never reach the bundle. Server keys are Pages **secrets** read by the Functions at runtime.
    - `VITE_SUPABASE_URL` is in the committed `.env.production` (public value).
    - `VITE_SUPABASE_ANON_KEY` (public by design, `role: anon`) is in `.env.production` too (2026-10-04). The same two values are also stored as Pages secrets for the record, but the bundle only gets them from `.env.production`.
-   - `FL511_API_KEY` (secret): a free key from fl511.com (Developers / API), requested by King.
+   - `FL511_API_KEY` (secret, **optional** now that FDOT DIVAS + Miami-Dade Police feed `/api/incidents` without a key): a free key from fl511.com (Developers / API).
    - `TRANSIT_FEEDS` (secret): **set on 2026-10-04** for production and preview, with the three feeds that work without a key (see below).
    - Cameras need no key: they use the public Overpass API with OSM attribution.
    - Commands (Node ≥ 22, from the repo root, so `functions/` is bundled too):
@@ -356,7 +360,7 @@ Follow **Owner setup for accounts + radar** above, step by step:
 
 ### 2. Verify against the real services (small PR with any fixes)
 
-- [ ] `https://kings-slide.pages.dev/api/incidents?lat=25.77&lon=-80.19` returns items. If it returns `[]` while fl511.com shows events, save one raw FL511 event and fix the field mapping in `src/lib/sources/fl511.ts` (`fromFl511`, `fl511Kind`). Add that raw event as a test fixture. This closes "Verify FL511 field names" in TASKS.md.
+- [x] `/api/incidents` returns real items from FDOT DIVAS + Miami-Dade Police without a key (2026-10-04). FL511 stays optional: if a key is added and its items are empty while fl511.com shows events, save one raw FL511 event and fix the field mapping in `src/lib/sources/fl511.ts` (`fromFl511`, `fl511Kind`). Add that raw event as a test fixture. This closes "Verify FL511 field names" in TASKS.md.
 - [x] `/api/cameras?lat=25.77&lon=-80.19` answers from Overpass (2026-10-04: 0 cameras mapped in that tile; Overpass was down earlier that morning).
 - [x] `/api/transit` returns vehicles for each feed (Broward, Tri-Rail, Brightline; 2026-10-04). An empty agency usually means a wrong URL or key header.
 - [ ] Sign in on two phones and follow each other. Check the Friends tab, then share location and see the other phone's rough spot while planning, and not while driving.

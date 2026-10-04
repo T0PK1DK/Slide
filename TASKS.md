@@ -31,9 +31,11 @@ Work top-down. Check the box in the same PR.
 - [x] Supabase project `slide` created + schema applied (2026-10-04); the last 2 functions pasted in the SQL Editor (2026-10-04)
 - [x] `VITE_SUPABASE_URL` + anon key (`.env.production`), production redeployed, `TRANSIT_FEEDS` secret (Broward, Tri-Rail, Brightline) — 2026-10-04
 - [x] Production redeployed from `main` @ d6b83e8 (PRs #16–#18): accounts on, email-link sign-in, Try again sheet, faster load (2026-10-04)
-- [ ] **Nard:** FL511 key, redeploy (HANDOFF → Owner setup); Miami-Dade transit needs a Swiftly key from King
+- [ ] **Nard:** FL511 key (optional now), redeploy (HANDOFF → Owner setup); Miami-Dade transit needs a Swiftly key from King
 - [x] Sign in by tapping the emailed link (template can't show `{{ .Token }}` without custom SMTP); code box kept as an option
-- [ ] Verify FL511 field names against the first real payload
+- [x] Official incidents without a key: FDOT DIVAS + Miami-Dade Police merged in `/api/incidents`, per-source status (FL511 optional)
+- [ ] Verify FL511 field names against the first real payload (only if a key is added)
+- [ ] Later: FDOT WZDx work zones
 - [x] Live buses/trains on the radar (GTFS-realtime via TRANSIT_FEEDS) — Broward, Tri-Rail, Brightline live; Miami-Dade waits on a Swiftly key
 - [x] Speed / red-light cameras on the radar (OpenStreetMap via Overpass)
 - [x] Friends on the map: opt-in, server-rounded ~1 km, mutual friends only, 15 min expiry, one-tap stop, hidden while driving

@@ -869,7 +869,7 @@ body[data-mode="drive"] .radar { top: calc(132px + env(safe-area-inset-top)); }
 @keyframes radar-police { 50% { color: #ef4444; } }
 .radar .blip.crash { color: #ef4444; } .radar .blip.hazard { color: #f0a14a; } .radar .blip.roadwork { color: #f0a14a; }
 .radar .blip.closure { color: #f4f3ef; } .radar .blip.jam { color: #f5c14a; }
-.radar .blip.fl511 { filter: drop-shadow(0 0 2px #fff); }
+.radar .blip.fl511, .radar .blip.fdot, .radar .blip.mdpd { filter: drop-shadow(0 0 2px #fff); }
 .radar-count { position: absolute; left: 50%; bottom: -8px; transform: translateX(-50%); padding: 2px 8px; border-radius: 999px; background: #0b1510; border: 1px solid rgba(62,224,138,.35);
   font-family: var(--mono); font-size: 10px; letter-spacing: .08em; color: #3ee08a; white-space: nowrap; }
 .radar-report { min-height: 44px; min-width: 88px; padding: 0 14px; margin-top: 6px; border-radius: 999px; border: 1px solid var(--line); background: var(--glass-2);

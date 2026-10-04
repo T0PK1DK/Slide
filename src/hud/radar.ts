@@ -20,7 +20,7 @@ import { currentUserId } from "../lib/social";
 
 /**
  * The game-style mini radar: heading-up, range rings, a sweep, and a blip for
- * every real report around you (drivers' reports + official FL511 incidents).
+ * every real report around you (drivers' reports + official FDOT / Miami-Dade Police incidents).
  * A heads-up banner fires once per item when something alert-worthy is ahead
  * within ~0.8 mi. It never tells the driver to change speed — it only says
  * what's there. Reporting is one tap per kind.
@@ -138,7 +138,7 @@ export function mountRadar(h: RadarHooks): RadarView {
       : `<li class="rs-empty">${fix ? "Nothing reported within 1.5 mi." : "Turn on location to see what's around you."}</li>`;
     sheet.innerHTML = `<div class="rs-card">
       <header><h2>Radar</h2><button type="button" class="rs-close" aria-label="Close">×</button></header>
-      <p class="rs-src">Driver reports${cloudConfigured() ? "" : " (accounts not set up on this build)"} · FL511 official incidents · cameras mapped in OpenStreetMap (may be incomplete) · live buses and trains where agencies publish them. Slide never tracks police vehicles; police items are reports from other drivers.</p>
+      <p class="rs-src">Driver reports${cloudConfigured() ? "" : " (accounts not set up on this build)"} · official incidents from FDOT and Miami-Dade Police (FL511 when keyed) · cameras mapped in OpenStreetMap (may be incomplete) · live buses and trains where agencies publish them. Slide never tracks police vehicles; police items are reports from other drivers.</p>
       <ul class="rs-list">${rows}</ul>
       <p class="rs-msg" role="status"></p>
     </div>`;
