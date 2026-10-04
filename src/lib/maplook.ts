@@ -189,17 +189,24 @@ export function hudFitPadding(): PaddingOptions {
   const cap = (n: number, max: number) => Math.max(24, Math.min(Math.round(n), max));
   const search = visibleBox("#search-card");
   const maneuver = visibleBox("#maneuver");
+  const guide = visibleBox("#drive-guide");
   const menu = visibleBox("#menu-fab");
   const chip = visibleBox("#posted");
+  const lanes = visibleBox("#lane-strip");
   const driveBar = visibleBox("#drive-bar");
   const review = visibleBox("#review-sheet");
   const rail = visibleBox("#speed-rail");
   const instruments = visibleBox("#speedo");
   let top = 24;
-  if (maneuver) top = Math.max(top, maneuver.bottom + 14);
-  else if (search && search.top < vh * 0.45) top = Math.max(top, search.bottom + 14);
+  // #maneuver normally sits inside #drive-guide; count both in case either is shown alone.
+  const guideUsed = !!guide && !!(chip || lanes);
+  if (maneuver || guideUsed) {
+    if (maneuver) top = Math.max(top, maneuver.bottom + 14);
+    if (guide && guideUsed) top = Math.max(top, guide.bottom + 14);
+  } else if (search && search.top < vh * 0.45) top = Math.max(top, search.bottom + 14);
   else if (menu) top = Math.max(top, menu.bottom + 10);
   if (chip) top = Math.max(top, chip.bottom + 10);
+  if (lanes) top = Math.max(top, lanes.bottom + 10);
   let bottom = 24;
   if (driveBar) bottom = Math.max(bottom, vh - driveBar.top + 14);
   if (review) bottom = Math.max(bottom, vh - review.top + 16);

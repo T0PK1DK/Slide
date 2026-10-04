@@ -90,6 +90,7 @@ Work top-down. Check the box in the same PR.
 - [x] Lane guidance: real Valhalla `lanes` in Grim's `#lane-strip` (PR #35 slot). Hidden with no data.
 - [x] Spoken turn-by-turn (`speechSynthesis`); mute is Grim's `#drive-mute` (`slide:voice-mute`)
 - [x] "N reports around you" from real `reportsNear()` + `/api/incidents` (hidden when none)
+- [x] `#lane-strip` flows under the turn banner (no fixed top; does not cover wrapped instructions or the posted chip)
 - [ ] Snap player marker to shape from live GPS (map matching later)
 - [x] Leave-by: user sets arrival clock → show depart time + 3 min buffer (`leaveByForTarget`; live ETA via route-brain when Live traffic is on)
 - [ ] Door-level destination note in UI (entrance / garage) even if pin is still centroid
