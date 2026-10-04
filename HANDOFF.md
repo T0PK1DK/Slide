@@ -66,7 +66,8 @@ src/plan/routes.test.ts  Vitest unit tests (`npm test`)
 src/lib/alerts.ts      desktop alert list + switch suggestion from real data only (pure, tested)
 src/lib/dashboard.test.ts  tests for alerts / week tiles
 src/hud/profile.ts     Profile sheet: driver, My car, all-time stats, places, privacy; friends section (not live)
-src/lib/cloud.ts       optional Supabase client (lazy; off when VITE_SUPABASE_* unset)
+src/lib/cloud.ts       optional Supabase client (lazy; off when VITE_SUPABASE_* unset); authReturn() spots the email-link return
+src/lib/cloud.test.ts  tests for the email-link return parser
 src/lib/social.ts      email-code sign-in, profiles, follow/unfollow, friends, search
 src/lib/reports.ts     radar items, heading-up geometry, alerts, report/vote RPCs
 src/lib/sources/fl511.ts  FL511 event → radar item (pure, tested)
@@ -235,6 +236,7 @@ Read `TASKS.md` top unchecked item. Do not rebase history. Do not rename the pro
 - 2026-10-04 Claude: **Supabase project created.** King asked Claude to set up Supabase through the connector as its own project and to hand the rest to Nard. Created `slide` (us-east-1, ref `zmriqctjkhwmhuvxyhdd`) and applied the schema in six small migrations, because the connector times out on large payloads and on any statement containing `delete`. Two functions, `stop_presence` and `delete_my_account`, are left for Nard to paste (SQL in Owner setup). The advisor warnings are the intended RPC design. Nard now does Auth settings, Cloudflare env, FL511, transit feeds and the redeploy.
 
 - 2026-10-04 Nard: **Data turned on (part), verified on a preview.** `kings-slide` is a Direct Upload Pages project, so `VITE_SUPABASE_URL` now lives in a committed `.env.production`; dashboard env vars would never reach the bundle. `TRANSIT_FEEDS` is set as a production + preview secret with the three feeds that work without a key: Broward (105 buses), Tri-Rail (6 trains) and Brightline (8 trains), each fetched and decoded with our decoder. Miami-Dade needs a Swiftly key. Production (2026-09-24 build) predates the Functions, so `/api/*` there returns HTML. On a preview of `main` (`https://nard-verify-main.kings-slide.pages.dev`), `/api/transit` returned all three agencies `ok` (90 BCT + 2 Tri-Rail + 1 Brightline within 20 km of Fort Lauderdale), `/api/incidents` returned `configured:false` (no FL511 key yet), and `/api/cameras` returned "Overpass unreachable" because public Overpass answered 504 at the time. Then the anon key (`role: anon`) went into `.env.production` and production was redeployed from this branch's tree (main + `.env.production`).
+- 2026-10-04 Nard: **Sign in by tapping the emailed link.** Supabase won't let us edit the Magic Link template (to add `{{ .Token }}`) without custom SMTP, so the email only has a link. `sendCode()` now sets `emailRedirectTo` to the current page. On return, `authReturn()` spots `#access_token=…` (implicit flow, the supabase-js default) or `#error=…`, the client is created with `detectSessionInUrl` on for that load only, the tokens are stripped from the address bar, and Profile opens on Friends & followers (signed in, or "pick your handle"). An expired link shows "That sign-in link has expired…". The code box stays as an option ("Or enter the code, if the email shows one"). Redirects: GoTrue accepts any `redirect_to` on the Site URL's host, so production needs no Redirect URL entry. Previews (`*.kings-slide.pages.dev`) need `https://*.kings-slide.pages.dev/**` in Auth → URL Configuration → Redirect URLs, or their links land on production. Limit: on iPhone the link opens in Safari, so a Home Screen install is signed in only if the code is entered there (needs `{{ .Token }}` → custom SMTP).
 
 ## Owner setup for accounts + radar
 
@@ -269,7 +271,8 @@ grant execute on function public.delete_my_account() to authenticated;
 
 1. **Supabase Auth** (Dashboard → Authentication):
    - **URL Configuration:** Site URL `https://kings-slide.pages.dev`.
-   - **Email Templates → Magic Link:** add `{{ .Token }}` so the email shows the 6-digit code the app asks for.
+   - **Email Templates → Magic Link:** adding `{{ .Token }}` needs custom SMTP first. Until then the app signs in from the link itself.
+   - **Redirect URLs:** add `https://*.kings-slide.pages.dev/**` so preview deploys get their own sign-in links back (production works without it).
    - **Email sending:** the built-in sender allows only a few emails per hour, which is fine for testing. For friends at scale, add SMTP (e.g. Resend, which has a free tier).
 2. **Cloudflare Pages `kings-slide`** (account `f52402ec…`). It is a **Direct Upload** project (no Git connection), so Cloudflare never builds the app: `VITE_` values are baked in on the machine that runs `npm run build`, and dashboard env vars never reach the bundle. Server keys are Pages **secrets** read by the Functions at runtime.
    - `VITE_SUPABASE_URL` is in the committed `.env.production` (public value).

@@ -28,9 +28,10 @@ Work top-down. Check the box in the same PR.
 - [x] Profile: driver, My car, all-time stats, places, privacy (on-device)
 - [x] Accounts (Supabase, email code), profiles, follow/unfollow, friends = mutual follows, driver search
 - [x] Radar mini map + driver reports (police, crash, hazard, closure, jam) with votes, heads-up banner, FL511 incidents
-- [x] Supabase project `slide` created + schema applied (2026-10-04); 2 functions left to paste (HANDOFF → Owner setup)
+- [x] Supabase project `slide` created + schema applied (2026-10-04); the last 2 functions pasted in the SQL Editor (2026-10-04)
 - [x] `VITE_SUPABASE_URL` + anon key (`.env.production`), production redeployed, `TRANSIT_FEEDS` secret (Broward, Tri-Rail, Brightline) — 2026-10-04
 - [ ] **Nard:** FL511 key, redeploy (HANDOFF → Owner setup); Miami-Dade transit needs a Swiftly key from King
+- [x] Sign in by tapping the emailed link (template can't show `{{ .Token }}` without custom SMTP); code box kept as an option
 - [ ] Verify FL511 field names against the first real payload
 - [x] Live buses/trains on the radar (GTFS-realtime via TRANSIT_FEEDS) — Broward, Tri-Rail, Brightline live; Miami-Dade waits on a Swiftly key
 - [x] Speed / red-light cameras on the radar (OpenStreetMap via Overpass)

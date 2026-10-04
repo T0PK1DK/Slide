@@ -42,6 +42,9 @@ import {
 } from "./lib/maplook";
 import { ensureSignedIn, lockApp } from "./hud/login";
 import { mountProfile } from "./hud/profile";
+import { setSocialNotice } from "./hud/social";
+import { cloudConfigured } from "./lib/cloud";
+import { finishEmailLink } from "./lib/social";
 import { mountRadar } from "./hud/radar";
 import { mountFriends } from "./map/friends";
 import { createYouMarker } from "./map/you";
@@ -510,7 +513,19 @@ ensureSignedIn(document.body, (driver) => {
   command.refreshHistory();
   if (!garage.coachDismissed) showCoach(true);
   void autoLocate();
+  void finishLinkSignIn();
 });
+
+/** Back from the emailed sign-in link: finish signing in, then show the account in Profile. */
+async function finishLinkSignIn() {
+  if (!cloudConfigured()) return;
+  const result = await finishEmailLink();
+  if (!result) return;
+  if (!result.ok) setSocialNotice(result.message);
+  showCoach(false);
+  profileSheet.open();
+  document.querySelector("#pf-social")?.scrollIntoView({ block: "start" });
+}
 
 /** Show the driver on the map at launch, but only if they've already allowed location — never a surprise prompt. */
 async function autoLocate() {
