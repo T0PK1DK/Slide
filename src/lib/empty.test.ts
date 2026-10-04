@@ -10,7 +10,17 @@ describe("empty value styling", () => {
   });
 
   it("toggles .is-empty on the element", () => {
-    const el = document.createElement("b");
+    const flags = new Set<string>();
+    const el = {
+      textContent: "",
+      classList: {
+        toggle: (name: string, on?: boolean) => {
+          if (on) flags.add(name);
+          else flags.delete(name);
+        },
+        contains: (name: string) => flags.has(name),
+      },
+    } as unknown as HTMLElement;
     setMaybeEmpty(el, EMPTY.score);
     expect(el.classList.contains("is-empty")).toBe(true);
     setMaybeEmpty(el, "12 min");
