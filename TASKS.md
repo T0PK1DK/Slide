@@ -84,7 +84,7 @@ Work top-down. Check the box in the same PR.
 
 ## P3 — cars and camera
 
-- [ ] Better car glyph (side profile + lights). Optional later: MapLibre custom layer / Three
+- [x] Pick-your-ride: 6 original top-down cars, paint + livery + glow, Garage showroom (`src/lib/vehicles.ts`). Later: 3D models (MapLibre custom layer / Three), licensed collab packs
 - [ ] Trail particles or denser dashed ghost trails
 - [ ] Building extrusion fallback if `source-layer: building` missing (hide toggle, don’t crash)
 

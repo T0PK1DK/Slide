@@ -148,10 +148,16 @@ export const HUD_HTML = `
     </div>
     <div class="panel garage" id="garage">
       <div class="garage-head"><h3>Garage</h3><button class="close" id="g-close" aria-label="Close garage">×</button></div>
+      <div class="showroom" aria-live="polite">
+        <div class="showroom-stage" id="g-preview"></div>
+        <div class="showroom-meta"><b id="g-ride-name"></b><span id="g-ride-kind"></span><small id="g-ride-pack"></small></div>
+      </div>
+      <label>Ride</label><div class="rides" id="g-rides" role="radiogroup" aria-label="Choose your ride"></div>
+      <label>Livery</label><div class="liveries" id="g-livery" role="radiogroup" aria-label="Livery"></div>
       <label>Theme</label><select id="g-look"><option value="night">Night</option><option value="ember">Ember</option><option value="sand">Sand</option></select>
       <label>Tag</label><input id="g-tag" type="text" maxlength="12" />
-      <label>Body</label><div class="swatches" id="g-body"></div>
-      <label>Glow</label><div class="swatches" id="g-glow"></div>
+      <label>Paint</label><div class="swatches" id="g-body"></div>
+      <label>Accent glow</label><div class="swatches" id="g-glow"></div>
       <label>Trail</label><select id="g-trail"><option value="plasma">Plasma</option><option value="ember">Ember</option><option value="ice">Ice</option><option value="volt">Volt</option></select>
       <label>Camera</label><select id="g-cam"><option value="cinematic">Cinematic 3D</option><option value="chase">Chase</option><option value="top">Top-down</option></select>
       <div class="toggle"><span>3D buildings</span><input id="g-build" type="checkbox" /></div>
