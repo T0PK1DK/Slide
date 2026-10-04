@@ -1,4 +1,4 @@
-import { cloud } from "./cloud";
+import { authReturn, cloud } from "./cloud";
 
 /**
  * Accounts, public profiles, follows and friends (mutual follows). Only what a
@@ -41,10 +41,15 @@ export async function currentUserId(): Promise<string | null> {
   return data.session?.user.id ?? null;
 }
 
-/** Step 1 of sign-in: email a 6-digit code. Creates the account on first use. */
+/**
+ * Step 1 of sign-in: email a sign-in link (and a 6-digit code if the email template
+ * includes {{ .Token }}). Creates the account on first use. The link returns to this
+ * page; Supabase falls back to the Site URL if this address isn't in Auth → Redirect URLs.
+ */
 export async function sendCode(email: string): Promise<void> {
   const sb = await cloud();
-  const { error } = await sb.auth.signInWithOtp({ email: email.trim(), options: { shouldCreateUser: true } });
+  const back = /^https:/.test(location.origin) ? location.origin + location.pathname : undefined;
+  const { error } = await sb.auth.signInWithOtp({ email: email.trim(), options: { shouldCreateUser: true, emailRedirectTo: back } });
   if (error) throw new Error(error.message);
 }
 
@@ -53,6 +58,30 @@ export async function verifyCode(email: string, code: string): Promise<void> {
   const sb = await cloud();
   const { error } = await sb.auth.verifyOtp({ email: email.trim(), token: code.trim(), type: "email" });
   if (error) throw new Error(error.message);
+}
+
+/**
+ * Finish sign-in when the driver tapped the emailed link and landed back here.
+ * Returns null when this load isn't a link return. Always strips the tokens from the address bar.
+ */
+export async function finishEmailLink(): Promise<{ ok: true } | { ok: false; message: string } | null> {
+  const ret = authReturn(location.hash, location.search);
+  if (!ret) return null;
+  const clean = () => history.replaceState(null, "", location.pathname);
+  if (ret.kind === "error") {
+    clean();
+    return { ok: false, message: /expired|invalid/i.test(ret.message) ? "That sign-in link has expired or was already used. Email yourself a new one." : ret.message };
+  }
+  try {
+    const sb = await cloud();
+    const { data, error } = await sb.auth.getSession();
+    clean();
+    if (error || !data.session) return { ok: false, message: error?.message ?? "That sign-in link didn't work. Email yourself a new one." };
+    return { ok: true };
+  } catch (e) {
+    clean();
+    return { ok: false, message: e instanceof Error ? e.message : "Sign-in failed." };
+  }
 }
 
 export async function signOut(): Promise<void> {
