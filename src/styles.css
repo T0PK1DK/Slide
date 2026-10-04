@@ -2428,7 +2428,7 @@ body[data-mode="drive"] .radar-banner { top: calc(112px + env(safe-area-inset-to
     min-width: 0;
     flex: 1;
   }
-  body.cmd[data-mode="drive"] .cmd-stack { bottom: calc(112px + env(safe-area-inset-bottom)); }
+  body.cmd[data-mode="drive"] .cmd-stack { bottom: calc(128px + env(safe-area-inset-bottom)); }
   body.cmd .search-card { top: 76px; }
   body.cmd .menu-fab,
   body.cmd .compass-fab,
