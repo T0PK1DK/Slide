@@ -84,6 +84,46 @@ let garage = loadGarage();
 applyTheme(garage);
 // The HUD markup (#app) and the login gate were already painted by boot.ts.
 
+const game = useGameProgress();
+const board = useLeaderboard();
+const slots = mountGameSlots({
+  game,
+  onSelect: (next) => {
+    if (next.vehicle) garage.vehicle = next.vehicle;
+    if (next.livery) garage.livery = next.livery;
+    persist();
+    restylePlayer();
+  },
+});
+window.slidePreviewGame = {
+  arrival() {
+    document.body.dataset.mode = "arrive";
+    $("#arrival").hidden = false;
+    $("#share-card-mount").hidden = true;
+    $("#car-stage").hidden = true;
+    $("#arr-kicker").textContent = "ARRIVED · 4:12 PM";
+    $("#arr-dest").textContent = "Bayside";
+    $("#arr-time").textContent = "18 min";
+    $("#arr-dist").textContent = "3.2 mi";
+    $("#arr-line").textContent = "Slide pick";
+    $("#arr-note").textContent = "Saved to Your trips on this phone.";
+    slots.preview.arrival(demoAward(), currentRide(garage));
+  },
+  share() {
+    document.body.dataset.mode = "arrive";
+    $("#arrival").hidden = true;
+    $("#car-stage").hidden = true;
+    slots.preview.share(demoAward(), currentRide(garage));
+  },
+  stage() {
+    document.body.dataset.mode = "plan";
+    $("#arrival").hidden = true;
+    $("#share-card-mount").hidden = true;
+    $("#search-card").setAttribute("hidden", "");
+    slots.hideAward();
+    slots.preview.stage(currentRide(garage));
+  },
+};
 
 const map = new maplibregl.Map({
   container: "map",
@@ -106,8 +146,6 @@ you.setCar(carSvg(garage.carColor, garage.glow));
 type DriveLog = { startedAt: number; live: boolean; offRouteEvents: number; wasOff: boolean; drivenMi: number; lastPos: LonLat | null };
 const freshLog = (): DriveLog => ({ startedAt: 0, live: false, offRouteEvents: 0, wasOff: false, drivenMi: 0, lastPos: null });
 let driveLog = freshLog();
-const game = useGameProgress();
-const board = useLeaderboard();
 map.addControl(new maplibregl.AttributionControl({ compact: true }), "top-right");
 
 let origin: LonLat | null = null;
@@ -158,15 +196,6 @@ const dashEl = $("#dash");
 const routesEl = $("#routes");
 const speedsEl = $("#speeds");
 const garageEl = $("#garage");
-const slots = mountGameSlots({
-  game,
-  onSelect: (next) => {
-    if (next.vehicle) garage.vehicle = next.vehicle;
-    if (next.livery) garage.livery = next.livery;
-    persist();
-    restylePlayer();
-  },
-});
 const maneuverEl = $("#maneuver");
 const postedEl = $("#posted");
 const recenterEl = $("#recenter");
@@ -1646,29 +1675,4 @@ function showError(text: string) { errorEl.textContent = text; errorEl.toggleAtt
 const ESCAPES: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
 function esc(s: string): string { return s.replace(/[&<>"']/g, (c) => ESCAPES[c]); }
 persist();
-window.slidePreviewGame = {
-  arrival() {
-    openGarage(false);
-    $("#arr-kicker").textContent = "ARRIVED · 4:12 PM";
-    $("#arr-dest").textContent = "Bayside";
-    $("#arr-time").textContent = "18 min";
-    $("#arr-dist").textContent = "3.2 mi";
-    $("#arr-line").textContent = "Slide pick";
-    $("#arr-note").textContent = "Saved to Your trips on this phone.";
-    setHudMode("arrive");
-    slots.preview.arrival(demoAward(), currentRide(garage));
-  },
-  share() {
-    openGarage(false);
-    setHudMode("arrive");
-    $("#arrival").hidden = true;
-    slots.preview.share(demoAward(), currentRide(garage));
-  },
-  stage() {
-    slots.hideAward();
-    setHudMode("plan");
-    openGarage(false);
-    slots.preview.stage(currentRide(garage));
-  },
-};
 // The service worker is registered by boot.ts.

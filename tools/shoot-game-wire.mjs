@@ -68,7 +68,14 @@ const chrome = process.env.CHROME || "/usr/bin/google-chrome-stable";
 const browser = await puppeteer.launch({
   executablePath: chrome,
   headless: "new",
-  args: ["--no-sandbox", "--disable-gpu", "--hide-scrollbars"],
+  args: [
+    "--no-sandbox",
+    "--hide-scrollbars",
+    "--use-gl=angle",
+    "--use-angle=swiftshader",
+    "--ignore-gpu-blocklist",
+    "--enable-webgl",
+  ],
 });
 
 try {

@@ -81,9 +81,15 @@ function buildCar(THREE: ThreeMod, look: CarStageLook) {
   if (spec.bed) body.position.z = spec.bed / 2;
   group.add(body);
 
-  const cab = new THREE.Mesh(new THREE.BoxGeometry(spec.w * 0.78, spec.cab, bodyLen * 0.42), glassMat);
-  cab.position.y = spec.h + spec.cab / 2 + 0.1;
-  cab.position.z = spec.bed ? spec.bed * 0.35 : -bodyLen * 0.08;
+  if (!spec.bed && spec.h <= 0.46) {
+    const nose = new THREE.Mesh(new THREE.BoxGeometry(spec.w * 0.7, spec.h * 0.62, spec.l * 0.28), bodyMat);
+    nose.position.set(0, spec.h * 0.42, spec.l * 0.36);
+    group.add(nose);
+  }
+
+  const cab = new THREE.Mesh(new THREE.BoxGeometry(spec.w * 0.72, spec.cab, bodyLen * 0.34), glassMat);
+  cab.position.y = spec.h + spec.cab / 2 + 0.04;
+  cab.position.z = spec.bed ? spec.bed * 0.28 : bodyLen * 0.06;
   group.add(cab);
 
   if (spec.bed) {
