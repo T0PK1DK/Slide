@@ -1,10 +1,10 @@
 # Game layer (logic only)
 
-On-device progress for Slide. This PR is **logic and storage only** — no HUD, no CSS.
+On-device progress for Slide. Logic and storage — no HUD CSS, no edits to existing screens.
 Grim leaves slots on Arrival (XP / badge), a share-card mount, and a 3D-car stage.
-Those slots should call `useGameProgress()` and read `lastAward()` / `get()`.
+Those slots should call `useGameProgress()` and `mountShareCard(el)`.
 
-Nard owns voice and lane data. Do not add server calls here. Friends leaderboard is a later PR.
+Nard owns voice and lane data. No server calls in the game layer yet.
 
 ## What is scored
 
@@ -184,8 +184,76 @@ const game = useGameProgress();
 
 `main.ts` calls `beginDrive()` on Go, `recordSample()` on each live GPS fix while driving, and `commit()` next to `recordTrip()` when a live drive ≥ 0.2 mi is saved. Arrival copy is unchanged — Grim fills the slots.
 
-## Later PRs (not this one)
+## Share card (`src/lib/game/shareCard.ts`)
+
+1080×1350 PNG from `TripAward.shareCard` plus the current ride and livery **names**. Theme: CSS variables `--bg`, `--surface` / `--glass`, `--text`, `--muted`, `--glow`, `--line` when they exist; otherwise a neutral night palette. No addresses, coordinates, map tiles, or times of day.
+
+```ts
+import { mountShareCard, shareTrip, buildShareCardView } from "./lib/game";
+
+const input = {
+  card: game.lastAward()!.shareCard,
+  ride: { name: "Slipstream", livery: "Stripes" },
+};
+
+const slot = mountShareCard(el, input); // Grim's mount node
+await slot.share();                     // Web Share with a PNG file, else download
+await shareTrip(input);                 // same, without a preview node
+```
+
+| Export | Use |
+|---|---|
+| `buildShareCardView(card, ride)` | Pure view: `score, xp, miles, level, badge, ride, livery` |
+| `cardLines(view)` | The strings that will be painted (tests + a11y) |
+| `readShareTheme(el?)` | CSS tokens or fallbacks |
+| `renderShareCardPng(view)` | Offscreen canvas → `image/png` blob |
+| `mountShareCard(el, input?)` | Preview into Grim's element. `{ update, share, unmount }` |
+| `shareTrip(input)` | `"shared" \| "downloaded" \| "cancelled"` |
+
+Filename is `slide-{score}.png` (or `slide-smooth.png`). Share text is only "Smooth score on Slide".
+
+## Weekly leaderboard (`src/lib/game/leaderboard.ts`)
+
+Local model. **Opt-in defaults OFF.** Week is Monday 00:00 – next Monday 00:00, device local time (`2026-W23`). `rankWeek` never invents friends — it only sorts the entries you pass.
+
+```ts
+const board = useLeaderboard();
+board.setOptIn(true);                    // required before anything is shareable
+board.recordTrip(award.score.total, award.shareCard.miles, endedAt);
+const me = board.shareableEntry(handle); // null if opted out or no trips this week
+const rows = board.rank([me, ...friends].filter(Boolean), board.weekId());
+```
+
+`LeaderboardEntry` fields: `handle`, `weekId`, `smoothAvg`, `trips`, `smoothMiles`. No dest, coords, or clock.
+
+### Sync contract (future backend — not built)
+
+A later PR may upload **only** when `optIn === true`, and only this payload:
+
+```ts
+{
+  weekId: string;       // local Mon–Sun id, same format
+  handle: string;       // already-public @handle
+  smoothAvg: number;    // mean smooth score, 0–100
+  trips: number;
+  smoothMiles: number;
+}
+```
+
+Rules the server must keep:
+
+1. Refuse the write if the account has not opted in (server-side flag, default off).
+2. Return only **mutual friends** who also opted in for that `weekId`. Never a global board.
+3. Never accept or return GPS, addresses, dest labels, route shapes, timestamps of day, or raw samples.
+4. `smoothAvg` is the telemetry smooth score, not trip time and not peak speed.
+5. One row per (user, weekId). Client may retry; last write wins.
+6. Stopping opt-in deletes the published row for the current week and stops reads of friends' rows.
+7. Transport: existing Supabase session. No new `VITE_` keys. Rate-limit writes (e.g. once per trip commit, not per GPS fix).
+
+Until that lands, `useLeaderboard()` stores `slide.game.board.v1` on the phone. `eraseDeviceData()` wipes it with every other `slide.*` key.
+
+## Later PRs
 
 - Opal-style unlock stage + 3D car
-- Shareable trip card UI
-- Opt-in weekly friends smooth-score leaderboard
+- Arrival slot that calls `mountShareCard` (Grim)
+- Friends leaderboard UI + the sync above (opt-in, mutual friends)

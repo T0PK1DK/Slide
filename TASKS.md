@@ -89,9 +89,11 @@ Work top-down. Check the box in the same PR.
 - [x] Tiered badges, no licensed brands (`src/lib/game/badges.ts`)
 - [x] Unlocks mapped to original rides/liveries; starter six still free (`src/lib/game/unlocks.ts`)
 - [x] On-device progress (`slide.game.v1`) + `useGameProgress()` for Grim's slots (`docs/GAME-LAYER.md`)
+- [x] Share card renderer + `mountShareCard` / `shareTrip` (1080×1350 PNG, no addresses) — Grim still places the slot
+- [x] Opt-in weekly leaderboard local model + `rankWeek` + sync contract in `docs/GAME-LAYER.md` (default OFF, no fake friends)
 - [ ] Opal-style unlock stage + 3D car (Grim / later)
-- [ ] Shareable trip card UI (Grim / later)
-- [ ] Opt-in weekly friends smooth-score leaderboard (later; Supabase, mutual friends)
+- [ ] Arrival share-card slot wired to `mountShareCard` (Grim)
+- [ ] Friends leaderboard UI + backend sync (later; opt-in, mutual friends, contract in GAME-LAYER.md)
 
 ## P3 — cars and camera
 
