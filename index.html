@@ -4,10 +4,11 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>Slide</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <!-- Fonts load without blocking first paint (display=swap); the HUD paints in system type first. -->
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@200;300;400;500;600&family=Geist+Mono:wght@400;500&display=swap" media="print" onload="this.media='all'" />
+    <!-- Map style + TileJSON start with the HTML; src/map/warm.ts adds the sprite and glyphs once the style lands. -->
+    <link rel="preconnect" href="https://tiles.openfreemap.org" crossorigin />
+    <link rel="preload" href="https://tiles.openfreemap.org/styles/dark" as="fetch" crossorigin="anonymous" />
+    <link rel="preload" href="https://tiles.openfreemap.org/planet" as="fetch" crossorigin="anonymous" />
+    <!-- Geist loads from boot.ts once the map has rendered, so ~50 kB of fonts never slow the map on a weak signal. The HUD paints in system type first. -->
     <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@200;300;400;500;600&family=Geist+Mono:wght@400;500&display=swap" /></noscript>
     <style>
       /* Skeleton: paints before any JS so the phone never shows a blank or white screen. main.ts replaces it. */
@@ -29,6 +30,6 @@
   </head>
   <body>
     <div id="app"><div class="boot" aria-hidden="true"><div><b>SLIDE</b><span>LOADING THE MAP…</span></div></div></div>
-    <script type="module" src="/src/main.ts"></script>
+    <script type="module" src="/src/boot.ts"></script>
   </body>
 </html>

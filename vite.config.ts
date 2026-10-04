@@ -1,4 +1,27 @@
-import { defineConfig } from "vite";
+import { defineConfig, type Plugin } from "vite";
+
+/**
+ * boot.ts loads main.ts (and MapLibre) with a dynamic import so the HUD paints
+ * first. Vite only starts those downloads when boot runs, so tell the browser
+ * about them in the HTML: they download in parallel with boot instead of after it.
+ */
+function preloadApp(): Plugin {
+  return {
+    name: "slide-preload-app",
+    apply: "build",
+    transformIndexHtml: {
+      order: "post",
+      handler(_html, ctx) {
+        const chunks = Object.values(ctx.bundle ?? {}).filter((c) => c.type === "chunk");
+        const main = chunks.find((c) => c.type === "chunk" && c.facadeModuleId?.endsWith("/src/main.ts"));
+        if (!main || main.type !== "chunk") return [];
+        const entries = new Set(chunks.filter((c) => c.type === "chunk" && c.isEntry).map((c) => c.fileName));
+        const files = [main.fileName, ...main.imports].filter((f, i, a) => a.indexOf(f) === i && !entries.has(f));
+        return files.map((f) => ({ tag: "link", attrs: { rel: "modulepreload", crossorigin: true, href: `./${f}` }, injectTo: "head" as const }));
+      },
+    },
+  };
+}
 
 export default defineConfig({
   base: "./",
@@ -6,6 +29,7 @@ export default defineConfig({
     host: true,
     port: 5173,
   },
+  plugins: [preloadApp()],
   build: {
     // MapLibre is ~800 kB on its own; keep it in a separate long-cached chunk
     // so an app-only deploy doesn't make phones re-download the map engine.

@@ -1,7 +1,6 @@
 import maplibregl from "maplibre-gl";
 import type { Feature, FeatureCollection } from "geojson";
 import "maplibre-gl/dist/maplibre-gl.css";
-import "./styles.css";
 import { decodePolyline6, haversineMeters } from "./lib/polyline";
 import {
   requestRouteVariant,
@@ -24,6 +23,7 @@ import {
 import { loadGarage, saveGarage, TRAILS, type GarageConfig, type SavedPlace } from "./lib/garage";
 import { bubbleCandidates, mergeVariantTrips, pickFree, tollLabel, variantsFor } from "./plan/routeset";
 import { dropIndex, MAX_STOPS, moveItem, stopsReached } from "./plan/stops";
+import { classifyFailure, type FailWhat } from "./plan/failure";
 import { stepGhost, type GhostCar } from "./lib/ghosts";
 import {
   buildSteps,
@@ -40,7 +40,9 @@ import {
   LINE_LAYOUT,
   routeLayerPaints,
 } from "./lib/maplook";
-import { ensureSignedIn, lockApp } from "./hud/login";
+import { lockApp } from "./hud/login";
+import { driverReady, STYLE } from "./boot";
+import { warmedStyle } from "./map/warm";
 import { mountProfile } from "./hud/profile";
 import { setSocialNotice } from "./hud/social";
 import { cloudConfigured } from "./lib/cloud";
@@ -63,168 +65,22 @@ import {
 } from "./lib/tracking";
 
 const MIAMI: LonLat = { lon: -80.1918, lat: 25.7617 };
-const STYLE = "https://tiles.openfreemap.org/styles/dark";
 
 let garage = loadGarage();
 applyTheme(garage);
+// The HUD markup (#app) and the login gate were already painted by boot.ts.
 
-const app = document.querySelector("#app")!;
-app.innerHTML = `
-  <div id="map"></div>
-  <div class="vignette"></div>
-  <div class="hud">
-    <button class="map-fab menu-fab plan-only" id="menu-fab" type="button" aria-label="Menu">☰</button>
-    <button class="map-fab compass-fab plan-only" id="compass-fab" type="button" aria-label="North up">
-      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M12 3l4 14-4-2-4 2z" fill="currentColor"/></svg>
-    </button>
-    <button class="map-fab locate-fab plan-only" id="locate-fab" type="button" aria-label="Locate">⌖</button>
-    <div class="panel search-card plan-only" id="search-card">
-      <div class="brand desktop-only"><h1>Slide</h1><span class="chip" id="rank-chip">GARAGE</span><button class="icon" id="help" type="button" aria-label="How to Slide">?</button></div>
-      <div class="where-row">
-        <svg class="where-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M16 16l5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-        <input id="to" placeholder="Where to?" autocomplete="off" />
-        <div class="suggest" id="to-suggest" hidden></div>
-      </div>
-      <div class="sheet-more">
-        <div class="fields">
-          <div class="field"><label>From</label><input id="from" value="Current location" placeholder="Current location or address" autocomplete="off" /><button type="button" class="use-gps" id="from-gps" aria-label="Start from my current location"><svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true"><path d="M21 3L3 10.5l7.5 2.9L13.4 21z" fill="currentColor"/></svg>Me</button><div class="suggest" id="from-suggest" hidden></div></div>
-        </div>
-        <div class="place-chips" id="place-chips">
-          <button type="button" class="place-chip" id="chip-home">Home</button>
-          <button type="button" class="place-chip" id="chip-work">Work</button>
-          <button type="button" class="place-chip" id="chip-saved" hidden></button>
-        </div>
-        <div class="recents" id="recents" hidden></div>
-        <div class="actions">
-          <button class="primary" id="go">Drop the line</button>
-          <button class="ghost" id="locate">Locate</button>
-          <button class="icon" id="tune">Tune</button>
-        </div>
-        <div class="error" id="error" hidden></div>
-      </div>
-    </div>
-    <div class="panel status-pill" id="status">Locking a 3D line…</div>
-    <div class="panel loc-banner" id="loc-banner" role="alert" hidden>
-      <p id="loc-msg"></p>
-      <div class="loc-actions">
-        <button class="ghost" id="loc-search" type="button">Search a start point instead</button>
-        <button class="primary" id="loc-retry" type="button">Try again</button>
-        <button class="icon loc-close" id="loc-close" type="button" aria-label="Dismiss">×</button>
-      </div>
-    </div>
-    <div class="panel maneuver drive-only" id="maneuver" hidden>
-      <svg class="arrow" viewBox="0 0 24 24" aria-hidden="true"><path id="man-arrow" d="" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      <div class="man-text"><b id="man-dist">—</b><span id="man-instr">—</span></div>
-      <div class="man-bar"><i id="man-fill"></i></div>
-    </div>
-    <div class="panel posted-chip drive-only" id="posted" hidden></div>
-    <div class="panel review-sheet review-only" id="review-sheet" hidden>
-      <div class="review-head">
-        <b id="review-eta">—</b>
-        <span id="review-dist">—</span>
-      </div>
-      <p class="review-via" id="review-via">—</p>
-      <p class="review-tag" id="review-tag">—</p>
-      <p class="review-eta-note" id="review-eta-note">Typical time · no live traffic yet</p>
-      <ol class="stops-list" id="stops-list" aria-label="Stops, in driving order"></ol>
-      <div class="stop-search" id="stop-search" hidden>
-        <input id="stop-input" placeholder="Add a stop" autocomplete="off" aria-label="Search for a stop" />
-        <div class="suggest" id="stop-suggest" hidden></div>
-      </div>
-      <div class="review-tools">
-        <button class="tool" id="review-add-stop" type="button">+ Add stop</button>
-        <button class="tool icon" id="review-options" type="button" aria-label="Route options" aria-haspopup="dialog">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>
-        </button>
-      </div>
-      <div class="review-actions">
-        <button class="ghost" id="review-back" type="button">Where to?</button>
-        <button class="primary" id="review-go" type="button">Go now</button>
-      </div>
-    </div>
-    <div class="panel options-sheet" id="route-options" role="dialog" aria-modal="true" aria-labelledby="ro-title" hidden>
-      <h2 id="ro-title">Route options</h2>
-      <label class="switch"><span>Avoid tolls<small>SunPass and toll roads</small></span><input type="checkbox" id="ro-tolls" /></label>
-      <label class="switch"><span>Avoid highways</span><input type="checkbox" id="ro-highways" /></label>
-      <label class="switch"><span>Avoid ferries</span><input type="checkbox" id="ro-ferries" /></label>
-      <button class="primary" id="ro-done" type="button">Done</button>
-    </div>
-    <div class="panel arrival-sheet arrive-only" id="arrival" role="dialog" aria-labelledby="arr-dest" hidden>
-      <span class="arr-kicker" id="arr-kicker">ARRIVED</span>
-      <h2 id="arr-dest">—</h2>
-      <div class="arr-stats">
-        <div><span>Drive time</span><b id="arr-time">—</b></div>
-        <div><span>Driven</span><b id="arr-dist">—</b></div>
-        <div><span>Line</span><b id="arr-line">—</b></div>
-      </div>
-      <p class="arr-note" id="arr-note"></p>
-      <button class="primary" id="arr-done" type="button">Done</button>
-    </div>
-    <div class="panel dash plan-only" id="dash" hidden>
-      <div class="stat-row">
-        <div class="stat"><span>Slide</span><b id="stat-score">—</b></div>
-        <div class="stat"><span>Arrive</span><b id="stat-eta">—</b></div>
-        <div class="stat"><span>Ghosts</span><b id="stat-ghosts">0</b></div>
-        <div class="stat"><span>Streak</span><b id="stat-streak">0</b></div>
-      </div>
-      <div id="routes"></div>
-    </div>
-    <div class="speedo drive-only" id="speedo" hidden>
-      <div class="cluster">
-        <div class="limit" id="limit" hidden><span>Speed limit</span><b id="limit-n">—</b></div>
-        <div class="live"><div class="n" id="speed-n">0</div><div class="u" id="speed-src">Est</div></div>
-      </div>
-      <div class="ghost-delta" id="ghost-delta" hidden>GHOST ±0.0s</div>
-    </div>
-    <button class="panel recenter drive-only" id="recenter" hidden>Recenter</button>
-    <div class="panel speed-rail" id="speeds" hidden></div>
-    <div class="panel drive-bar drive-only" id="drive-bar" hidden>
-      <div class="meta"><b id="drive-eta">—</b><span id="drive-remain">—</span></div>
-      <button class="icon" id="more" type="button" aria-label="More">⋯</button>
-      <button class="end" id="end-drive" type="button">End</button>
-    </div>
-    <div class="panel overflow" id="overflow">
-      <button type="button" id="ov-profile">Profile</button>
-      <button type="button" id="ov-tune">Tune garage</button>
-      <button type="button" id="ov-help">How to Slide</button>
-      <button type="button" id="ov-rail">Speed rail</button>
-      <button type="button" id="ov-home">Save To as Home</button>
-      <button type="button" id="ov-work">Save To as Work</button>
-      <button type="button" id="ov-insights">Drive insights</button>
-      <button type="button" id="ov-lock">Lock Slide</button>
-    </div>
-    <div class="coach" id="coach" hidden>
-      <div class="panel coach-card">
-        <h2>How to Slide</h2>
-        <ol>
-          <li>Type <b>Where to?</b><span>Or tap Home / Work. Locate sets From.</span></li>
-          <li>Slide drops the smoothest line<span>Tap <b>Go now</b>. Fastest is an explicit pick on the map.</span></li>
-          <li>Follow the banner<span>Posted limit is the sign. Never a target to beat.</span></li>
-        </ol>
-        <button class="primary" id="coach-ok" type="button">Got it</button>
-      </div>
-    </div>
-    <div class="panel garage" id="garage">
-      <div class="garage-head"><h3>Garage</h3><button class="close" id="g-close" aria-label="Close garage">×</button></div>
-      <label>Tag</label><input id="g-tag" type="text" maxlength="12" />
-      <label>Body</label><div class="swatches" id="g-body"></div>
-      <label>Glow</label><div class="swatches" id="g-glow"></div>
-      <label>Trail</label><select id="g-trail"><option value="plasma">Plasma</option><option value="ember">Ember</option><option value="ice">Ice</option><option value="volt">Volt</option></select>
-      <label>Camera</label><select id="g-cam"><option value="cinematic">Cinematic 3D</option><option value="chase">Chase</option><option value="top">Top-down</option></select>
-      <div class="toggle"><span>3D buildings</span><input id="g-build" type="checkbox" /></div>
-      <div class="toggle"><span>Show ghosts</span><input id="g-ghosts" type="checkbox" /></div>
-      <div class="toggle"><span>Share my ghost</span><input id="g-share" type="checkbox" /></div>
-    </div>
-  </div>
-`;
 
 const map = new maplibregl.Map({
   container: "map",
-  style: STYLE,
+  // The style JSON boot already fetched (no second request); the URL if it hasn't landed yet.
+  style: (warmedStyle() as maplibregl.StyleSpecification | null) ?? STYLE,
   center: [MIAMI.lon, MIAMI.lat],
   zoom: 14.2,
-  pitch: 58,
-  bearing: -18,
+  // Phones start in the flat plan view applyPlanView() eases to anyway: far fewer
+  // tiles for the first render than a 58° tilt on a slow connection.
+  pitch: window.innerWidth < 820 ? 8 : 58,
+  bearing: window.innerWidth < 820 ? 0 : -18,
   attributionControl: false,
   maxPitch: 75,
 });
@@ -358,6 +214,14 @@ $("#ro-done").addEventListener("click", () => {
 });
 $("#locate").addEventListener("click", locateMe);
 $("#loc-close").addEventListener("click", hideLocationProblem);
+$("#net-close").addEventListener("click", hideFailure);
+$("#net-retry").addEventListener("click", () => { const again = netRetry; hideFailure(); again?.(); });
+window.addEventListener("online", () => {
+  const sheet = $("#net-sheet");
+  if (sheet.hidden || sheet.dataset.kind !== "offline") return;
+  $("#net-title").textContent = "Back online";
+  $("#net-msg").textContent = "Your connection is back. Tap Try again.";
+});
 $("#loc-retry").addEventListener("click", () => {
   hideLocationProblem();
   if (hudMode === "plan" && dest) void plan();
@@ -502,7 +366,7 @@ wireGarage();
 refreshPlaceChips();
 renderRecents();
 setHudMode("plan");
-ensureSignedIn(document.body, (driver) => {
+void driverReady.then((driver) => {
   // A new driver's car tag seeds the garage; after that the garage tag is theirs to change.
   if (garage.tag === "SLIDE-01" && driver.tag !== "SLIDE-01") {
     garage.tag = driver.tag;
@@ -632,6 +496,24 @@ function showLocationProblem(problem: LocationProblem) {
 }
 function hideLocationProblem() {
   $("#loc-banner").setAttribute("hidden", "");
+}
+/** Offline / server down / no road between the points: say which, with one Try again. */
+let netRetry: (() => void) | null = null;
+let netWhat: FailWhat | null = null;
+function showFailure(err: unknown, what: FailWhat, retry: () => void) {
+  const f = classifyFailure(err, navigator.onLine, what);
+  $("#net-title").textContent = f.title;
+  $("#net-msg").textContent = f.body;
+  const sheet = $("#net-sheet");
+  sheet.dataset.kind = f.kind;
+  netRetry = retry;
+  netWhat = what;
+  sheet.removeAttribute("hidden");
+}
+function hideFailure() {
+  $("#net-sheet").setAttribute("hidden", "");
+  netRetry = null;
+  netWhat = null;
 }
 function applyPlanView() {
   const phone = window.innerWidth < 820;
@@ -898,7 +780,11 @@ function bindSearch(input: HTMLInputElement, box: HTMLElement, onPick: (hit: Sea
         active = -1;
         draw();
         box.hidden = items.length === 0;
-      } catch { close(); }
+        if (netWhat === "search") hideFailure();
+      } catch (err) {
+        close();
+        if (input.value.trim().length >= 2) showFailure(err, "search", () => input.dispatchEvent(new Event("input")));
+      }
     }, 200);
   });
 
@@ -1034,6 +920,7 @@ async function plan() {
   if (planning) return;
   showError("");
   hideLocationProblem();
+  hideFailure();
   if (!dest) return showError("Set a destination.");
   planning = true;
   const goBtn = $("#go") as HTMLButtonElement;
@@ -1045,6 +932,7 @@ async function plan() {
     if (!originPicked) originLabel = "Current location";
     setStatus("Scoring the smoothest 3D line…");
     routes = await fetchRanked(start, dest);
+    if (!routes.length) throw new Error("No routes returned.");
     selectedId = routes[0]?.id ?? "";
     loadSelectedRoute();
     paintRoutes();
@@ -1053,9 +941,8 @@ async function plan() {
     setHudMode("review");
     setStatus("");
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "Routing failed.";
     $("#search-card").classList.add("open");
-    showError(/failed|network|fetch|load|abort|\d{3}/i.test(msg) ? "Can't reach routing right now. Check your connection and try again." : msg);
+    showFailure(err, "route", () => void plan());
     setStatus("");
   } finally {
     planning = false;
@@ -1456,7 +1343,4 @@ function showError(text: string) { errorEl.textContent = text; errorEl.toggleAtt
 const ESCAPES: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
 function esc(s: string): string { return s.replace(/[&<>"']/g, (c) => ESCAPES[c]); }
 persist();
-// Installable app shell (Add to Home Screen). Production only, so dev reloads stay uncached.
-if (import.meta.env.PROD && "serviceWorker" in navigator) {
-  window.addEventListener("load", () => { void navigator.serviceWorker.register("./sw.js").catch(() => {}); });
-}
+// The service worker is registered by boot.ts.
