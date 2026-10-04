@@ -1,7 +1,12 @@
 # Slide — VIA design system
 
-The night HUD, premium pass. Source of truth for any agent touching `src/styles.css`.
-Skin lives in the **VIA skin** block at the bottom of `styles.css` — add new component styles there, using these tokens.
+The night HUD, premium pass. **Source of truth for CSS:** `src/styles/tokens.css` (themes + hex) and `src/styles.css` (tokens → base → components → screens). Derived from `design/premium-glass-kit/`. Never add a new override layer — change a token or a component rule.
+
+Themes: Night (default), Ember, Sand via `[data-look]` on `<html>`. `--glow` stays the Garage accent.
+
+## Tokens
+
+Slide aliases (`--bg`, `--glass`, `--text`, `--muted`, `--faint`, `--glow`, `--danger`, `--surface`, `--line`) still work. Canonical kit names live in `src/styles/tokens.css`. Historical VIA values below are the old layered look; do not paste them back into components.
 
 ## Tokens
 

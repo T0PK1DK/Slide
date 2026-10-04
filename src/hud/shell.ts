@@ -59,6 +59,7 @@ export const HUD_HTML = `
       <div class="man-text"><b id="man-dist">—</b><span id="man-instr">—</span></div>
       <div class="man-bar"><i id="man-fill"></i></div>
     </div>
+    <div id="lane-strip" class="lane-strip drive-only" data-slot="lane-strip" hidden aria-label="Lane guidance"></div>
     <div class="panel posted-chip drive-only" id="posted" hidden></div>
     <div class="panel review-sheet review-only" id="review-sheet" hidden>
       <div class="review-head">
@@ -99,9 +100,11 @@ export const HUD_HTML = `
         <div><span>Driven</span><b id="arr-dist">—</b></div>
         <div><span>Line</span><b id="arr-line">—</b></div>
       </div>
+      <div id="arr-xp" class="arr-xp" data-slot="arrival-xp" hidden aria-label="Trip XP and badges"></div>
       <p class="arr-note" id="arr-note"></p>
       <button class="primary" id="arr-done" type="button">Done</button>
     </div>
+    <div id="share-card-mount" class="share-card-mount" data-slot="share-card" hidden aria-label="Shareable trip card"></div>
     <div class="panel dash plan-only" id="dash" hidden>
       <div class="stat-row">
         <div class="stat"><span>Slide</span><b id="stat-score">—</b></div>
@@ -122,8 +125,11 @@ export const HUD_HTML = `
     <div class="panel speed-rail" id="speeds" hidden></div>
     <div class="panel drive-bar drive-only" id="drive-bar" hidden>
       <div class="meta"><b id="drive-eta">—</b><span id="drive-remain">—</span></div>
-      <button class="icon" id="more" type="button" aria-label="More">⋯</button>
-      <button class="end" id="end-drive" type="button">End</button>
+      <div class="drive-controls">
+        <span id="drive-mute" class="drive-mute" data-slot="drive-mute" hidden aria-label="Mute voice guidance"></span>
+        <button class="icon" id="more" type="button" aria-label="More">⋯</button>
+        <button class="end" id="end-drive" type="button">End</button>
+      </div>
     </div>
     <div class="panel overflow" id="overflow">
       <button type="button" id="ov-profile">Profile</button>
@@ -164,5 +170,6 @@ export const HUD_HTML = `
       <div class="toggle"><span>Show ghosts</span><input id="g-ghosts" type="checkbox" /></div>
       <div class="toggle"><span>Share my ghost</span><input id="g-share" type="checkbox" /></div>
     </div>
+    <div id="car-stage" class="car-stage" data-slot="car-stage" hidden aria-label="3D car stage"></div>
   </div>
 `;
