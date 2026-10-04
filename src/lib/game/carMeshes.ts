@@ -220,7 +220,7 @@ function liveryMaps(THREE: ThreeMod, look: CarStageLook, paint: number, accent: 
   return null;
 }
 
-function loft(THREE: ThreeMod, stations: Station[], segs: number, round: number) {
+function loft(THREE: ThreeMod, stations: Station[], segs: number, round: number, yLift = 0) {
   const positions: number[] = [];
   const uvs: number[] = [];
   const indices: number[] = [];
@@ -232,7 +232,7 @@ function loft(THREE: ThreeMod, stations: Station[], segs: number, round: number)
       const ct = Math.cos(t);
       const st = Math.sin(t);
       const x = (s.w / 2) * Math.sign(ct || 1) * Math.pow(Math.abs(ct), pwr);
-      const y = s.y + (s.h / 2) * Math.sign(st || 1) * Math.pow(Math.abs(st), pwr * 1.15);
+      const y = s.y + yLift + (s.h / 2) * Math.sign(st || 1) * Math.pow(Math.abs(st), pwr * 1.15);
       positions.push(x, y, s.z);
       uvs.push(j / segs, i / (stations.length - 1));
     }
@@ -249,7 +249,7 @@ function loft(THREE: ThreeMod, stations: Station[], segs: number, round: number)
   const cap = (si: number, reverse: boolean) => {
     const s = stations[si];
     const center = positions.length / 3;
-    positions.push(0, s.y, s.z);
+    positions.push(0, s.y + yLift, s.z);
     uvs.push(0.5, si / (stations.length - 1));
     for (let j = 0; j < segs; j++) {
       const a = si * segs + j;
@@ -325,23 +325,25 @@ export function buildCar(THREE: ThreeMod, look: CarStageLook) {
   const tailMat = new THREE.MeshStandardMaterial({ color: 0xff3b3b, emissive: 0xff2a2a, emissiveIntensity: 0.7, roughness: 0.35 });
 
   const segs = 12;
-  group.add(new THREE.Mesh(loft(THREE, hull, segs, spec.round), bodyMat));
+  const lift = spec.ride + 0.05;
+  group.add(new THREE.Mesh(loft(THREE, hull, segs, spec.round, lift), bodyMat));
 
   const cabin = CABINS[id];
   if (cabin) {
-    const cabMesh = new THREE.Mesh(loft(THREE, cabin, 10, Math.min(0.75, spec.round + 0.12)), look.livery === "dusk" ? roofMat : glassMat);
+    const cabStations = cabin.map((s) => ({ ...s, y: s.y + 0.06, h: s.h + 0.08 }));
+    const cabMesh = new THREE.Mesh(loft(THREE, cabStations, 10, Math.min(0.75, spec.round + 0.12), lift), look.livery === "dusk" ? roofMat : glassMat);
     group.add(cabMesh);
   }
 
   if (id === "hauler") {
-    const floor = new THREE.Mesh(new THREE.BoxGeometry(spec.w * 0.9, 0.06, spec.bed), bodyMat);
-    floor.position.set(0, spec.ride + 0.22, -0.72);
-    const wallL = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.28, spec.bed * 0.92), bodyMat);
-    wallL.position.set(-spec.w * 0.42, spec.ride + 0.36, -0.72);
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(spec.w * 0.92, 0.05, spec.bed), bodyMat);
+    floor.position.set(0, lift + 0.2, -0.78);
+    const wallL = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.36, spec.bed * 0.94), bodyMat);
+    wallL.position.set(-spec.w * 0.44, lift + 0.38, -0.78);
     const wallR = wallL.clone();
-    wallR.position.x = spec.w * 0.42;
-    const gate = new THREE.Mesh(new THREE.BoxGeometry(spec.w * 0.86, 0.24, 0.05), bodyMat);
-    gate.position.set(0, spec.ride + 0.32, -1.14);
+    wallR.position.x = spec.w * 0.44;
+    const gate = new THREE.Mesh(new THREE.BoxGeometry(spec.w * 0.9, 0.3, 0.05), bodyMat);
+    gate.position.set(0, lift + 0.34, -1.2);
     group.add(floor, wallL, wallR, gate);
   }
 
@@ -349,14 +351,14 @@ export function buildCar(THREE: ThreeMod, look: CarStageLook) {
     for (const x of [-0.28, 0.28]) {
       const rail = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 1.15, 6), rubber);
       rail.rotation.x = Math.PI / 2;
-      rail.position.set(x, 1.14, -0.18);
+      rail.position.set(x, 1.22 + lift, -0.18);
       group.add(rail);
     }
   }
 
   if (id === "slipstream") {
     const wing = new THREE.Mesh(new THREE.BoxGeometry(0.86, 0.03, 0.16), accentMat);
-    wing.position.set(0, 0.42, -1.02);
+    wing.position.set(0, 0.5 + lift, -1.02);
     group.add(wing);
   }
 
@@ -364,7 +366,7 @@ export function buildCar(THREE: ThreeMod, look: CarStageLook) {
     const ring = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.018, 8, 22), accentMat);
     ring.rotation.x = Math.PI / 2;
     const top = cabin?.[1] ?? { y: 0.55, z: -0.1 };
-    ring.position.set(0, top.y + 0.16, top.z);
+    ring.position.set(0, top.y + lift + 0.28, top.z);
     group.add(ring);
   }
 
@@ -374,13 +376,13 @@ export function buildCar(THREE: ThreeMod, look: CarStageLook) {
   for (const x of [-hx, hx]) {
     const lamp = new THREE.Mesh(new THREE.SphereGeometry(id === "classic" ? 0.04 : 0.055, 10, 8), lightMat);
     lamp.scale.set(1.15, 0.7, 0.7);
-    lamp.position.set(x, first.y, first.z + 0.02);
+    lamp.position.set(x, first.y + lift, first.z + 0.02);
     group.add(lamp);
   }
   const tx = last.w * 0.28;
   for (const x of [-tx, tx]) {
     const lamp = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.04, 0.03), tailMat);
-    lamp.position.set(x, last.y + last.h * 0.15, last.z - 0.01);
+    lamp.position.set(x, last.y + lift + last.h * 0.15, last.z - 0.01);
     group.add(lamp);
   }
 
@@ -402,6 +404,6 @@ export function buildCar(THREE: ThreeMod, look: CarStageLook) {
   glow.position.y = 0.03;
   group.add(glow);
 
-  group.rotation.y = Math.PI * 0.22;
+  group.rotation.y = Math.PI * 0.58;
   return group;
 }

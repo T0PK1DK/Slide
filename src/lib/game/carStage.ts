@@ -92,9 +92,9 @@ export function mountCarStage(host: HTMLElement): CarStageHandle {
     if (disposed) return;
     host.replaceChildren();
     const nextScene = new THREE.Scene();
-    const nextCam = new THREE.PerspectiveCamera(36, 1, 0.1, 40);
-    nextCam.position.set(2.55, 1.42, 3.35);
-    nextCam.lookAt(0, 0.4, 0);
+    const nextCam = new THREE.PerspectiveCamera(34, 1, 0.1, 40);
+    nextCam.position.set(3.2, 0.88, 1.55);
+    nextCam.lookAt(0, 0.3, 0);
 
     const hemi = new THREE.HemisphereLight(0xf4f1ea, 0x1a1e22, 0.48);
     const key = new THREE.DirectionalLight(0xfff4e6, 0.82);
