@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en" data-theme="night">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Premium Glass Kit · Dashboard Template</title>
+  <meta name="description" content="App-agnostic premium glass dashboard template. Night / Warm themes driven by design tokens. All data is fake." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet" />
+  <!-- Theme before first paint (no flash). app.js validates it against SKIN.themes. -->
+  <script>
+    (function () {
+      var q = new URLSearchParams(location.search).get("theme");
+      var saved = null; try { saved = localStorage.getItem("pgk-theme"); } catch (e) {}
+      var sys = window.matchMedia && matchMedia("(prefers-color-scheme: light)").matches ? "warm" : "night";
+      document.documentElement.setAttribute("data-theme", q || saved || sys);
+    })();
+  </script>
+  <link rel="stylesheet" href="css/tokens.css" />
+  <link rel="stylesheet" href="css/components.css" />
+</head>
+<body>
+  <!-- ============ ICON SPRITE (thin line icons). Skins can append symbols via SKIN.icons ============ -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <symbol id="i-logo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M4 9 9 4M4 14 14 4M4 19 19 4M9 20 20 9M14 20l6-6"/></symbol>
+      <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></symbol>
+      <symbol id="i-bell" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16V11a6 6 0 1 1 12 0v5l1.5 2h-15L6 16Z"/><path d="M10 20.5a2.2 2.2 0 0 0 4 0"/></symbol>
+      <symbol id="i-chev-r" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></symbol>
+      <symbol id="i-chev-d" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></symbol>
+      <symbol id="i-arrow-r" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+      <symbol id="i-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M6 11l6-6 6 6"/></symbol>
+      <symbol id="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5Z"/></symbol>
+      <symbol id="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/></symbol>
+      <symbol id="i-flame" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21a6 6 0 0 0 6-6c0-4-3-6-4-9-1 2-2 3-4 4 0-2-1-3-1-3-2 2-3 5-3 8a6 6 0 0 0 6 6Z"/></symbol>
+      <symbol id="i-expand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/><rect x="9" y="9" width="6" height="6" rx="1"/></symbol>
+      <symbol id="i-layers" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="m3 13 9 5 9-5"/></symbol>
+      <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></symbol>
+      <symbol id="i-minus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M5 12h14"/></symbol>
+      <symbol id="i-nav" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="m20 4-7 17-2.5-7.5L3 11l17-7Z"/></symbol>
+      <symbol id="i-alert" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4 2.8 19.5h18.4L12 4Z"/><path d="M12 10v4M12 17h.01"/></symbol>
+      <symbol id="i-shuffle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h3l10 10h3M4 17h3l3-3M14 10l3-3h3M17 4l3 3-3 3M17 14l3 3-3 3"/></symbol>
+      <symbol id="i-chart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 19v-6M12 19V7M18 19v-9"/></symbol>
+      <symbol id="i-pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.5"/></symbol>
+      <symbol id="i-thumb" viewBox="0 0 120 26" fill="none" stroke="currentColor" stroke-width="1"><rect x="1.5" y="2.5" width="70" height="21" rx="4"/><path d="M8 9h26M8 15h40M8 19.5h18" stroke-linecap="round"/><rect x="78.5" y="2.5" width="21" height="21" rx="4"/><path d="m82 19 5-6 4 4 3-3 3 5" stroke-linejoin="round"/></symbol>
+      <symbol id="i-pulse" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2.5-6 4 12 2.5-6H21"/></symbol>
+      <symbol id="i-spark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6"/></symbol>
+    </defs>
+  </svg>
+
+  <!--
+    LAYOUT SHELL. Every [data-slot] is filled by js/app.js from window.SKIN
+    (js/skin.default.js + optional skins/<name>/skin.js). Delete a slot to drop that component.
+  -->
+
+  <!-- COMPONENT: TopNav (brand, tabs, search, ThemeSwitch, bell, avatar) -->
+  <header class="topnav" data-slot="topnav"></header>
+
+  <main class="shell">
+    <!-- LEFT: state -->
+    <aside class="col col--left" aria-label="Overview">
+      <section class="glass card reveal" style="--i:0" data-slot="kpis"></section>        <!-- KpiPairCard -->
+      <section class="glass card reveal is-link" style="--i:1" data-slot="trend"></section> <!-- HeroStatSparkline -->
+      <section class="reveal" style="--i:2" data-slot="list"></section>                   <!-- SelectableList -->
+    </aside>
+
+    <!-- CENTER: hero (map or media) -->
+    <section class="col col--hero" aria-label="Hero">
+      <div class="hero reveal" id="hero" style="--i:1" data-slot="hero">                  <!-- HeroPanel -->
+        <canvas class="map-canvas" id="map-canvas"></canvas>
+        <div class="leaflet-host" id="leaflet-host"></div>
+        <div class="media-host" id="media-host"></div>
+        <svg class="map-overlay" id="map-overlay" viewBox="0 0 1000 620" preserveAspectRatio="xMidYMid slice"></svg>
+        <div class="map-vignette"></div>
+        <div class="hero-top" data-slot="hero-top"></div>                                <!-- SegmentedControl + StatusChip -->
+        <div class="glass glass--float float-card" id="float-card" data-slot="float-card"></div> <!-- FloatingInfoCard -->
+        <div class="device" aria-hidden="true" data-slot="device"></div>                 <!-- DevicePreview (optional) -->
+        <div class="map-locate"><div class="glass" style="border-radius:50%"><button aria-label="Locate"><svg width="15" height="15"><use href="#i-nav"/></svg></button></div></div>
+        <div class="map-controls">                                                         <!-- HeroControls -->
+          <div class="glass round"><button aria-label="Layers"><svg><use href="#i-layers"/></svg></button></div>
+          <div class="glass stack"><button aria-label="Zoom in"><svg><use href="#i-plus"/></svg></button><button aria-label="Zoom out"><svg><use href="#i-minus"/></svg></button></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- RIGHT: insights & actions -->
+    <aside class="col col--right" aria-label="Insights">
+      <section class="glass panel reveal" style="--i:2" data-slot="insights"></section>  <!-- InsightPanel: AlertCard ×n, ProgressCard -->
+      <section class="glass panel reveal" style="--i:3" data-slot="bars"></section>      <!-- BarChartCard -->
+    </aside>
+  </main>
+
+  <!-- 1) base skin (generic)  2) optional app skin via ?skin=<name> or by adding its <script> here  3) engine -->
+  <script src="js/skin.default.js"></script>
+  <script>
+    (function () {
+      var name = new URLSearchParams(location.search).get("skin") || window.PGK_SKIN;
+      if (name && /^[\w-]+$/.test(name)) document.write('<script src="' + (window.PGK_BASE || "") + 'skins/' + name + '/skin.js"><\/script>');
+    })();
+  </script>
+  <script src="js/charts.js"></script>
+  <script src="js/map.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
