@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hasArrivalAward, demoAward } from "./gameSlots";
+import { hasArrivalAward, demoAward, shareInputFromAward, currentRide } from "./gameSlots";
 import { rideSpec } from "../lib/game/carStage";
 import type { TripAward } from "../lib/game";
 
@@ -22,6 +22,14 @@ describe("arrival XP slot", () => {
     expect(hasArrivalAward(demoAward())).toBe(true);
     expect(hasArrivalAward({ ...blank, xpEarned: 8 })).toBe(true);
     expect(hasArrivalAward({ ...blank, badgesEarned: [{ id: "first-line", name: "First Line", tier: "bronze" }] })).toBe(true);
+  });
+
+  it("builds the PNG share payload from lastAward + ride, not a second button", () => {
+    const ride = currentRide({ vehicle: "slipstream", livery: "stripes", carColor: "#e8eef2", glow: "#f0a04b" });
+    const input = shareInputFromAward(demoAward(), ride);
+    expect(input?.card.score).toBe(88);
+    expect(input?.ride).toEqual({ name: ride.name, livery: ride.liveryLabel });
+    expect(shareInputFromAward(null, ride)).toBeNull();
   });
 });
 

@@ -2189,23 +2189,16 @@ body[data-mode="drive"] .friend-spot { display: none; }
   color: var(--glow);
 }
 .share-card-mount:not([hidden]) {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  bottom: calc(16px + env(safe-area-inset-bottom));
-  z-index: 7;
-  display: grid;
-  gap: var(--space-3);
-  width: min(420px, calc(100vw - 24px));
-  max-height: min(72vh, 640px);
-  overflow: auto;
-  border-radius: var(--radius-xl);
-  background: var(--glass-tint), var(--glass-2);
+  display: block;
+  width: 100%;
+  max-height: 180px;
+  margin: 0 0 var(--space-3);
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
   border: 1px solid var(--line);
-  box-shadow: var(--lift), var(--shadow);
-  padding: var(--space-4);
 }
-.share-card-frame { border-radius: var(--radius-lg); overflow: hidden; }
+.share-card-frame { border-radius: var(--radius-lg); overflow: hidden; max-height: 180px; }
 .share-card-mount canvas { display: block; width: 100%; height: auto; }
 .car-stage[hidden] { display: none; }
 .car-stage:not([hidden]) {

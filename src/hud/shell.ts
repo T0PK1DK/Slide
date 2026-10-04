@@ -118,12 +118,12 @@ export const HUD_HTML = `
       </div>
       <div id="arr-xp" class="arr-xp" data-slot="arrival-xp" hidden aria-label="Trip XP and badges"></div>
       <p class="arr-note" id="arr-note"></p>
+      <div id="share-card-mount" class="share-card-mount" data-slot="share-card" hidden aria-label="Shareable trip card"></div>
       <div class="arr-actions">
         <button class="ghost" id="arr-share" type="button">Share</button>
         <button class="primary" id="arr-done" type="button">Done</button>
       </div>
     </div>
-    <div id="share-card-mount" class="share-card-mount" data-slot="share-card" hidden aria-label="Shareable trip card"></div>
     <div class="panel dash plan-only" id="dash" hidden>
       <div class="stat-row">
         <div class="stat"><span>Slide</span><b id="stat-score" class="is-empty">After a plan</b></div>

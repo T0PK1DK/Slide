@@ -83,6 +83,7 @@ export {
   type ShareTheme,
   type ShareCardInput,
   type ShareCardMount,
+  type ShareTripEventDetail,
   type ShareTripResult,
   type ShareTripDeps,
 } from "./shareCard";

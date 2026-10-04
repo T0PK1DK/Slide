@@ -335,7 +335,7 @@ Read `TASKS.md` top unchecked item. Do not rebase history. Do not rename the pro
 
 - 2026-10-04 Leon: **Game layer 2 (share card + local board).** Branch `leon/share-card` stacked on `leon/game-core`. `src/lib/game/shareCard.ts` paints `TripAward.shareCard` plus ride/livery names onto a 1080×1350 PNG (offscreen canvas). Theme reads `--bg` / `--surface` / `--text` / `--muted` / `--glow` / `--line` when Grim's tokens exist, else a neutral night palette. `mountShareCard(el)` is the preview for Grim's slot; `shareTrip()` uses Web Share with a PNG file and falls back to download. No addresses, coords, map tiles, or times of day. Weekly board (`src/lib/game/leaderboard.ts`) is local only: Mon–Sun buckets, opt-in default OFF, `rankWeek` does not invent friends. Future backend sync contract is in `docs/GAME-LAYER.md`. No CSS or screen-layout edits.
 
-- 2026-10-04 Leon: **Game layer 3 (wire Grim slots).** Branch `leon/game-wire` = Grim `grim/design-system-rebuild-c69a` (PR #29) + merged `leon/share-card` (which includes `leon/game-core`). Fills `#arr-xp`, `#share-card-mount`, `#car-stage`. Unhide with `el.hidden = false`. New CSS is only token/class additions inside `src/styles.css` (XP bar, stage picks, share frame) — no override layer, no hex. `#g-board` Garage toggle for the weekly board (default off). `board.recordTrip` is now a no-op unless opted in. 3D stage is lazy `three` (own Vite chunk) with original low-poly geometry and livery colors; `prefers-reduced-motion` skips spin. Preview hook: `window.slidePreviewGame`. Stack: #28 game-core → #30 share-card → this PR on Grim #29.
+- 2026-10-04 Leon: **Game layer 3 (wire Grim slots).** Branch `leon/game-wire` rebased onto Grim `grim/screen-pass-c69a` (PR #35, which sits on #29). Fills `#arr-xp`, `#share-card-mount` (inside `#arrival`, above `.arr-actions`), `#car-stage`. `#arr-share` is the only Share button; `slide:share-trip` calls `shareTrip(lastAward().shareCard + ride)`. `#arr-ride` stays Grim's 2D car. Unhide with `el.hidden = false`. Token-only CSS. `#g-board` Garage toggle (default off). Preview: `window.slidePreviewGame`. Stack: #29 → #35 → this PR → `leon/car-models` #37.
 
 ## Teammate slots (stable IDs — do not rename)
 
@@ -345,8 +345,8 @@ Read `TASKS.md` top unchecked item. Do not rebase history. Do not rename the pro
 | Nard | Mute button | `#drive-mute` / `[data-slot="drive-mute"]` | Grim owns the button. Speech listens for `slide:voice-mute` and mirrors `slide.voice.v1`. |
 | Nard | Drive report | `#drive-report` | Bottom-right in drive. Calls `radar.openReport()`. |
 | Leon | XP / badges | `#arr-xp` / `[data-slot="arrival-xp"]` | Inside `#arrival`, under `.arr-stats`. Still empty/`hidden`. |
-| Leon | Share card | `#share-card-mount` / `[data-slot="share-card"]` | Sibling after `#arrival`. Still empty/`hidden`. Listen for `slide:share-trip`. |
-| Leon | Arrival share | `#arr-share` | Share button on the trip card (native share, no address). |
+| Leon | Share card | `#share-card-mount` / `[data-slot="share-card"]` | Inside `#arrival`, above `.arr-actions`. Preview only. Listen for `slide:share-trip` → `shareTrip(lastAward().shareCard + ride)`. |
+| Leon | Arrival share | `#arr-share` | Grim's Share on the trip card. One button; Leon does not add another. |
 | Leon | 3D car stage | `#car-stage` / `[data-slot="car-stage"]` | HUD overlay; 2D garage preview stays `#g-preview`. Arrival 2D ride is `#arr-ride`. |
 | Both | Place card | `#place-card` `#place-name` `#place-addr` `#place-save` `#place-go` | After a search pick, before routing. |
 | Both | Route carousel | `#route-carousel` `#route-track` `#route-dots` | Review sheet. One card per real `SlideRoute`. |

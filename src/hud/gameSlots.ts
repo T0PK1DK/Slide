@@ -20,7 +20,9 @@ import {
   xpToNextLevel,
   type GameApi,
   type LeaderboardApi,
+  type ShareCardInput,
   type ShareCardMount,
+  type ShareTripEventDetail,
   type TripAward,
 } from "../lib/game";
 
@@ -43,6 +45,11 @@ export type GameSlots = {
 export function hasArrivalAward(award: TripAward | null): boolean {
   if (!award || award.alreadyRecorded) return false;
   return award.xpEarned > 0 || award.leveledUp || award.badgesEarned.length > 0 || award.unlocks.length > 0;
+}
+
+export function shareInputFromAward(award: TripAward | null, ride: RideRef): ShareCardInput | null {
+  if (!award?.shareCard) return null;
+  return { card: award.shareCard, ride: { name: ride.name, livery: ride.liveryLabel } };
 }
 
 function $(sel: string): HTMLElement | null {
@@ -69,10 +76,21 @@ export function mountGameSlots(opts: {
   const stageEl = $("#car-stage");
   let share: ShareCardMount | null = null;
   let stage: CarStageHandle | null = null;
+  let pendingShare: ShareCardInput | null = null;
+
+  const onShareTrip = (ev: Event) => {
+    const input = pendingShare;
+    if (!input) return;
+    const detail = (ev as CustomEvent<ShareTripEventDetail>).detail;
+    if (detail && typeof detail === "object") detail.handled = true;
+    void shareTrip(input);
+  };
+  window.addEventListener("slide:share-trip", onShareTrip);
 
   const hideShare = () => {
     share?.unmount();
     share = null;
+    pendingShare = null;
     if (shareEl) {
       shareEl.replaceChildren();
       shareEl.hidden = true;
@@ -128,24 +146,17 @@ export function mountGameSlots(opts: {
 
   const paintShare = (award: TripAward, ride: RideRef) => {
     if (!shareEl) return;
+    const input = shareInputFromAward(award, ride);
+    pendingShare = input;
+    if (!input) {
+      hideShare();
+      return;
+    }
     shareEl.replaceChildren();
     const frame = document.createElement("div");
     frame.className = "share-card-frame";
-    const shareBtn = document.createElement("button");
-    shareBtn.className = "primary";
-    shareBtn.type = "button";
-    shareBtn.textContent = "Share";
-    const closeBtn = document.createElement("button");
-    closeBtn.className = "ghost";
-    closeBtn.type = "button";
-    closeBtn.textContent = "Close";
-    shareEl.append(frame, shareBtn, closeBtn);
-    const input = { card: award.shareCard, ride: { name: ride.name, livery: ride.liveryLabel } };
+    shareEl.append(frame);
     share = mountShareCard(frame, input);
-    shareBtn.addEventListener("click", () => {
-      void (share ? share.share() : shareTrip(input));
-    });
-    closeBtn.addEventListener("click", hideShare);
     shareEl.hidden = false;
   };
 
@@ -283,10 +294,10 @@ export function mountGameSlots(opts: {
       disposeStage();
     },
     preview: {
-      arrival(award) {
+      arrival(award, ride) {
         disposeStage();
-        hideShare();
         paintXp(award);
+        paintShare(award, ride);
       },
       share(award, ride) {
         disposeStage();

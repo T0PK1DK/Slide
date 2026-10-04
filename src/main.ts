@@ -99,7 +99,6 @@ window.slidePreviewGame = {
   arrival() {
     document.body.dataset.mode = "arrive";
     $("#arrival").hidden = false;
-    $("#share-card-mount").hidden = true;
     $("#car-stage").hidden = true;
     $("#arr-kicker").textContent = "ARRIVED · 4:12 PM";
     $("#arr-dest").textContent = "Bayside";
@@ -107,12 +106,14 @@ window.slidePreviewGame = {
     $("#arr-dist").textContent = "3.2 mi";
     $("#arr-line").textContent = "Slide pick";
     $("#arr-note").textContent = "Saved to Your trips on this phone.";
+    $("#arr-ride").innerHTML = carSvg(garage.carColor, garage.glow);
     slots.preview.arrival(demoAward(), currentRide(garage));
   },
   share() {
     document.body.dataset.mode = "arrive";
-    $("#arrival").hidden = true;
+    $("#arrival").hidden = false;
     $("#car-stage").hidden = true;
+    $("#arr-ride").innerHTML = carSvg(garage.carColor, garage.glow);
     slots.preview.share(demoAward(), currentRide(garage));
   },
   stage() {
@@ -664,8 +665,9 @@ async function shareTrip() {
   const bits = ["Slide", time, dist];
   if (line && line !== EMPTY.line) bits.push(line);
   const text = bits.filter((s) => s && s !== EMPTY.driveTime && s !== EMPTY.driven).join(" · ");
-  const payload = { title: "Slide trip", text };
+  const payload = { title: "Slide trip", text, handled: false };
   window.dispatchEvent(new CustomEvent("slide:share-trip", { detail: payload }));
+  if (payload.handled) return;
   if (navigator.share) {
     try { await navigator.share(payload); } catch { /* dismissed */ }
   }

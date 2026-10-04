@@ -227,6 +227,13 @@ export type ShareCardInput = {
   ride: { name: string; livery: string };
 };
 
+/** Grim's `#arr-share` fires this. Leon marks `handled` when the PNG card is shared. */
+export type ShareTripEventDetail = {
+  title?: string;
+  text?: string;
+  handled?: boolean;
+};
+
 export type ShareTripResult = "shared" | "downloaded" | "cancelled";
 
 export type ShareTripDeps = {
