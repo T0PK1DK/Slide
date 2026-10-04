@@ -54,7 +54,8 @@ src/main.ts            map + plan + drive loop (HUD listeners)
 src/styles.css         HUD stylesheet (tokens → base → components → screens)
 src/styles/tokens.css  Night / Ember / Sand tokens (only file with raw hex)
 src/styles/system.test.ts  design-system metrics (hex, radii, type, !important)
-src/lib/empty.ts       empty-state copy (never "—")
+src/lib/empty.ts       empty-state copy (never "—"); `.is-empty` helper; unsigned sign `--`
+src/lib/empty.test.ts  placeholder vs numeral + postedSignText
 src/lib/place.ts       Photon label → name + address
 src/plan/review-cards.ts  swipeable review cards from real ranked routes
 src/hud/voice-mute.ts  `#drive-mute` toggle + `slide:voice-mute` event
@@ -303,6 +304,7 @@ Read `TASKS.md` top unchecked item. Do not rebase history. Do not rename the pro
 - 2026-10-04 Grim: **PR 2 — screen pass.** Review `#route-carousel` from real ranked routes only. Drive: `#speedo` bottom-left, `#drive-report` bottom-right; `#lane-strip` still empty for Nard; `#drive-mute` is a working mute button that sets `document.documentElement.dataset.voice` and fires `slide:voice-mute`. Report grid uses glass icons + a subtype step, then Send / Later (RPC still only gets the kind). `#place-card` (name, address, Save, Go) after a real search pick. Fail sheets: `#loc-banner` + `#loc-title` for denied / unavailable / timeout / insecure; `#net-sheet` already covers offline / no-route. Arrival is a trip card with `#arr-share` (native share, no address) and `slide:share-trip`; `#arr-xp` / `#share-card-mount` stay Leon's. Empty states use `src/lib/empty.ts` instead of "—". Tokens/components only.
 - 2026-10-04 Nard: **Lane strip on Grim's #35 drive layout.** Based on `grim/screen-pass-c69a`. `#lane-strip` unhides only with real Valhalla `lanes` within 0.75 mi. Child arrows use existing tokens (`--glow`, `--fill-07`, `--fs-xl`, `--radius-md`) in the one stylesheet — no override layer. Drive chrome stays #35: speedo bottom-left, Report bottom-right.
 - 2026-10-04 Nard: **Speech hooks Grim's #35 mute, does not own the button.** Based on `grim/screen-pass-c69a`. `listenVoiceMute` follows `slide:voice-mute` `{ muted }` and `html[data-voice]`, cancels speech when muted, and writes `slide.voice.v1` to match. No `mountMuteToggle`, no second button, no click handler on `#drive-mute`. `startVoice` on Go now re-reads the attribute.
+- 2026-10-04 Grim: **PR 3 — polish.** From `main` @ f16ac7d (`grim/polish-c69a`). Desktop drive: `#maneuver` sits in a reserved top row between `.cmd-seg` and `.cmd-clock` (`.cmd-wx` hides in drive); `.cmd-stack` lifts to `112px` so End is not covered. Empty HUD numbers use `.is-empty` (body-large / `--muted` / nowrap) via `setMaybeEmpty()` — `EMPTY` wording unchanged. Unsigned limit sign draws `--` (`postedSignText()`), never `EMPTY.posted` ("No sign"); sign is a fixed 56×72 with `clamp()` type. Sand land/water/roads and `[data-look=sand]` surfaces are warmer and lighter; Ember untouched. Did not move `#lane-strip` or touch voice/lane/Leon slots.
 
 ## Teammate slots (stable IDs — do not rename)
 
