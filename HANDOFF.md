@@ -87,6 +87,7 @@ docs/PRODUCT.md        scoring contract
 docs/DESIGN.md         VIA style contract + screen-by-screen build spec
 docs/STRATEGY.md       why Slide wins, Effort metric, design recon (Borrowed / Rejected / Unique)
 HANDOFF.md             this file
+.env.production        public build values (Supabase URL; anon key goes here) — kings-slide is Direct Upload
 TASKS.md               ordered work
 AGENTS.md / CLAUDE.md  short agent rules
 ```
@@ -233,6 +234,8 @@ Read `TASKS.md` top unchecked item. Do not rebase history. Do not rename the pro
 
 - 2026-10-04 Claude: **Supabase project created.** King asked Claude to set up Supabase through the connector as its own project and to hand the rest to Nard. Created `slide` (us-east-1, ref `zmriqctjkhwmhuvxyhdd`) and applied the schema in six small migrations, because the connector times out on large payloads and on any statement containing `delete`. Two functions, `stop_presence` and `delete_my_account`, are left for Nard to paste (SQL in Owner setup). The advisor warnings are the intended RPC design. Nard now does Auth settings, Cloudflare env, FL511, transit feeds and the redeploy.
 
+- 2026-10-04 Nard: **Data turned on (part), verified on a preview.** `kings-slide` is a Direct Upload Pages project, so `VITE_SUPABASE_URL` now lives in a committed `.env.production`; dashboard env vars would never reach the bundle. `TRANSIT_FEEDS` is set as a production + preview secret with the three feeds that work without a key: Broward (105 buses), Tri-Rail (6 trains) and Brightline (8 trains), each fetched and decoded with our decoder. Miami-Dade needs a Swiftly key. Production (2026-09-24 build) predates the Functions, so `/api/*` there returns HTML. On a preview of `main` (`https://nard-verify-main.kings-slide.pages.dev`), `/api/transit` returned all three agencies `ok` (90 BCT + 2 Tri-Rail + 1 Brightline within 20 km of Fort Lauderdale), `/api/incidents` returned `configured:false` (no FL511 key yet), and `/api/cameras` returned "Overpass unreachable" because public Overpass answered 504 at the time. Then the anon key (`role: anon`) went into `.env.production` and production was redeployed from this branch's tree (main + `.env.production`).
+
 ## Owner setup for accounts + radar
 
 ### Supabase (done by Claude on 2026-10-04; two functions left)
@@ -268,12 +271,33 @@ grant execute on function public.delete_my_account() to authenticated;
    - **URL Configuration:** Site URL `https://kings-slide.pages.dev`.
    - **Email Templates → Magic Link:** add `{{ .Token }}` so the email shows the 6-digit code the app asks for.
    - **Email sending:** the built-in sender allows only a few emails per hour, which is fine for testing. For friends at scale, add SMTP (e.g. Resend, which has a free tier).
-2. **Cloudflare Pages → kings-slide → Settings → Environment variables** (Production), then **redeploy `main`**:
-   - `VITE_SUPABASE_URL` = `https://zmriqctjkhwmhuvxyhdd.supabase.co`
-   - `VITE_SUPABASE_ANON_KEY` = the anon key above
-   - `FL511_API_KEY` = a free key from fl511.com (Developers / API). Add it as a **secret**.
-   - `TRANSIT_FEEDS` (**secret**) = a JSON list of GTFS-realtime VehiclePositions feeds. Get each URL and key from the agency's developer page (Miami-Dade Transit, Broward County Transit, Tri-Rail/SFRTA, Brightline if published), e.g. `[{"agency":"Miami-Dade Transit","mode":"bus","url":"https://…","header":"x-api-key","key":"…"},{"agency":"Tri-Rail","mode":"rail","url":"https://…"}]`
+2. **Cloudflare Pages `kings-slide`** (account `f52402ec…`). It is a **Direct Upload** project (no Git connection), so Cloudflare never builds the app: `VITE_` values are baked in on the machine that runs `npm run build`, and dashboard env vars never reach the bundle. Server keys are Pages **secrets** read by the Functions at runtime.
+   - `VITE_SUPABASE_URL` is in the committed `.env.production` (public value).
+   - `VITE_SUPABASE_ANON_KEY` (public by design, `role: anon`) is in `.env.production` too (2026-10-04). The same two values are also stored as Pages secrets for the record, but the bundle only gets them from `.env.production`.
+   - `FL511_API_KEY` (secret): a free key from fl511.com (Developers / API), requested by King.
+   - `TRANSIT_FEEDS` (secret): **set on 2026-10-04** for production and preview, with the three feeds that work without a key (see below).
    - Cameras need no key: they use the public Overpass API with OSM attribution.
+   - Commands (Node ≥ 22, from the repo root, so `functions/` is bundled too):
+
+     ```bash
+     export CLOUDFLARE_ACCOUNT_ID=f52402ec949a9f17b451e9ec801a9c68
+     # FL511 key → production secret (repeat with --env preview for preview deploys)
+     printf %s "$FL511_KEY" | npx wrangler pages secret put FL511_API_KEY --project-name kings-slide
+     # Build (reads .env.production) and deploy production
+     npm run build && npx wrangler pages deploy dist --project-name kings-slide --branch main
+     # Preview only (does not touch production): --branch <name> → https://<name>.kings-slide.pages.dev
+     ```
+
+   - **Transit feeds** (fetched and decoded with `src/lib/sources/gtfsrt.ts` on 2026-10-04, Sunday ~9:40 ET):
+
+     | Agency | VehiclePositions URL | Key | Vehicles seen |
+     | --- | --- | --- | --- |
+     | Broward County Transit | `https://myride2.broward.org/gtfsrealtime/api/vehiclepositions` | none (the server returns 403 to curl's default User-Agent; Workers fetch is fine) | 105 (104 fresh) |
+     | Tri-Rail (SFRTA) | `https://gtfsr.tri-rail.com/download.aspx?file=position_updates.pb` | none (`https` only; `http` times out) | 6 |
+     | Brightline | `https://feed.gobrightline.com/position_updates.pb` | none (`https` only) | 8 (5 fresh) |
+     | Miami-Dade Transit (Metrobus, Metrorail, Metromover) | `https://api.goswift.ly/real-time/miami/gtfs-rt-vehicle-positions` | **Swiftly API key**, header `Authorization`, request at https://www.goswift.ly/realtime-api-key | 401 without a key |
+
+     Once King has the Swiftly key, add `{"agency":"Miami-Dade Transit","mode":"bus","url":"https://api.goswift.ly/real-time/miami/gtfs-rt-vehicle-positions","header":"Authorization","key":"…"}` to the list and run `pages secret put TRANSIT_FEEDS` again with the whole list (it replaces the old value). Not used: Broward's TrackTrolley feed (community shuttles, a key embedded in a third-party listing, mostly stale vehicles) and Brightline via Swiftly (same data as the keyless feed).
 3. **Free-tier limits:**
    - Supabase free: 500 MB database, 50k monthly active users. The project **pauses after a week without use**; restore it from the dashboard.
    - Only 2 free projects can be active at once; King's others are paused.
@@ -303,11 +327,13 @@ Updated 2026-09-25, after PR #13. Claude built everything in **What already work
 
 Follow **Owner setup for accounts + radar** above, step by step:
 - [x] Supabase project `slide` created and the schema applied by Claude (2026-10-04).
-- [ ] Run the short SQL block in **Owner setup → Supabase** (stop sharing + delete account).
-- [ ] Supabase Auth: set the Site URL to `https://kings-slide.pages.dev`, and add `{{ .Token }}` to the Magic Link email template.
-- [ ] Cloudflare Pages `kings-slide` → Production env: `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` (values in Owner setup), `FL511_API_KEY` (secret), `TRANSIT_FEEDS` (secret, JSON list). Then **redeploy `main`**, because `VITE_` values are baked in at build time.
+- [x] Run the short SQL block in **Owner setup → Supabase** (stop sharing + delete account) — done 2026-10-04.
+- [x] Supabase Auth Site URL `https://kings-slide.pages.dev` (2026-10-04). The Magic Link template can't be edited without custom SMTP, so the email has a link and no code; the app accepts the link (separate PR).
+- [x] `VITE_SUPABASE_URL` in `.env.production`; `TRANSIT_FEEDS` secret set (production + preview) with Broward, Tri-Rail and Brightline (2026-10-04).
+- [x] `VITE_SUPABASE_ANON_KEY` in `.env.production`; production redeployed with Functions (2026-10-04).
+- [ ] `FL511_API_KEY` secret (King requests the key), then redeploy.
 - [ ] FL511 key: request it free at fl511.com (Developers / API).
-- [ ] Transit: find the GTFS-realtime **VehiclePositions** URL (and key, if any) for Miami-Dade Transit, Broward County Transit, Tri-Rail, and Brightline if it publishes one. Leave out any agency that has no feed. Never hard-code a URL in the repo.
+- [x] Transit: Broward, Tri-Rail and Brightline work without a key (table in Owner setup). Miami-Dade needs a Swiftly key (King signs up). Never hard-code a URL in the repo code.
 
 ### 2. Verify against the real services (small PR with any fixes)
 
