@@ -100,7 +100,7 @@ Status: ✅ done · 🟡 partial · ❌ missing.
 | **Voice guidance** | 🟡 | `speechSynthesis` at 0.5 / 0.1 / now. Mute is Grim's `#drive-mute` (`slide:voice-mute` / `html[data-voice]`). `slide.voice.v1` stays in sync. |
 | Lane guidance | 🟡 | Real Valhalla `lanes` in Grim's `#lane-strip` on the #35 drive HUD. Hidden with no data. |
 | Route alternatives list (phone) | ✅ | Swipeable review cards from real ranked routes (`#route-carousel`). Map bubbles stay. |
-| Leave-by / best time to leave | ❌ | `leaveByForTarget()` exists in `src/lib/smooth.ts` with no UI. Only show real typical times; the traffic chart waits for the traffic provider. |
+| Leave-by / best time to leave | 🟡 | `#leave-by` uses a real Slide costing + 3 min buffer. Incidents mentioned only when the feed has some. No invented delay. |
 | Offline / no route / permission denied states | ✅ | `#net-sheet` (offline / no-route / busy) and `#loc-banner` (denied / unavailable / timeout / insecure). |
 | Route-loading skeleton | ❌ | |
 | Place card (name, address, save, Go) | ✅ | `#place-card` after a real search pick. Save is on-device recents. |
