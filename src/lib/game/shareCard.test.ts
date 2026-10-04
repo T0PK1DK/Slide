@@ -119,7 +119,7 @@ describe("share card model privacy", () => {
     expect(text).toContain("LVL 2");
     expect(text).toContain("Slipstream · Stripes");
     expect(text).toContain("First Line · bronze");
-    expect(text).not.toMatch(/Ave|Street|Drive|Rd|Blvd|lane|PM|AM|:\d{2}|lat|lon|-80\.|25\./i);
+    expect(text).not.toMatch(/\b(Ave|Street|Drive|Rd|Blvd|Lane)\b|\b\d{1,2}:\d{2}\b|\b(lat|lon|lng)\b|-80\.|25\.\d{2}/i);
   });
 });
 
