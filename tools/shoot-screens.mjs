@@ -182,6 +182,9 @@ try {
         document.getElementById("arr-dist").textContent = "6.2 mi";
         document.getElementById("arr-line").textContent = "Slide";
         document.getElementById("arr-note").textContent = "Typical time · no live traffic yet";
+        const ride = document.getElementById("arr-ride");
+        const preview = document.getElementById("g-preview");
+        if (ride && preview) ride.innerHTML = preview.innerHTML;
       }
     });
     await shot(page, `06-arrival-${tag}`);
@@ -209,13 +212,14 @@ try {
         document.body.appendChild(rs);
       }
       rs.hidden = false;
+      const ico = (k, d) => `<span class="rs-ico ${k}"><svg viewBox="0 0 24 24" width="26" height="26">${d}</svg></span>`;
       rs.innerHTML = `<div class="rs-card"><header><h2>What's on the road?</h2><button type="button" class="rs-close">×</button></header>
         <div class="rs-kinds">
-          <button type="button" class="rs-kind"><span class="rs-ico police"></span><span>Police</span></button>
-          <button type="button" class="rs-kind"><span class="rs-ico crash"></span><span>Crash</span></button>
-          <button type="button" class="rs-kind"><span class="rs-ico hazard"></span><span>Hazard</span></button>
-          <button type="button" class="rs-kind"><span class="rs-ico closure"></span><span>Closure</span></button>
-          <button type="button" class="rs-kind"><span class="rs-ico jam"></span><span>Traffic jam</span></button>
+          <button type="button" class="rs-kind">${ico("police", '<path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z"/>')}<span>Police</span></button>
+          <button type="button" class="rs-kind">${ico("crash", '<path d="M12 3l9 16H3z"/>')}<span>Crash</span></button>
+          <button type="button" class="rs-kind">${ico("hazard", '<path d="M12 3l9 16H3z"/>')}<span>Hazard</span></button>
+          <button type="button" class="rs-kind">${ico("closure", '<rect x="4" y="8" width="16" height="8" rx="2"/>')}<span>Closure</span></button>
+          <button type="button" class="rs-kind">${ico("jam", '<path d="M4 8h4v3H4zm6 0h4v3h-4zm6 0h4v3h-4M4 13h16v2H4z"/>')}<span>Traffic jam</span></button>
         </div>
         <p class="rs-src">Reported at your current spot. Your name is never shown with a report.</p></div>`;
     });
@@ -226,7 +230,7 @@ try {
       if (rs) {
         rs.hidden = false;
         rs.innerHTML = `<div class="rs-card"><header><h2>Hazard</h2><button type="button" class="rs-close">×</button></header>
-          <div class="rs-hero"><span class="rs-ico hazard"></span></div>
+          <div class="rs-hero"><span class="rs-ico hazard"><svg viewBox="0 0 24 24" width="26" height="26"><path d="M12 3l9 16H3z"/></svg></span></div>
           <p class="rs-src">Pick what you see, then Send.</p>
           <div class="rs-subs"><button type="button" class="rs-sub on">Object</button><button type="button" class="rs-sub">Shoulder</button><button type="button" class="rs-sub">Weather</button></div>
           <div class="rs-send"><button type="button" class="ghost">Later</button><button type="button" class="primary">Send</button></div></div>`;
