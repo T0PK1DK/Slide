@@ -1929,6 +1929,19 @@ body[data-mode="drive"] .friend-spot { display: none; }
   border: 1px solid var(--line);
   box-shadow: var(--lift), var(--shadow);
 }
+.lane-strip ol { display: contents; }
+.lane-strip li {
+  display: grid;
+  place-items: center;
+  min-width: var(--touch);
+  height: var(--touch);
+  border-radius: var(--radius-md);
+  color: var(--muted);
+  font-size: var(--fs-xl);
+  background: var(--fill-07);
+}
+.lane-strip li[data-valid="true"] { color: var(--text); background: var(--fill-11); }
+.lane-strip li[data-active="true"] { color: var(--text-inverse); background: var(--glow); }
 .drive-mute:not([hidden]) {
   display: grid;
   place-items: center;

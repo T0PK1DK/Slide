@@ -69,6 +69,7 @@ import {
   type RouteProgress,
   type TrackerHandle,
 } from "./lib/tracking";
+import { mountLaneStrip, renderLaneStrip } from "./lanes";
 
 const MIAMI: LonLat = { lon: -80.1918, lat: 25.7617 };
 
@@ -269,6 +270,10 @@ recenterEl.addEventListener("click", () => {
   if (hudMode !== "drive") fitToRoute();
 });
 $("#review-go").addEventListener("click", () => startDrive());
+{
+  const slot = document.querySelector<HTMLElement>("#lane-strip");
+  if (slot) mountLaneStrip(slot);
+}
 $("#review-back").addEventListener("click", backToSearch);
 $("#end-drive").addEventListener("click", endDrive);
 $("#help").addEventListener("click", () => showCoach(true));
@@ -1445,6 +1450,7 @@ function renderGuidance(mi: number, mph: number) {
   if (!route || !steps.length) {
     maneuverEl.setAttribute("hidden", "");
     postedEl.setAttribute("hidden", "");
+    renderLaneStrip(null);
     return;
   }
   const move = nextMove(steps, mi);
@@ -1455,8 +1461,10 @@ function renderGuidance(mi: number, mph: number) {
     $("#man-instr").textContent = move.instruction;
     $("#man-fill").style.width = `${Math.round(move.proximity * 100)}%`;
     maneuverEl.classList.toggle("imminent", move.distanceMi < 0.08);
+    renderLaneStrip(hudMode === "drive" ? move.lanes : null, move.distanceMi);
   } else {
     maneuverEl.setAttribute("hidden", "");
+    renderLaneStrip(null);
   }
 
   const outlook = postedOutlook(route.bands, mi);

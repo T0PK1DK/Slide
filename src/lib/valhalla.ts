@@ -14,6 +14,18 @@ export type SearchHit = {
   kind: string;
 };
 
+/**
+ * One lane on a maneuver when `turn_lanes: true`. Valhalla uses bitmasks
+ * (`directions` / `valid` / `active`). Older payloads may send `indications`
+ * strings and boolean flags — we accept both.
+ */
+export type ManeuverLane = {
+  directions?: number;
+  valid?: number | boolean;
+  active?: number | boolean;
+  indications?: string[];
+};
+
 export type Maneuver = {
   type: number;
   instruction: string;
@@ -25,6 +37,7 @@ export type Maneuver = {
   travel_mode?: string;
   street_names?: string[];
   speed_limit?: number;
+  lanes?: ManeuverLane[];
 };
 
 export type ValhallaSummary = {
@@ -145,6 +158,7 @@ export async function requestRouteVariant(
     // which is why Faster so rarely appeared.
     ...(points.length === 2 ? { alternates: 2 } : {}),
     directions_options: { units, language: "en-US" },
+    turn_lanes: true,
     id: `slide-${variant}`,
   };
   return fetchJson(`${VALHALLA_URL}/route`, {
@@ -237,6 +251,7 @@ export async function requestRoutes(
     units,
     alternates: 2,
     directions_options: { units, language: "en-US" },
+    turn_lanes: true,
     id: "slide",
   };
 
@@ -264,6 +279,7 @@ export async function requestFastRoute(
     units,
     alternates: 2,
     directions_options: { units, language: "en-US" },
+    turn_lanes: true,
     id: "slide-fast",
   };
   return fetchJson(`${VALHALLA_URL}/route`, {
