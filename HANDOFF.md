@@ -51,7 +51,11 @@ src/map/warm.ts        style fetch + sprite/glyph preload once MapLibre has down
 src/plan/failure.ts    offline / no-route / busy / unreachable wording for the Try again sheet (pure)
 src/plan/failure.test.ts  tests for failure wording + warmUrls
 src/main.ts            map + plan + drive loop (HUD listeners)
-src/styles.css         night glass HUD
+src/styles.css         HUD stylesheet (tokens → base → components → screens)
+src/styles/tokens.css  Night / Ember / Sand tokens (only file with raw hex)
+src/styles/system.test.ts  design-system metrics (hex, radii, type, !important)
+src/node-fs.d.ts       types for the metrics test
+tools/shoot-screens.mjs  phone/desktop HUD screenshots (390 + 1440)
 src/lib/valhalla.ts    route / trace / search
 src/lib/smooth.ts      Slide score + speed bands
 src/lib/polyline.ts    precision-6 decode
@@ -287,6 +291,22 @@ Read `TASKS.md` top unchecked item. Do not rebase history. Do not rename the pro
 
 - 2026-10-04 Nard: **Merged #16 → #17 → #18 and redeployed production** from `main` @ `d6b83e8` (build clean, 62/62 tests). Deploy `https://c16f0590.kings-slide.pages.dev`, live at https://kings-slide.pages.dev. Live checks in headless Chrome: login gate → HUD → map renders, 0 page errors; accounts on (Profile shows "Email me a sign-in link"); an email-link return with an expired or bogus token gives the right message and a clean URL; offline / no-route / search-down sheets and Try again work, ending in a real Valhalla route. `/api/transit` returned 104 vehicles near Fort Lauderdale (all 3 agencies ok). `/api/incidents` is `configured:false` until the FL511 key. `/api/cameras` now answers from Overpass (0 cameras mapped in the downtown-Miami tile).
 - 2026-10-04 Nard: **Official incidents without a key** (King approved). `/api/incidents` now merges two free feeds, fetched server-side with a 7 s timeout and a 60 s edge cache each, and each source fails on its own: **FDOT DIVAS** (the ArcGIS layer behind FL511's map; queried for Palm Beach → the Keys) and **Miami-Dade Police** traffic calls (`traffic.mdpd.com/api/`, which has no CORS, so server-side only). FL511 is still used if `FL511_API_KEY` is set. The response is `{configured, sources:[{source, ok, count, error?}], items}`, newest first. Mapping: DIVAS crash → crash, roadwork → roadwork, congestion/backup → jam, "all lanes closed" → closure, disabled vehicle and the rest → hazard. MDPD accident/hit-and-run → crash. MDPD times are Miami wall-clock and are converted with EST/EDT. MDPD items are labelled "dispatched call": they are crash calls, never police positions. Live on the preview at 10:30 ET: FDOT 10 events (Palm Beach 9, Monroe 1; none in Miami-Dade/Broward at the time), MDPD 5 crash calls. In headless Chrome with GPS at NW 135th St / NW 7th Ave, the radar showed 2 MDPD blips and the Nearby list showed them; at I-95 / Forest Hill Blvd it showed the FDOT crash. FDOT WZDx work zones are not added (later).
+
+- 2026-10-04 Grim: **PR 1 — design system rebuild.** Deleted the 6 stacked CSS layers. `src/styles/tokens.css` is the only hex file (kit Night / Ember + Slide Sand, mapped to `[data-look]`). `src/styles.css` is tokens → base → components → screens. `--glow` stays the Garage accent. Metrics on `main` before → after: radii 25 → 6, unique raw hex 68 → 0 outside tokens, font sizes 31 → 9, `!important` 24 → 0. Identity kept (spaced SLIDE, mono tag chip, uppercase mono HUD labels, Garage glow, glowing route, `vehicles.ts` rides, night default). Empty teammate slots added in `src/hud/shell.ts` (see below). No voice/lane/data or game-layer logic.
+
+## Teammate slots (stable IDs — do not rename)
+
+Empty containers, styled by the system, hidden until filled. Markup only in this PR.
+
+| Who | Slot | Selector | Where |
+|---|---|---|---|
+| Nard | Lane strip | `#lane-strip` / `[data-slot="lane-strip"]` | After `#maneuver`, above the drive card |
+| Nard | Mute button | `#drive-mute` / `[data-slot="drive-mute"]` | Inside `.drive-controls` on `#drive-bar` |
+| Leon | XP / badges | `#arr-xp` / `[data-slot="arrival-xp"]` | Inside `#arrival`, under `.arr-stats` |
+| Leon | Share card | `#share-card-mount` / `[data-slot="share-card"]` | Sibling after `#arrival` |
+| Leon | 3D car stage | `#car-stage` / `[data-slot="car-stage"]` | HUD overlay; 2D garage preview stays `#g-preview` |
+
+Unhide with `.hidden = false` / `removeAttribute("hidden")`. Do not add a CSS override layer.
 
 ## Owner setup for accounts + radar
 

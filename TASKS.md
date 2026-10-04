@@ -7,6 +7,7 @@ Work top-down. Check the box in the same PR.
 > Handed to Nard again on 2026-09-25 after PR #13. Start at **Next for Nard** in `HANDOFF.md` (turn on data → verify → stability → features).
 
 - [x] Phase 0–1: `docs/STRATEGY.md` (Magi pass + design recon)
+- [x] **Grim PR 1:** design system rebuild — one token file (`src/styles/tokens.css`), Night/Ember/Sand via `[data-look]`, stacked CSS layers deleted, teammate slots documented
 - [ ] Phase 4/5: 3D living map — garage car on Explore, "Miami driven %" (on-device), Effort icons on the route
 - [ ] Presence design (friends' cars, opt-in) before any backend
 - [ ] Phase 3: `rankRoutes()` = least Effort within +10% of fastest (today it has no time bound)

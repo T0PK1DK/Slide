@@ -1,0 +1,329 @@
+/* =====================================================================
+   SLIDE DESIGN TOKENS
+   Derived from design/premium-glass-kit/css/tokens.css.
+   Themes: Night (default), Ember, Sand via [data-look] on <html>.
+   --glow is the Garage accent (JS overwrites the default copper).
+   This is the only file that may contain raw hex / literal color stops.
+   ===================================================================== */
+
+/* ---------- 1. Theme-independent scales (kit, Slide-tuned) ---------- */
+:root {
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Geist", "Helvetica Neue", Helvetica, "Segoe UI", sans-serif;
+  --font-display: var(--font-sans);
+  --font-mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --fw-thin: 200;
+  --fw-light: 300;
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+
+  /* 9-size type scale */
+  --fs-2xs: 10px;
+  --fs-xs: 11px;
+  --fs-sm: 12px;
+  --fs-md: 14px;
+  --fs-lg: 16px;
+  --fs-xl: 18px;
+  --fs-2xl: 24px;
+  --fs-3xl: 32px;
+  --fs-hero: 64px;
+
+  --lh-tight: 1.1;
+  --lh-snug: 1.3;
+  --lh-normal: 1.5;
+  --tracking-tight: -0.03em;
+  --tracking-normal: -0.005em;
+  --tracking-caps: 0.16em;
+  --tracking-brand: 0.32em;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  /* 6 radii */
+  --radius-sm: 12px;
+  --radius-md: 14px;
+  --radius-lg: 18px;
+  --radius-xl: 28px;
+  --radius-pill: 999px;
+  --radius-full: 50%;
+
+  --nav-h: 56px;
+  --gutter: 12px;
+  --touch: 44px;
+  --rail: clamp(300px, 22vw, 360px);
+
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-fast: 140ms;
+  --dur-base: 240ms;
+  --dur-slow: 520ms;
+  --dur-ambient: 2.4s;
+
+  --blur-sm: 12px;
+  --blur-md: 20px;
+  --blur-lg: 26px;
+  --saturate: 140%;
+
+  /* Default Garage copper — JS (boot.ts / applyTheme) overwrites --glow */
+  --glow: #f0a04b;
+  --mint: #7cf0d8;
+}
+
+/* ---------- 2. NIGHT — kit graphite, Slide default ---------- */
+:root,
+:root[data-look="night"] {
+  color-scheme: dark;
+
+  --bg-0: #05090c;
+  --bg-1: #0a0e11;
+  --surface-1: #0f1316;
+  --surface-2: #161a1e;
+  --surface-3: #1c2023;
+  --surface-sel: #262a2e;
+
+  --glass-fill: rgba(22, 26, 30, 0.62);
+  --glass-fill-strong: rgba(30, 34, 38, 0.86);
+  --glass-tint: linear-gradient(180deg, rgba(255, 255, 255, 0.045) 0%, rgba(255, 255, 255, 0.012) 100%);
+  --glass-border: rgba(255, 255, 255, 0.07);
+  --glass-border-strong: rgba(255, 255, 255, 0.12);
+  --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  --glass-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 18px 48px -12px rgba(0, 0, 0, 0.6);
+  --glass-shadow-float: 0 24px 60px -16px rgba(0, 0, 0, 0.85), 0 2px 6px rgba(0, 0, 0, 0.5);
+
+  --text-1: #f2f4f5;
+  --text-2: #9aa0a6;
+  --text-3: #5f666c;
+  --text-inverse: #0b0e10;
+
+  --line-token: rgba(255, 255, 255, 0.07);
+  --line-strong: rgba(255, 255, 255, 0.11);
+  --grid-line: rgba(255, 255, 255, 0.05);
+
+  --accent: #e79d58;
+  --accent-strong: #f0a35e;
+  --accent-soft: rgba(231, 157, 88, 0.14);
+  --accent-glow: 0 0 12px rgba(231, 157, 88, 0.65);
+
+  --ok: #5dd17e;
+  --ok-muted: #4e8a64;
+  --ok-soft: rgba(93, 209, 126, 0.12);
+  --info: #4a8ae0;
+  --info-solid: #2f66b8;
+  --info-text: #8bb4e5;
+  --info-soft: rgba(74, 138, 224, 0.12);
+  --danger: #e5484d;
+  --danger-dot: #dd3633;
+  --danger-text: #ff8a8a;
+  --danger-soft: rgba(229, 72, 77, 0.12);
+  --danger-tile: #5a1f25;
+  --danger-glow: 0 0 18px rgba(229, 72, 77, 0.55);
+  --warn: #f0a14a;
+
+  --viz-line: rgba(255, 255, 255, 0.82);
+  --viz-area-top: rgba(255, 255, 255, 0.16);
+  --viz-bar: rgba(255, 255, 255, 0.22);
+  --viz-bar-top: rgba(255, 255, 255, 0.42);
+  --viz-bar-peak: #e79d58;
+  --viz-seg-empty: rgba(255, 255, 255, 0.14);
+
+  --map-water: #04080b;
+  --map-land: #11171c;
+  --map-path: #ffffff;
+  --map-path-glow: rgba(255, 255, 255, 0.55);
+  --map-vignette: rgba(3, 6, 8, 0.85);
+
+  --app-bg: radial-gradient(1200px 600px at 50% -10%, rgba(255, 255, 255, 0.035), transparent 60%), var(--bg-0);
+
+  /* Slide aliases (existing HUD contract) */
+  --bg: var(--bg-0);
+  --glass: var(--glass-fill);
+  --glass-2: var(--glass-fill-strong);
+  --surface: var(--surface-2);
+  --line: var(--line-token);
+  --line-soft: var(--grid-line);
+  --text: var(--text-1);
+  --muted: var(--text-2);
+  --faint: var(--text-3);
+  --live: var(--ok);
+  --amber: var(--warn);
+  --shadow: var(--glass-shadow-float);
+  --lift: var(--glass-highlight);
+  --mono: var(--font-mono);
+
+  /* Command view */
+  --cmd-bg: var(--bg-0);
+  --cmd-panel: var(--surface-1);
+  --cmd-panel-2: var(--bg-1);
+  --cmd-border: var(--line-token);
+  --cmd-border-strong: var(--line-strong);
+
+  /* Regulatory US speed-limit sign (Miami proving ground) */
+  --sign-face: #ffffff;
+  --sign-ink: #07080a;
+
+  /* End / danger fills */
+  --end-fill: #1e1212;
+  --end-line: #3a2a2a;
+
+  /* Switch */
+  --switch-track: #34353a;
+  --switch-thumb: #f4f3ef;
+
+  /* You-are-here core */
+  --you-core: #ffffff;
+
+  /* Radar / report kinds (semantic, not accent) */
+  --kind-police: #5b8cff;
+  --kind-crash: #ef4444;
+  --kind-hazard: #f0a14a;
+  --kind-closure: #f4f3ef;
+  --kind-jam: #f5c14a;
+  --kind-camera: #c084fc;
+  --kind-bus: #38bdf8;
+  --kind-rail: #2dd4bf;
+  --kind-friend: #5b8cff;
+  --friend-fill: rgba(12, 14, 20, 0.92);
+  --friend-area: rgba(91, 140, 255, 0.22);
+
+  --fill-03: rgba(255, 255, 255, 0.03);
+  --fill-04: rgba(255, 255, 255, 0.04);
+  --fill-05: rgba(255, 255, 255, 0.05);
+  --fill-06: rgba(255, 255, 255, 0.06);
+  --fill-07: rgba(255, 255, 255, 0.07);
+  --fill-08: rgba(255, 255, 255, 0.08);
+  --fill-09: rgba(255, 255, 255, 0.09);
+  --fill-10: rgba(255, 255, 255, 0.1);
+  --fill-11: rgba(255, 255, 255, 0.11);
+  --scrim: rgba(5, 7, 10, 0.72);
+  --ink-55: rgba(0, 0, 0, 0.55);
+}
+
+/* ---------- 3. EMBER — kit espresso + amber ---------- */
+:root[data-look="ember"] {
+  color-scheme: dark;
+
+  --bg-0: #0d0907;
+  --bg-1: #130e0b;
+  --surface-1: #19130f;
+  --surface-2: #211913;
+  --surface-3: #2a2018;
+  --surface-sel: #33271d;
+
+  --glass-fill: rgba(36, 26, 19, 0.6);
+  --glass-fill-strong: rgba(44, 32, 23, 0.8);
+  --glass-tint: linear-gradient(180deg, rgba(255, 214, 170, 0.06) 0%, rgba(255, 214, 170, 0.012) 100%);
+  --glass-border: rgba(255, 210, 160, 0.09);
+  --glass-border-strong: rgba(255, 210, 160, 0.16);
+  --glass-highlight: inset 0 1px 0 rgba(255, 225, 190, 0.08);
+  --glass-shadow: 0 1px 2px rgba(0, 0, 0, 0.45), 0 12px 32px -12px rgba(10, 4, 0, 0.8);
+  --glass-shadow-float: 0 24px 60px -16px rgba(10, 4, 0, 0.9), 0 2px 6px rgba(0, 0, 0, 0.5);
+
+  --text-1: #f7efe6;
+  --text-2: #b9a896;
+  --text-3: #7a6b5c;
+  --text-inverse: #140e0a;
+
+  --line-token: rgba(255, 220, 180, 0.07);
+  --line-strong: rgba(255, 220, 180, 0.13);
+  --grid-line: rgba(255, 220, 180, 0.06);
+
+  --accent: #ff9f43;
+  --accent-strong: #ffb45e;
+  --accent-soft: rgba(255, 159, 67, 0.16);
+
+  --ok: #7fd67a;
+  --ok-muted: #6c8f4f;
+  --ok-soft: rgba(127, 214, 122, 0.12);
+  --info: #6aa6e8;
+  --info-solid: #3a6ea8;
+  --info-text: #a9c8ec;
+  --info-soft: rgba(106, 166, 232, 0.12);
+  --danger: #f0544a;
+  --danger-dot: #f0544a;
+  --danger-text: #ff9a8f;
+  --danger-soft: rgba(240, 84, 74, 0.13);
+  --danger-tile: #5e2219;
+  --warn: #ff9f43;
+
+  --viz-line: rgba(255, 228, 196, 0.85);
+  --viz-bar-peak: #ff9f43;
+
+  --map-water: #0b0705;
+  --map-land: #17110c;
+  --map-path: #fff3e2;
+  --map-vignette: rgba(8, 4, 2, 0.85);
+  --app-bg: radial-gradient(1000px 520px at 50% -10%, rgba(255, 150, 60, 0.08), transparent 60%), var(--bg-0);
+
+  --cmd-bg: #0a0706;
+  --cmd-panel: #15100e;
+  --cmd-panel-2: #120d0b;
+  --end-fill: #241210;
+  --switch-track: #33271d;
+  --friend-fill: rgba(20, 14, 10, 0.92);
+}
+
+/* ---------- 4. SAND — Slide sandy night (not the kit's light Warm) ---------- */
+:root[data-look="sand"] {
+  color-scheme: dark;
+
+  --bg-0: #0d0c0a;
+  --bg-1: #13120e;
+  --surface-1: #17150f;
+  --surface-2: #1d1a15;
+  --surface-3: #262218;
+  --surface-sel: #332e24;
+
+  --glass-fill: rgba(24, 21, 17, 0.74);
+  --glass-fill-strong: rgba(24, 21, 17, 0.88);
+  --glass-tint: linear-gradient(180deg, rgba(255, 240, 210, 0.06) 0%, rgba(255, 240, 210, 0.012) 100%);
+  --glass-border: rgba(255, 240, 210, 0.09);
+  --glass-border-strong: rgba(255, 240, 210, 0.16);
+  --glass-highlight: inset 0 1px 0 rgba(255, 244, 220, 0.08);
+  --glass-shadow: 0 1px 2px rgba(0, 0, 0, 0.45), 0 12px 32px -12px rgba(10, 8, 4, 0.8);
+  --glass-shadow-float: 0 24px 60px -16px rgba(10, 8, 4, 0.9), 0 2px 6px rgba(0, 0, 0, 0.5);
+
+  --text-1: #f5f0e6;
+  --text-2: #b3ab9c;
+  --text-3: #918a7c;
+  --text-inverse: #12100c;
+
+  --line-token: rgba(255, 240, 210, 0.09);
+  --line-strong: rgba(255, 240, 210, 0.14);
+  --grid-line: rgba(255, 240, 210, 0.06);
+
+  --accent: #e79d58;
+  --accent-strong: #f0a35e;
+  --accent-soft: rgba(231, 157, 88, 0.14);
+
+  --ok: #5dd17e;
+  --ok-muted: #4e8a64;
+  --info: #4a8ae0;
+  --info-text: #8bb4e5;
+  --danger: #e5484d;
+  --danger-dot: #dd3633;
+  --danger-text: #ff8a8a;
+  --danger-soft: rgba(229, 72, 77, 0.12);
+  --danger-tile: #5a1f25;
+  --warn: #f0a14a;
+
+  --viz-line: rgba(245, 240, 230, 0.85);
+  --viz-bar-peak: #e79d58;
+
+  --map-water: #0b0a08;
+  --map-land: #18160f;
+  --map-path: #fff8ec;
+  --map-vignette: rgba(10, 8, 5, 0.85);
+  --app-bg: radial-gradient(1000px 520px at 50% -10%, rgba(255, 220, 160, 0.06), transparent 60%), var(--bg-0);
+
+  --cmd-bg: #0c0b09;
+  --cmd-panel: #17150f;
+  --cmd-panel-2: #13120e;
+  --end-fill: #1e1812;
+  --switch-track: #332e24;
+  --friend-fill: rgba(18, 16, 12, 0.92);
+}

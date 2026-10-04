@@ -14,6 +14,7 @@ import { warmMapStyle } from "./map/warm";
 export const STYLE = "https://tiles.openfreemap.org/styles/dark";
 
 const g = loadGarage();
+document.documentElement.dataset.look = g.look;
 document.documentElement.style.setProperty("--glow", g.glow);
 document.documentElement.style.setProperty("--mint", TRAILS[g.trail].line);
 document.querySelector("#app")!.innerHTML = HUD_HTML;

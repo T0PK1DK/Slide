@@ -151,7 +151,7 @@ Status: ✅ done · 🟡 partial · ❌ missing.
 
 ## 4. Build order (one PR each, screenshots before and after on phone and desktop)
 
-1. **Grim: Design system rebuild.** One token file from `design/premium-glass-kit/css/tokens.css`, mapped to Slide's themes (Night default, Ember, Sand) and the Garage glow accent. Rewrite `styles.css` as tokens → base → components → screens. Target: ≤ 6 radii, 0 raw hex outside tokens, ≤ 9 font sizes, 0 `!important`. **No visual regression** on the screens in `docs/DESIGN.md`.
+1. **Grim: Design system rebuild.** ✅ One token file (`src/styles/tokens.css`) from `design/premium-glass-kit/css/tokens.css`, mapped to Slide's themes (Night default, Ember, Sand) and the Garage glow accent. `styles.css` is tokens → base → components → screens. Targets met (see HANDOFF session log). **No visual regression** on the screens in `docs/DESIGN.md`.
 2. **Grim: Screen pass** against the gap list:
    - review sheet with a route card carousel
    - drive (Report bottom-right, speedo bottom-left, lane strip slot, mute)
