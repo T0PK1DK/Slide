@@ -3,7 +3,9 @@ import { cloud, cloudConfigured } from "./cloud";
 /**
  * Everything the radar can show, from real sources only:
  *   - "driver": reports other Slide drivers filed (police, crash, hazard, closure, jam)
- *   - "fl511":  official Florida 511 incidents, closures and roadwork (via /api/incidents)
+ *   - "fdot":   FDOT DIVAS events: crashes, disabled vehicles, congestion, roadwork (via /api/incidents)
+ *   - "mdpd":   Miami-Dade Police dispatched traffic calls (via /api/incidents)
+ *   - "fl511":  official Florida 511 incidents, when the FL511 key is set (via /api/incidents)
  * Nothing is predicted or invented, and police items are always worded as
  * "reported by drivers" — Slide doesn't track police vehicles; nobody can legally.
  */
@@ -12,7 +14,7 @@ export type RadarKind = "police" | "crash" | "hazard" | "closure" | "jam" | "roa
 export type ReportableKind = "police" | "crash" | "hazard" | "closure" | "jam";
 export type RadarItem = {
   id: string;
-  source: "driver" | "fl511" | "osm" | "transit";
+  source: "driver" | "fdot" | "mdpd" | "fl511" | "osm" | "transit";
   kind: RadarKind;
   lat: number;
   lon: number;
@@ -151,7 +153,7 @@ async function ownFeed(path: string, lat: number, lon: number, km: number): Prom
   }
 }
 
-/** Official FL511 incidents (the Function holds the key). */
+/** Official incidents: FDOT + Miami-Dade Police (+ FL511 when keyed), merged by the Function. */
 export const officialIncidents = (lat: number, lon: number, km = 12) => ownFeed("/api/incidents", lat, lon, km);
 /** Speed / red-light cameras mapped in OpenStreetMap. */
 export const enforcementCameras = (lat: number, lon: number, km = 5) => ownFeed("/api/cameras", lat, lon, km);
