@@ -102,7 +102,14 @@ try {
   const screens = async (page, tag) => {
     await page.goto(baseUrl, { waitUntil: "domcontentloaded", timeout: 30000 });
     await ready(page);
-    await page.evaluate(() => document.querySelector(".login")?.remove());
+    await page.evaluate(() => {
+      document.querySelector(".login")?.remove();
+      document.body.dataset.mode = "plan";
+    });
+    if (tag === "desktop") {
+      await page.waitForSelector("body.cmd .cmd-top", { timeout: 15000 }).catch(() => {});
+    }
+    await new Promise((r) => setTimeout(r, 400));
     await shot(page, `02-plan-${tag}`);
 
     await show(page, () => {

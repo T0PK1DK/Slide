@@ -18,6 +18,7 @@ document.documentElement.dataset.look = g.look;
 document.documentElement.style.setProperty("--glow", g.glow);
 document.documentElement.style.setProperty("--mint", TRAILS[g.trail].line);
 document.querySelector("#app")!.innerHTML = HUD_HTML;
+document.body.dataset.mode = document.body.dataset.mode || "plan";
 
 let signedIn: (p: DriverProfile) => void = () => {};
 /** Resolves once the driver is past the login gate (immediately for a returning driver). */

@@ -45,20 +45,19 @@ html, body, #app {
   outline-offset: 2px;
 }
 
-/* Mode visibility — specificity beats component display, no !important */
+/* Mode visibility — plan chrome is visible by default (HUD paints before main.ts). */
 body:not([data-mode="drive"]) .drive-only,
 body:not([data-mode="review"]) .review-only,
-body:not([data-mode="arrive"]) .arrive-only,
-body:not([data-mode="plan"]) .plan-only { display: none; }
+body:not([data-mode="arrive"]) .arrive-only { display: none; }
+body[data-mode="drive"] .plan-only,
+body[data-mode="review"] .plan-only,
+body[data-mode="arrive"] .plan-only,
 body[data-mode="drive"] .search-card,
 body[data-mode="drive"] .dash,
 body[data-mode="review"] .search-card,
 body[data-mode="review"] .dash,
 body[data-mode="arrive"] .search-card,
-body[data-mode="arrive"] .dash,
-body[data-mode="arrive"] .plan-only,
-body[data-mode="arrive"] .drive-only,
-body[data-mode="arrive"] .review-only { display: none; }
+body[data-mode="arrive"] .dash { display: none; }
 
 /* =====================================================================
    COMPONENTS — surfaces, type, controls
