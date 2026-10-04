@@ -256,7 +256,7 @@ Until that lands, `useLeaderboard()` stores `slide.game.board.v1` on the phone. 
 
 - `#arr-xp` — after commit, XP earned, `xpBar()`, and the new badge from `lastAward()`. Hidden unless `hasArrivalAward`.
 - `#share-card-mount` — compact preview inside `#arrival`, above `.arr-actions` (does not overlap the dock). `#arr-share` is the only Share button; it fires `slide:share-trip`. The listener calls `shareTrip({ card: lastAward().shareCard, ride })` and sets `detail.handled` so Grim's text fallback does not also open a sheet. `#arr-ride` stays Grim's 2D car.
-- `#car-stage` — Opal-style unlock stage. Lazy `import('three')` (own chunk), original low-poly geometry, livery colors. Locked items show `unlockLabel`. Unlocked picks go through `canUseVehicle` / `canUseLivery`. `prefers-reduced-motion` skips spin.
+- `#car-stage` — Opal-style unlock stage. Lazy `import('three')` (own chunk). Original lofted hulls in `carMeshes.ts` (distinct silhouette per `vehicles.ts` ride; wheels, glass, lights, studio lights, ground shadow). Liveries are materials (Solid / Stripes / Fade / Halo / Dusk). Locked items show `unlockLabel`. Unlocked picks go through `canUseVehicle` / `canUseLivery`. `prefers-reduced-motion` skips spin.
 - After `game.commit`, `board.recordTrip(score, miles)` (no-op unless opted in).
 
 ## Later PRs

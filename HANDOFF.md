@@ -78,6 +78,7 @@ src/lib/maplook.ts     night basemap lift (per theme), route ribbon, HUD fit pad
 src/lib/vehicles.ts    rides: original top-down car designs (SVG), starter + unlockable liveries, pack field for future collabs (tested)
 src/lib/game/          smooth score, XP/levels, badges, unlocks, share card, weekly board, `useGameProgress`, lazy 3D stage
 src/lib/game/carStage.ts  original low-poly three.js stage (lazy chunk; SVG fallback)
+src/lib/game/carMeshes.ts  procedural ride hulls + livery materials (no model files)
 src/lib/game/*.test.ts game-layer unit tests (speed never raises XP; share-card privacy; week rank)
 src/hud/gameSlots.ts   fills `#arr-xp`, `#share-card-mount`, `#car-stage` (unhide with `.hidden = false`)
 docs/GAME-LAYER.md     exported game API + share card + future leaderboard sync contract
@@ -336,6 +337,8 @@ Read `TASKS.md` top unchecked item. Do not rebase history. Do not rename the pro
 - 2026-10-04 Leon: **Game layer 2 (share card + local board).** Branch `leon/share-card` stacked on `leon/game-core`. `src/lib/game/shareCard.ts` paints `TripAward.shareCard` plus ride/livery names onto a 1080×1350 PNG (offscreen canvas). Theme reads `--bg` / `--surface` / `--text` / `--muted` / `--glow` / `--line` when Grim's tokens exist, else a neutral night palette. `mountShareCard(el)` is the preview for Grim's slot; `shareTrip()` uses Web Share with a PNG file and falls back to download. No addresses, coords, map tiles, or times of day. Weekly board (`src/lib/game/leaderboard.ts`) is local only: Mon–Sun buckets, opt-in default OFF, `rankWeek` does not invent friends. Future backend sync contract is in `docs/GAME-LAYER.md`. No CSS or screen-layout edits.
 
 - 2026-10-04 Leon: **Game layer 3 (wire Grim slots).** Branch `leon/game-wire` rebased onto Grim `grim/screen-pass-c69a` (PR #35, which sits on #29). Fills `#arr-xp`, `#share-card-mount` (inside `#arrival`, above `.arr-actions`), `#car-stage`. `#arr-share` is the only Share button; `slide:share-trip` calls `shareTrip(lastAward().shareCard + ride)`. `#arr-ride` stays Grim's 2D car. Unhide with `el.hidden = false`. Token-only CSS. `#g-board` Garage toggle (default off). Preview: `window.slidePreviewGame`. Stack: #29 → #35 → this PR → `leon/car-models` #37.
+
+- 2026-10-04 Leon: **3D car models.** Branch `leon/car-models` on `leon/game-wire`. Replaced the box-and-stripes stage meshes with original lofted hulls in `src/lib/game/carMeshes.ts` (starter six + Nimbus + Glider, each a distinct silhouette). Liveries are materials (Solid / Stripes / Fade / Halo / Dusk). Soft studio lights + ground shadow. Still lazy `three`, no model files, no licensed brands, idle spin respects `prefers-reduced-motion`. No Grim layout CSS. Preview: `window.slidePreviewGame.ride(id, livery)`.
 
 ## Teammate slots (stable IDs — do not rename)
 
