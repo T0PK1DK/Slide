@@ -67,6 +67,7 @@ src/lib/polyline.ts    precision-6 decode
 src/lib/garage.ts      customization persist
 src/lib/ghosts.ts      ghost replay along a line
 src/lib/guidance.ts    next maneuver, posted-speed lookahead, turn arrows
+src/lanes/             Valhalla turn-lane strip for Grim's `#lane-strip` slot
 src/lib/tracking.ts    live GPS watch + snap-to-route progress
 src/lib/maplook.ts     night basemap lift (per theme), route ribbon, HUD fit padding
 src/lib/vehicles.ts    rides: original top-down car designs (SVG), liveries, pack field for future collabs (tested)
@@ -131,7 +132,7 @@ AGENTS.md / CLAUDE.md  short agent rules
 - `main.ts` is one file. Split when adding nav guidance / GPS follow.
 - Public Valhalla/Photon can rate-limit. Plan for self-host.
 - Phone demo is live on Cloudflare Pages: https://kings-slide.pages.dev (project `kings-slide`). Do not use slide.pages.dev — that hostname is an unrelated site.
-- Turn-by-turn is the next-maneuver banner only; no full step list, no voice.
+- Turn-by-turn is the next-maneuver banner plus a lane strip in `#lane-strip` when Valhalla sends `lanes` within 0.75 mi. No full step list, no voice yet.
 - No leave-by target. No live traffic: that waits on the traffic provider decision.
 - Native CarPlay requires an iOS app + Apple entitlement — Drive Mode is the phone-mounted stand-in.
 - Leave-by and "Your usual" aren't built yet. Avoid options and multi-stop are done.
@@ -299,12 +300,13 @@ Read `TASKS.md` top unchecked item. Do not rebase history. Do not rename the pro
 
 - 2026-10-04 Grim: **PR 1 — design system rebuild.** Deleted the 6 stacked CSS layers. `src/styles/tokens.css` is the only hex file (kit Night / Ember + Slide Sand, mapped to `[data-look]`). `src/styles.css` is tokens → base → components → screens. `--glow` stays the Garage accent. Metrics on `main` before → after: radii 25 → 6, unique raw hex 68 → 0 outside tokens, font sizes 31 → 9, `!important` 24 → 0. Identity kept (spaced SLIDE, mono tag chip, uppercase mono HUD labels, Garage glow, glowing route, `vehicles.ts` rides, night default). Empty teammate slots added in `src/hud/shell.ts` (see below). No voice/lane/data or game-layer logic.
 - 2026-10-04 Grim: **PR 2 — screen pass.** Review `#route-carousel` from real ranked routes only. Drive: `#speedo` bottom-left, `#drive-report` bottom-right; `#lane-strip` still empty for Nard; `#drive-mute` is a working mute button that sets `document.documentElement.dataset.voice` and fires `slide:voice-mute`. Report grid uses glass icons + a subtype step, then Send / Later (RPC still only gets the kind). `#place-card` (name, address, Save, Go) after a real search pick. Fail sheets: `#loc-banner` + `#loc-title` for denied / unavailable / timeout / insecure; `#net-sheet` already covers offline / no-route. Arrival is a trip card with `#arr-share` (native share, no address) and `slide:share-trip`; `#arr-xp` / `#share-card-mount` stay Leon's. Empty states use `src/lib/empty.ts` instead of "—". Tokens/components only.
+- 2026-10-04 Nard: **Lane strip on Grim's #35 drive layout.** Based on `grim/screen-pass-c69a`. `#lane-strip` unhides only with real Valhalla `lanes` within 0.75 mi. Child arrows use existing tokens (`--glow`, `--fill-07`, `--fs-xl`, `--radius-md`) in the one stylesheet — no override layer. Drive chrome stays #35: speedo bottom-left, Report bottom-right.
 
 ## Teammate slots (stable IDs — do not rename)
 
 | Who | Slot | Selector | Where |
 |---|---|---|---|
-| Nard | Lane strip | `#lane-strip` / `[data-slot="lane-strip"]` | After `#maneuver`, above the drive card. Still empty/`hidden`. |
+| Nard | Lane strip | `#lane-strip` / `[data-slot="lane-strip"]` | After `#maneuver`. Filled from Valhalla `lanes`; hidden when none. |
 | Nard | Mute button | `#drive-mute` / `[data-slot="drive-mute"]` | Inside `.drive-controls`. Wired: `aria-pressed`, `data-muted`, `document.documentElement.dataset.voice` (`on` \| `muted`), event `slide:voice-mute` `{ muted }`. Hook speech here. |
 | Nard | Drive report | `#drive-report` | Bottom-right in drive. Calls `radar.openReport()`. |
 | Leon | XP / badges | `#arr-xp` / `[data-slot="arrival-xp"]` | Inside `#arrival`, under `.arr-stats`. Still empty/`hidden`. |
@@ -435,6 +437,7 @@ Follow **Owner setup for accounts + radar** above, step by step:
 
 ### 4. Features (owner's Phase 2–5, one PR each)
 
+- [x] **Lane guidance** into Grim's `#lane-strip` (based on PR #35).
 - [ ] **Your usual:** learn the routes you repeat between the same places (on-device only), and tag that line "Your usual".
 - [ ] **Real pace ghost:** record your own GPS run on a route and replay it next time (TASKS P2). This replaces the removed fake ghosts. Never draw invented drivers.
 - [ ] Leave-by (`leaveByForTarget` exists), the upcoming speed-limit chip, and fitting the camera to the route on the first plan.

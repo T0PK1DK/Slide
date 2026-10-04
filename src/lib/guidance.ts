@@ -1,4 +1,4 @@
-import type { Maneuver } from "./valhalla";
+import type { Maneuver, ManeuverLane } from "./valhalla";
 import type { SpeedBand } from "./smooth";
 
 /** One maneuver placed on the route by cumulative distance from the start. */
@@ -9,6 +9,7 @@ export type Step = {
   startMi: number;
   endMi: number;
   street: string;
+  lanes: ManeuverLane[];
 };
 
 export type NextMove = {
@@ -18,6 +19,7 @@ export type NextMove = {
   then: string | null;
   /** 0..1 — how close the maneuver is, for the approach bar. */
   proximity: number;
+  lanes: ManeuverLane[];
 };
 
 export type PostedOutlook = {
@@ -41,6 +43,7 @@ export function buildSteps(maneuvers: Maneuver[], toMiles = 1): Step[] {
       startMi: cursor,
       endMi: cursor + len,
       street: (m.street_names && m.street_names[0]) || "",
+      lanes: m.lanes ?? [],
     });
     cursor += len;
   }
@@ -65,6 +68,7 @@ export function nextMove(steps: Step[], progressMi: number): NextMove | null {
       type: last.type,
       then: null,
       proximity: 1,
+      lanes: last.lanes,
     };
   }
   const current = steps[currentIdx];
@@ -76,6 +80,7 @@ export function nextMove(steps: Step[], progressMi: number): NextMove | null {
     type: upcoming.type,
     then: steps[currentIdx + 2]?.instruction ?? null,
     proximity: Math.max(0, Math.min(1, 1 - distance / span)),
+    lanes: upcoming.lanes,
   };
 }
 
