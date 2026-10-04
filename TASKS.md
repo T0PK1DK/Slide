@@ -37,6 +37,8 @@ Work top-down. Check the box in the same PR.
 - [x] Supabase project `slide` created + schema applied (2026-10-04); the last 2 functions pasted in the SQL Editor (2026-10-04)
 - [x] `VITE_SUPABASE_URL` + anon key (`.env.production`), production redeployed, `TRANSIT_FEEDS` secret (Broward, Tri-Rail, Brightline) — 2026-10-04
 - [x] Production redeployed from `main` @ d6b83e8 (PRs #16–#18): accounts on, email-link sign-in, Try again sheet, faster load (2026-10-04)
+- [x] Preview (workers.dev) refreshed from `main` @ f16ac7d (#29, #35, #31, #33); production `kings-slide` not redeployed yet (2026-10-04)
+- [ ] Fix phone drive layout: `#lane-strip` overlaps a two-line turn instruction and the posted chip
 - [ ] **Nard:** FL511 key (optional now), redeploy (HANDOFF → Owner setup); Miami-Dade transit needs a Swiftly key from King
 - [x] Sign in by tapping the emailed link (desktop / Safari) or typing the 6-digit `{{ .Token }}` OTP in the app (Home Screen). Nard pastes the Magic Link template.
 - [x] Persistent Slide accounts: email OTP in this app (`verifyOtp` type `email`) + magic link option; `persistSession` / `autoRefreshToken` keep that app signed in after the first code. No D1. No new SQL — Nard pastes the template, confirms Site URL + Redirect URLs, then redeploys.
