@@ -2204,6 +2204,7 @@ body[data-mode="drive"] .radar-banner { top: calc(112px + env(safe-area-inset-to
   }
   .review-sheet { bottom: calc(12px + env(safe-area-inset-bottom)); padding: var(--space-4) var(--space-3) var(--space-3); }
   .maneuver { top: calc(12px + env(safe-area-inset-top)); left: var(--gutter); right: var(--gutter); }
+  body[data-mode="drive"] .maneuver { padding: var(--space-3) var(--space-4); }
   .posted-chip { top: calc(108px + env(safe-area-inset-top)); left: 50%; right: auto; width: auto; transform: translateX(-50%); }
   body[data-mode="drive"] .posted-chip { top: calc(168px + env(safe-area-inset-top)); }
   .status-pill { top: calc(12px + env(safe-area-inset-top)); left: 50%; right: auto; width: auto; transform: translateX(-50%); }
