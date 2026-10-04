@@ -94,7 +94,7 @@ export type WeekTiles = { avgTripMin: Tile; miles: Tile; tollTrips: Tile; onTime
 
 /**
  * Pure: the desktop stat tiles — this 7 days vs the 7 before, from recorded
- * trips only. `null` means "no trips to say anything", shown as an em dash.
+ * trips only. `null` means "no trips to say anything", shown as an explanation.
  */
 export function weekTiles(all: TripRecord[], now = Date.now()): WeekTiles {
   const WEEK = 7 * 864e5;

@@ -38,7 +38,8 @@ export const HUD_HTML = `
       </div>
     </div>
     <div class="panel status-pill" id="status">Locking a 3D line…</div>
-    <div class="panel loc-banner" id="loc-banner" role="alert" hidden>
+    <div class="panel loc-banner fail-sheet" id="loc-banner" role="alert" hidden>
+      <b class="net-title" id="loc-title"></b>
       <p id="loc-msg"></p>
       <div class="loc-actions">
         <button class="ghost" id="loc-search" type="button">Search a start point instead</button>
@@ -46,7 +47,7 @@ export const HUD_HTML = `
         <button class="icon loc-close" id="loc-close" type="button" aria-label="Dismiss">×</button>
       </div>
     </div>
-    <div class="panel loc-banner net-sheet" id="net-sheet" role="alert" hidden>
+    <div class="panel loc-banner net-sheet fail-sheet" id="net-sheet" role="alert" hidden>
       <b class="net-title" id="net-title"></b>
       <p id="net-msg"></p>
       <div class="loc-actions">
@@ -54,20 +55,34 @@ export const HUD_HTML = `
         <button class="icon loc-close" id="net-close" type="button" aria-label="Dismiss">×</button>
       </div>
     </div>
+    <div class="panel place-card plan-only" id="place-card" hidden>
+      <button class="icon loc-close" id="place-close" type="button" aria-label="Close place">×</button>
+      <h2 id="place-name"></h2>
+      <p id="place-addr"></p>
+      <p class="place-saved" id="place-saved" hidden>Saved on this phone.</p>
+      <div class="place-actions">
+        <button class="ghost" id="place-save" type="button">Save</button>
+        <button class="primary" id="place-go" type="button">Go</button>
+      </div>
+    </div>
     <div class="panel maneuver drive-only" id="maneuver" hidden>
       <svg class="arrow" viewBox="0 0 24 24" aria-hidden="true"><path id="man-arrow" d="" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      <div class="man-text"><b id="man-dist">—</b><span id="man-instr">—</span></div>
+      <div class="man-text"><b id="man-dist">Next turn</b><span id="man-instr">Follow the line</span></div>
       <div class="man-bar"><i id="man-fill"></i></div>
     </div>
     <div id="lane-strip" class="lane-strip drive-only" data-slot="lane-strip" hidden aria-label="Lane guidance"></div>
     <div class="panel posted-chip drive-only" id="posted" hidden></div>
     <div class="panel review-sheet review-only" id="review-sheet" hidden>
-      <div class="review-head">
-        <b id="review-eta">—</b>
-        <span id="review-dist">—</span>
+      <div class="route-carousel" id="route-carousel" aria-label="Route choices">
+        <div class="route-track" id="route-track"></div>
+        <div class="route-dots" id="route-dots" hidden></div>
       </div>
-      <p class="review-via" id="review-via">—</p>
-      <p class="review-tag" id="review-tag">—</p>
+      <div class="review-head sr" aria-live="polite">
+        <b id="review-eta">After a plan</b>
+        <span id="review-dist">After a plan</span>
+      </div>
+      <p class="review-via sr" id="review-via"></p>
+      <p class="review-tag sr" id="review-tag"></p>
       <p class="review-eta-note" id="review-eta-note">Typical time · no live traffic yet</p>
       <ol class="stops-list" id="stops-list" aria-label="Stops, in driving order"></ol>
       <div class="stop-search" id="stop-search" hidden>
@@ -92,23 +107,27 @@ export const HUD_HTML = `
       <label class="switch"><span>Avoid ferries</span><input type="checkbox" id="ro-ferries" /></label>
       <button class="primary" id="ro-done" type="button">Done</button>
     </div>
-    <div class="panel arrival-sheet arrive-only" id="arrival" role="dialog" aria-labelledby="arr-dest" hidden>
+    <div class="panel arrival-sheet trip-card arrive-only" id="arrival" role="dialog" aria-labelledby="arr-dest" hidden>
       <span class="arr-kicker" id="arr-kicker">ARRIVED</span>
-      <h2 id="arr-dest">—</h2>
+      <div class="arr-ride" id="arr-ride" aria-hidden="true"></div>
+      <h2 id="arr-dest">Your destination</h2>
       <div class="arr-stats">
-        <div><span>Drive time</span><b id="arr-time">—</b></div>
-        <div><span>Driven</span><b id="arr-dist">—</b></div>
-        <div><span>Line</span><b id="arr-line">—</b></div>
+        <div><span>Drive time</span><b id="arr-time">After a trip</b></div>
+        <div><span>Driven</span><b id="arr-dist">After a trip</b></div>
+        <div><span>Line</span><b id="arr-line">After a trip</b></div>
       </div>
       <div id="arr-xp" class="arr-xp" data-slot="arrival-xp" hidden aria-label="Trip XP and badges"></div>
       <p class="arr-note" id="arr-note"></p>
-      <button class="primary" id="arr-done" type="button">Done</button>
+      <div class="arr-actions">
+        <button class="ghost" id="arr-share" type="button">Share</button>
+        <button class="primary" id="arr-done" type="button">Done</button>
+      </div>
     </div>
     <div id="share-card-mount" class="share-card-mount" data-slot="share-card" hidden aria-label="Shareable trip card"></div>
     <div class="panel dash plan-only" id="dash" hidden>
       <div class="stat-row">
-        <div class="stat"><span>Slide</span><b id="stat-score">—</b></div>
-        <div class="stat"><span>Arrive</span><b id="stat-eta">—</b></div>
+        <div class="stat"><span>Slide</span><b id="stat-score">After a plan</b></div>
+        <div class="stat"><span>Arrive</span><b id="stat-eta">After a plan</b></div>
         <div class="stat"><span>Ghosts</span><b id="stat-ghosts">0</b></div>
         <div class="stat"><span>Streak</span><b id="stat-streak">0</b></div>
       </div>
@@ -116,7 +135,7 @@ export const HUD_HTML = `
     </div>
     <div class="speedo drive-only" id="speedo" hidden>
       <div class="cluster">
-        <div class="limit" id="limit" hidden><span>Speed limit</span><b id="limit-n">—</b></div>
+        <div class="limit" id="limit" hidden><span>Speed limit</span><b id="limit-n">No sign</b></div>
         <div class="live"><div class="n" id="speed-n">0</div><div class="u" id="speed-src">Est</div></div>
       </div>
       <div class="ghost-delta" id="ghost-delta" hidden>GHOST ±0.0s</div>
@@ -124,13 +143,17 @@ export const HUD_HTML = `
     <button class="panel recenter drive-only" id="recenter" hidden>Recenter</button>
     <div class="panel speed-rail" id="speeds" hidden></div>
     <div class="panel drive-bar drive-only" id="drive-bar" hidden>
-      <div class="meta"><b id="drive-eta">—</b><span id="drive-remain">—</span></div>
+      <div class="meta"><b id="drive-eta">After a plan</b><span id="drive-remain">Remaining once GPS locks</span></div>
       <div class="drive-controls">
-        <span id="drive-mute" class="drive-mute" data-slot="drive-mute" hidden aria-label="Mute voice guidance"></span>
+        <button type="button" id="drive-mute" class="drive-mute" data-slot="drive-mute" aria-label="Mute voice guidance" aria-pressed="false" hidden></button>
         <button class="icon" id="more" type="button" aria-label="More">⋯</button>
         <button class="end" id="end-drive" type="button">End</button>
       </div>
     </div>
+    <button class="drive-report drive-only" id="drive-report" type="button" hidden aria-label="Report something on the road">
+      <span class="drive-report-ico" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22"><path d="M6 4v16M6 5h11l-2 3 2 3H6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      Report
+    </button>
     <div class="panel overflow" id="overflow">
       <button type="button" id="ov-profile">Profile</button>
       <button type="button" id="ov-tune">Tune garage</button>

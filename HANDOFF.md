@@ -54,6 +54,11 @@ src/main.ts            map + plan + drive loop (HUD listeners)
 src/styles.css         HUD stylesheet (tokens → base → components → screens)
 src/styles/tokens.css  Night / Ember / Sand tokens (only file with raw hex)
 src/styles/system.test.ts  design-system metrics (hex, radii, type, !important)
+src/lib/empty.ts       empty-state copy (never "—")
+src/lib/place.ts       Photon label → name + address
+src/plan/review-cards.ts  swipeable review cards from real ranked routes
+src/hud/voice-mute.ts  `#drive-mute` toggle + `slide:voice-mute` event
+src/hud/report-ui.ts   report glass icons + subtypes (submit still sends kind)
 src/node-fs.d.ts       types for the metrics test
 tools/shoot-screens.mjs  phone/desktop HUD screenshots (390 + 1440)
 src/lib/valhalla.ts    route / trace / search
@@ -293,20 +298,24 @@ Read `TASKS.md` top unchecked item. Do not rebase history. Do not rename the pro
 - 2026-10-04 Nard: **Official incidents without a key** (King approved). `/api/incidents` now merges two free feeds, fetched server-side with a 7 s timeout and a 60 s edge cache each, and each source fails on its own: **FDOT DIVAS** (the ArcGIS layer behind FL511's map; queried for Palm Beach → the Keys) and **Miami-Dade Police** traffic calls (`traffic.mdpd.com/api/`, which has no CORS, so server-side only). FL511 is still used if `FL511_API_KEY` is set. The response is `{configured, sources:[{source, ok, count, error?}], items}`, newest first. Mapping: DIVAS crash → crash, roadwork → roadwork, congestion/backup → jam, "all lanes closed" → closure, disabled vehicle and the rest → hazard. MDPD accident/hit-and-run → crash. MDPD times are Miami wall-clock and are converted with EST/EDT. MDPD items are labelled "dispatched call": they are crash calls, never police positions. Live on the preview at 10:30 ET: FDOT 10 events (Palm Beach 9, Monroe 1; none in Miami-Dade/Broward at the time), MDPD 5 crash calls. In headless Chrome with GPS at NW 135th St / NW 7th Ave, the radar showed 2 MDPD blips and the Nearby list showed them; at I-95 / Forest Hill Blvd it showed the FDOT crash. FDOT WZDx work zones are not added (later).
 
 - 2026-10-04 Grim: **PR 1 — design system rebuild.** Deleted the 6 stacked CSS layers. `src/styles/tokens.css` is the only hex file (kit Night / Ember + Slide Sand, mapped to `[data-look]`). `src/styles.css` is tokens → base → components → screens. `--glow` stays the Garage accent. Metrics on `main` before → after: radii 25 → 6, unique raw hex 68 → 0 outside tokens, font sizes 31 → 9, `!important` 24 → 0. Identity kept (spaced SLIDE, mono tag chip, uppercase mono HUD labels, Garage glow, glowing route, `vehicles.ts` rides, night default). Empty teammate slots added in `src/hud/shell.ts` (see below). No voice/lane/data or game-layer logic.
+- 2026-10-04 Grim: **PR 2 — screen pass.** Review `#route-carousel` from real ranked routes only. Drive: `#speedo` bottom-left, `#drive-report` bottom-right; `#lane-strip` still empty for Nard; `#drive-mute` is a working mute button that sets `document.documentElement.dataset.voice` and fires `slide:voice-mute`. Report grid uses glass icons + a subtype step, then Send / Later (RPC still only gets the kind). `#place-card` (name, address, Save, Go) after a real search pick. Fail sheets: `#loc-banner` + `#loc-title` for denied / unavailable / timeout / insecure; `#net-sheet` already covers offline / no-route. Arrival is a trip card with `#arr-share` (native share, no address) and `slide:share-trip`; `#arr-xp` / `#share-card-mount` stay Leon's. Empty states use `src/lib/empty.ts` instead of "—". Tokens/components only.
 
 ## Teammate slots (stable IDs — do not rename)
 
-Empty containers, styled by the system, hidden until filled. Markup only in this PR.
-
 | Who | Slot | Selector | Where |
 |---|---|---|---|
-| Nard | Lane strip | `#lane-strip` / `[data-slot="lane-strip"]` | After `#maneuver`, above the drive card |
-| Nard | Mute button | `#drive-mute` / `[data-slot="drive-mute"]` | Inside `.drive-controls` on `#drive-bar` |
-| Leon | XP / badges | `#arr-xp` / `[data-slot="arrival-xp"]` | Inside `#arrival`, under `.arr-stats` |
-| Leon | Share card | `#share-card-mount` / `[data-slot="share-card"]` | Sibling after `#arrival` |
-| Leon | 3D car stage | `#car-stage` / `[data-slot="car-stage"]` | HUD overlay; 2D garage preview stays `#g-preview` |
+| Nard | Lane strip | `#lane-strip` / `[data-slot="lane-strip"]` | After `#maneuver`, above the drive card. Still empty/`hidden`. |
+| Nard | Mute button | `#drive-mute` / `[data-slot="drive-mute"]` | Inside `.drive-controls`. Wired: `aria-pressed`, `data-muted`, `document.documentElement.dataset.voice` (`on` \| `muted`), event `slide:voice-mute` `{ muted }`. Hook speech here. |
+| Nard | Drive report | `#drive-report` | Bottom-right in drive. Calls `radar.openReport()`. |
+| Leon | XP / badges | `#arr-xp` / `[data-slot="arrival-xp"]` | Inside `#arrival`, under `.arr-stats`. Still empty/`hidden`. |
+| Leon | Share card | `#share-card-mount` / `[data-slot="share-card"]` | Sibling after `#arrival`. Still empty/`hidden`. Listen for `slide:share-trip`. |
+| Leon | Arrival share | `#arr-share` | Share button on the trip card (native share, no address). |
+| Leon | 3D car stage | `#car-stage` / `[data-slot="car-stage"]` | HUD overlay; 2D garage preview stays `#g-preview`. Arrival 2D ride is `#arr-ride`. |
+| Both | Place card | `#place-card` `#place-name` `#place-addr` `#place-save` `#place-go` | After a search pick, before routing. |
+| Both | Route carousel | `#route-carousel` `#route-track` `#route-dots` | Review sheet. One card per real `SlideRoute`. |
+| Both | Location sheet | `#loc-banner` `#loc-title` `#loc-msg` | `data-kind` = denied / unavailable / timeout / insecure. |
 
-Unhide with `.hidden = false` / `removeAttribute("hidden")`. Do not add a CSS override layer.
+Unhide empty slots with `el.hidden = false`. Do not add a CSS override layer.
 
 ## Owner setup for accounts + radar
 

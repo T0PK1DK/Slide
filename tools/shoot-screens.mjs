@@ -121,6 +121,15 @@ try {
         document.getElementById("review-dist").textContent = "6.2 mi";
         document.getElementById("review-via").textContent = "via Brickell Ave";
         document.getElementById("review-tag").textContent = "Slide pick · no tolls";
+        const track = document.getElementById("route-track");
+        if (track) {
+          track.innerHTML = `
+            <button type="button" class="route-card on" aria-pressed="true"><span class="route-card-tag">Slide pick</span><b>14 min</b><span class="route-card-mi">6.2 mi</span><span class="route-card-why">4 fewer lefts · smoothest line</span></button>
+            <button type="button" class="route-card"><span class="route-card-tag">Fastest</span><b>12 min</b><span class="route-card-mi">6.4 mi</span><span class="route-card-why">More lefts · typical time</span></button>
+            <button type="button" class="route-card"><span class="route-card-tag">No tolls</span><b>16 min</b><span class="route-card-mi">6.8 mi</span><span class="route-card-why">Avoids SunPass roads</span></button>`;
+          const dots = document.getElementById("route-dots");
+          if (dots) { dots.hidden = false; dots.innerHTML = `<i class="on"></i><i></i><i></i>`; }
+        }
       }
     });
     await shot(page, `03-review-${tag}`);
@@ -155,6 +164,10 @@ try {
         document.getElementById("drive-eta").textContent = "12 min";
         document.getElementById("drive-remain").textContent = "4.1 mi · Brickell";
       }
+      const mute = document.getElementById("drive-mute");
+      if (mute) mute.hidden = false;
+      const report = document.getElementById("drive-report");
+      if (report) report.hidden = false;
     });
     await shot(page, `05-drive-${tag}`);
 
@@ -169,9 +182,78 @@ try {
         document.getElementById("arr-dist").textContent = "6.2 mi";
         document.getElementById("arr-line").textContent = "Slide";
         document.getElementById("arr-note").textContent = "Typical time · no live traffic yet";
+        const ride = document.getElementById("arr-ride");
+        const preview = document.getElementById("g-preview");
+        if (ride && preview) ride.innerHTML = preview.innerHTML;
       }
     });
     await shot(page, `06-arrival-${tag}`);
+
+    await show(page, () => {
+      document.getElementById("arrival")?.setAttribute("hidden", "");
+      document.body.dataset.mode = "plan";
+      const p = document.getElementById("place-card");
+      if (p) {
+        p.hidden = false;
+        const n = document.getElementById("place-name");
+        const a = document.getElementById("place-addr");
+        if (n) n.textContent = "Bayside Marketplace";
+        if (a) a.textContent = "401 Biscayne Blvd, Miami";
+      }
+    });
+    await shot(page, `14-place-${tag}`);
+
+    await show(page, () => {
+      document.getElementById("place-card")?.setAttribute("hidden", "");
+      let rs = document.querySelector(".radar-sheet");
+      if (!rs) {
+        rs = document.createElement("div");
+        rs.className = "radar-sheet";
+        document.body.appendChild(rs);
+      }
+      rs.hidden = false;
+      const ico = (k, d) => `<span class="rs-ico ${k}"><svg viewBox="0 0 24 24" width="26" height="26">${d}</svg></span>`;
+      rs.innerHTML = `<div class="rs-card"><header><h2>What's on the road?</h2><button type="button" class="rs-close">×</button></header>
+        <div class="rs-kinds">
+          <button type="button" class="rs-kind">${ico("police", '<path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z"/>')}<span>Police</span></button>
+          <button type="button" class="rs-kind">${ico("crash", '<path d="M12 3l9 16H3z"/>')}<span>Crash</span></button>
+          <button type="button" class="rs-kind">${ico("hazard", '<path d="M12 3l9 16H3z"/>')}<span>Hazard</span></button>
+          <button type="button" class="rs-kind">${ico("closure", '<rect x="4" y="8" width="16" height="8" rx="2"/>')}<span>Closure</span></button>
+          <button type="button" class="rs-kind">${ico("jam", '<path d="M4 8h4v3H4zm6 0h4v3h-4zm6 0h4v3h-4M4 13h16v2H4z"/>')}<span>Traffic jam</span></button>
+        </div>
+        <p class="rs-src">Reported at your current spot. Your name is never shown with a report.</p></div>`;
+    });
+    await shot(page, `15-report-${tag}`);
+
+    await show(page, () => {
+      const rs = document.querySelector(".radar-sheet");
+      if (rs) {
+        rs.hidden = false;
+        rs.innerHTML = `<div class="rs-card"><header><h2>Hazard</h2><button type="button" class="rs-close">×</button></header>
+          <div class="rs-hero"><span class="rs-ico hazard"><svg viewBox="0 0 24 24" width="26" height="26"><path d="M12 3l9 16H3z"/></svg></span></div>
+          <p class="rs-src">Pick what you see, then Send.</p>
+          <div class="rs-subs"><button type="button" class="rs-sub on">Object</button><button type="button" class="rs-sub">Shoulder</button><button type="button" class="rs-sub">Weather</button></div>
+          <div class="rs-send"><button type="button" class="ghost">Later</button><button type="button" class="primary">Send</button></div></div>`;
+      }
+    });
+    await shot(page, `16-report-sub-${tag}`);
+
+    await show(page, () => {
+      document.querySelector(".radar-sheet")?.setAttribute("hidden", "");
+      const loc = document.getElementById("loc-banner");
+      if (loc) {
+        loc.hidden = false;
+        loc.dataset.kind = "denied";
+        const t = document.getElementById("loc-title");
+        const m = document.getElementById("loc-msg");
+        if (t) t.textContent = "Location is off";
+        if (m) m.textContent = "Location is off for Slide. Allow it in your browser or phone settings, then tap Try again.";
+      }
+    });
+    await shot(page, `17-location-denied-${tag}`);
+    await show(page, () => {
+      document.getElementById("loc-banner")?.setAttribute("hidden", "");
+    });
 
     await show(page, () => {
       document.getElementById("arrival")?.setAttribute("hidden", "");
@@ -201,7 +283,7 @@ try {
             <button type="button" class="pf-close" aria-label="Close">×</button>
           </header>
           <section class="pf-stats"><div><b>0</b><span>Drives</span></div>
-            <div><b>0</b><span>Miles</span></div><div><b>—</b><span>Avg smooth</span></div></section>
+            <div><b>0</b><span>Miles</span></div><div><b>After a drive</b><span>Avg smooth</span></div></section>
           <section class="pf-section"><h3>Driver</h3><p class="pf-note">Name, tag and My car stay on this phone.</p></section>
         </div>`;
         document.body.appendChild(sheet);
@@ -224,7 +306,7 @@ try {
               <div><b>0</b><span><i class="dot warn"></i>Off-route</span></div>
               <div><b>0</b><span><i class="dot"></i>Miles</span></div></div></section>
             <section class="cmd-card"><header><h2 class="cmd-sub">Smooth score</h2></header>
-              <div class="cmd-big">—</div>
+              <div class="cmd-big">After a drive</div>
               <div class="cmd-empty">No drives yet. Plan a route and tap Go with location on — only real GPS drives are saved.</div>
             </section>
           </div>`;
@@ -262,6 +344,19 @@ try {
       }
     });
     await shot(page, `12-offline-${tag}`);
+
+    await show(page, () => {
+      const loc = document.getElementById("net-sheet");
+      if (loc) {
+        loc.hidden = false;
+        loc.dataset.kind = "no-route";
+        const t = document.getElementById("net-title");
+        const m = document.getElementById("net-msg");
+        if (t) t.textContent = "No drivable route found";
+        if (m) m.textContent = "These points can't be joined by road. Try a nearby address, or remove a stop.";
+      }
+    });
+    await shot(page, `18-no-route-${tag}`);
   };
 
   for (const [w, h, tag] of [[390, 844, "phone"], [1440, 900, "desktop"]]) {

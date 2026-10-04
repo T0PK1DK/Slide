@@ -17,6 +17,7 @@ import {
   type ReportableKind,
 } from "../lib/reports";
 import { currentUserId } from "../lib/social";
+import { REPORT_SUBTYPES, reportKindIcon } from "./report-ui";
 
 /**
  * The game-style mini radar: heading-up, range rings, a sweep, and a blip for
@@ -31,7 +32,11 @@ export type RadarHooks = {
   openProfile: () => void;
 };
 
-export type RadarView = { refresh(): void; setMode(mode: "plan" | "review" | "drive" | "arrive"): void };
+export type RadarView = {
+  refresh(): void;
+  setMode(mode: "plan" | "review" | "drive" | "arrive"): void;
+  openReport(): void;
+};
 
 const RANGE_MI = 1.5;
 const POLL_MS = 45_000;
@@ -172,29 +177,58 @@ export function mountRadar(h: RadarHooks): RadarView {
       sheet.querySelector(".rs-signin")?.addEventListener("click", () => { closeSheet(); h.openProfile(); });
       return;
     }
-    sheet.innerHTML = `<div class="rs-card"><header><h2>What's on the road?</h2><button type="button" class="rs-close" aria-label="Close">×</button></header>
-      <div class="rs-kinds">${REPORT_KINDS.map((k) => `<button type="button" class="rs-kind" data-kind="${k.kind}"><span class="rb-dot ${k.kind}"></span>${k.label}</button>`).join("")}</div>
-      <p class="rs-src">Reported at your current spot. Your name is never shown with a report.</p>
-      <p class="rs-msg" role="status"></p></div>`;
-    sheet.hidden = false;
-    sheet.querySelector(".rs-close")!.addEventListener("click", closeSheet);
-    sheet.querySelectorAll<HTMLButtonElement>(".rs-kind").forEach((btn) =>
-      btn.addEventListener("click", async () => {
+    const drawKinds = () => {
+      sheet.innerHTML = `<div class="rs-card"><header><h2>What's on the road?</h2><button type="button" class="rs-close" aria-label="Close">×</button></header>
+        <div class="rs-kinds">${REPORT_KINDS.map((k) => `<button type="button" class="rs-kind" data-kind="${k.kind}">${reportKindIcon(k.kind)}<span>${k.label}</span></button>`).join("")}</div>
+        <p class="rs-src">Reported at your current spot. Your name is never shown with a report.</p>
+        <p class="rs-msg" role="status"></p></div>`;
+      sheet.querySelector(".rs-close")!.addEventListener("click", closeSheet);
+      sheet.querySelectorAll<HTMLButtonElement>(".rs-kind").forEach((btn) =>
+        btn.addEventListener("click", () => drawSubtypes(btn.dataset.kind as ReportableKind))
+      );
+    };
+    const drawSubtypes = (kind: ReportableKind) => {
+      const meta = REPORT_KINDS.find((k) => k.kind === kind)!;
+      const subs = REPORT_SUBTYPES[kind];
+      sheet.innerHTML = `<div class="rs-card"><header><h2>${esc(meta.label)}</h2><button type="button" class="rs-close" aria-label="Close">×</button></header>
+        <div class="rs-hero">${reportKindIcon(kind)}</div>
+        <p class="rs-src">Pick what you see, then Send. Slide still files this as ${esc(meta.label.toLowerCase())} — subtypes stay on this phone.</p>
+        <div class="rs-subs">${subs.map((s) => `<button type="button" class="rs-sub" data-sub="${s.id}">${esc(s.label)}</button>`).join("")}</div>
+        <div class="rs-send">
+          <button type="button" class="ghost" id="rs-later">Later</button>
+          <button type="button" class="primary" id="rs-send" disabled>Send</button>
+        </div>
+        <p class="rs-msg" role="status"></p></div>`;
+      sheet.querySelector(".rs-close")!.addEventListener("click", closeSheet);
+      sheet.querySelector("#rs-later")!.addEventListener("click", closeSheet);
+      let picked = "";
+      const send = sheet.querySelector<HTMLButtonElement>("#rs-send")!;
+      sheet.querySelectorAll<HTMLButtonElement>(".rs-sub").forEach((btn) =>
+        btn.addEventListener("click", () => {
+          picked = btn.dataset.sub || "";
+          sheet.querySelectorAll(".rs-sub").forEach((b) => b.classList.toggle("on", b === btn));
+          send.disabled = !picked;
+        })
+      );
+      send.addEventListener("click", async () => {
         const f = h.getFix();
         const msg = sheet.querySelector<HTMLElement>(".rs-msg")!;
         if (!f) { msg.textContent = "Waiting for your location…"; return; }
-        btn.disabled = true;
+        send.disabled = true;
         try {
-          await submitReport(btn.dataset.kind as ReportableKind, f.pos.lat, f.pos.lon, f.headingDeg);
-          msg.textContent = "Reported. Thanks for looking out.";
+          await submitReport(kind, f.pos.lat, f.pos.lon, f.headingDeg);
+          const sub = subs.find((s) => s.id === picked)?.label ?? "";
+          msg.textContent = sub ? `Reported ${meta.label.toLowerCase()} · ${sub}. Thanks for looking out.` : "Reported. Thanks for looking out.";
           void poll(f);
           window.setTimeout(closeSheet, 900);
         } catch (e) {
           msg.textContent = e instanceof Error ? e.message : "Couldn't report right now.";
-          btn.disabled = false;
+          send.disabled = false;
         }
-      })
-    );
+      });
+    };
+    drawKinds();
+    sheet.hidden = false;
   };
 
   const closeSheet = () => { sheet.hidden = true; };
@@ -223,5 +257,6 @@ export function mountRadar(h: RadarHooks): RadarView {
       if (m !== "drive") banner.hidden = true;
       draw();
     },
+    openReport() { void openReport(); },
   };
 }

@@ -25,6 +25,10 @@ import { loadGarage, saveGarage, TRAILS, type GarageConfig, type Look, type Save
 import { bubbleCandidates, mergeVariantTrips, pickFree, tollLabel, variantsFor } from "./plan/routeset";
 import { dropIndex, MAX_STOPS, moveItem, stopsReached } from "./plan/stops";
 import { classifyFailure, type FailWhat } from "./plan/failure";
+import { cardAriaLabel, routeCards } from "./plan/review-cards";
+import { EMPTY } from "./lib/empty";
+import { splitPlaceLabel } from "./lib/place";
+import { mountVoiceMute } from "./hud/voice-mute";
 import { stepGhost, type GhostCar } from "./lib/ghosts";
 import {
   buildSteps,
@@ -57,6 +61,7 @@ import { loadProfile } from "./lib/profile";
 import {
   cumulativeMiles,
   LOCATION_MESSAGES,
+  LOCATION_TITLES,
   snapToRoute,
   startTracking,
   type Fix,
@@ -184,11 +189,8 @@ fromInput.addEventListener("blur", () => {
 });
 $("#from-gps").addEventListener("click", useCurrentLocation);
 bindSearch(toInput, $("#to-suggest"), (hit) => {
-  dest = { lon: hit.lon, lat: hit.lat };
-  destLabel = hit.label;
-  toInput.value = hit.label;
   rememberRecent(hit);
-  plan();
+  openPlace(hit);
 });
 bindSearch($("#stop-input") as HTMLInputElement, $("#stop-suggest"), (hit) => {
   if (stops.length >= MAX_STOPS) return;
@@ -239,6 +241,11 @@ $("#loc-search").addEventListener("click", () => {
   fromInput.focus();
 });
 $("#arr-done").addEventListener("click", finishArrival);
+$("#arr-share").addEventListener("click", () => void shareTrip());
+$("#place-close").addEventListener("click", hidePlace);
+$("#place-go").addEventListener("click", () => { hidePlace(); void plan(); });
+$("#place-save").addEventListener("click", saveOpenPlace);
+mountVoiceMute($("#drive-mute") as HTMLButtonElement);
 // The round FAB is "show me": it starts location or recentres on it, never switches it off.
 $("#locate-fab").addEventListener("click", () => {
   if (!tracker) return locateMe();
@@ -291,6 +298,7 @@ const profileSheet = mountProfile({
 });
 // Real GPS only.
 const radar = mountRadar({ getFix: () => liveFix, openProfile: () => profileSheet.open() });
+$("#drive-report").addEventListener("click", () => radar.openReport());
 const friends = mountFriends({
   map,
   getFix: () => liveFix,
@@ -319,11 +327,7 @@ $("#chip-work").addEventListener("click", () => useOrSavePlace("work"));
 $("#chip-saved").addEventListener("click", () => {
   const saved = savedChipPlace();
   if (!saved) return;
-  dest = { lon: saved.lon, lat: saved.lat };
-  destLabel = saved.label;
-  toInput.value = saved.label;
-  showError("");
-  plan();
+  openPlace({ label: saved.label, lon: saved.lon, lat: saved.lat, kind: "saved" });
 });
 $("#search-card").addEventListener("click", (e) => {
   const t = e.target as HTMLElement;
@@ -456,10 +460,12 @@ function renderRecents() {
   box.innerHTML = `<div class="recents-label">Recent</div>${items.map((r) => `<button type="button" class="recent-item" data-lon="${r.lon}" data-lat="${r.lat}">${esc(r.label)}</button>`).join("")}`;
   box.querySelectorAll<HTMLButtonElement>(".recent-item").forEach((btn) => {
     btn.onclick = () => {
-      dest = { lon: Number(btn.dataset.lon), lat: Number(btn.dataset.lat) };
-      destLabel = btn.textContent || "";
-      toInput.value = destLabel;
-      plan();
+      openPlace({
+        label: btn.textContent || "",
+        lon: Number(btn.dataset.lon),
+        lat: Number(btn.dataset.lat),
+        kind: "recent",
+      });
     };
   });
 }
@@ -506,10 +512,50 @@ function waitForFix(ms: number): Promise<Fix> {
   });
 }
 function showLocationProblem(problem: LocationProblem) {
+  $("#loc-title").textContent = LOCATION_TITLES[problem];
   $("#loc-msg").textContent = LOCATION_MESSAGES[problem];
   // Mid-drive there's no start point to search; the drive just waits for GPS.
   $("#loc-search").toggleAttribute("hidden", hudMode === "drive");
-  $("#loc-banner").removeAttribute("hidden");
+  const sheet = $("#loc-banner");
+  sheet.dataset.kind = problem;
+  sheet.removeAttribute("hidden");
+}
+
+function openPlace(hit: SearchHit) {
+  dest = { lon: hit.lon, lat: hit.lat };
+  destLabel = hit.label;
+  toInput.value = hit.label;
+  showError("");
+  const parts = hit.name ? { name: hit.name, address: hit.label } : splitPlaceLabel(hit.label);
+  $("#place-name").textContent = parts.name;
+  $("#place-addr").textContent = parts.address;
+  $("#place-saved").hidden = true;
+  $("#place-card").removeAttribute("hidden");
+  $("#search-card").classList.remove("open");
+}
+
+function hidePlace() {
+  $("#place-card").setAttribute("hidden", "");
+}
+
+function saveOpenPlace() {
+  if (!dest) return;
+  rememberRecent({ label: destLabel, lon: dest.lon, lat: dest.lat });
+  $("#place-saved").hidden = false;
+}
+
+async function shareTrip() {
+  const time = $("#arr-time").textContent || "";
+  const dist = $("#arr-dist").textContent || "";
+  const line = $("#arr-line").textContent || "";
+  const bits = ["Slide", time, dist];
+  if (line && line !== EMPTY.line) bits.push(line);
+  const text = bits.filter((s) => s && s !== EMPTY.driveTime && s !== EMPTY.driven).join(" · ");
+  const payload = { title: "Slide trip", text };
+  window.dispatchEvent(new CustomEvent("slide:share-trip", { detail: payload }));
+  if (navigator.share) {
+    try { await navigator.share(payload); } catch { /* dismissed */ }
+  }
 }
 function hideLocationProblem() {
   $("#loc-banner").setAttribute("hidden", "");
@@ -547,11 +593,7 @@ function savePlace(slot: "home" | "work") {
 function useOrSavePlace(slot: "home" | "work") {
   const saved = garage[slot];
   if (saved) {
-    dest = { lon: saved.lon, lat: saved.lat };
-    destLabel = saved.label;
-    toInput.value = saved.label;
-    showError("");
-    plan();
+    openPlace({ label: saved.label, lon: saved.lon, lat: saved.lat, kind: slot });
     return;
   }
   savePlace(slot);
@@ -616,6 +658,9 @@ function setHudMode(mode: HudMode) {
   driveBarEl.toggleAttribute("hidden", !driving);
   reviewEl.toggleAttribute("hidden", !reviewing);
   $("#arrival").toggleAttribute("hidden", mode !== "arrive");
+  $("#drive-mute").toggleAttribute("hidden", !driving);
+  $("#drive-report").toggleAttribute("hidden", !driving);
+  if (mode !== "plan") hidePlace();
   if (driving) {
     speedsEl.setAttribute("hidden", "");
     toggleBuildings(garage.showBuildings);
@@ -692,11 +737,13 @@ function arrive() {
   followCamera = true;
   const now = new Date();
   $("#arr-kicker").textContent = `ARRIVED · ${now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`;
-  $("#arr-dest").textContent = destLabel || "Destination";
-  $("#arr-time").textContent = startedAt ? formatDuration((now.getTime() - startedAt) / 1000) : "—";
+  const destName = destLabel ? splitPlaceLabel(destLabel).name : EMPTY.dest;
+  $("#arr-dest").textContent = destName;
+  $("#arr-time").textContent = startedAt ? formatDuration((now.getTime() - startedAt) / 1000) : EMPTY.driveTime;
   $("#arr-dist").textContent = formatMiles(drivenMi);
-  $("#arr-line").textContent = route?.label ?? "—";
+  $("#arr-line").textContent = route?.tags[0] ?? route?.label ?? EMPTY.line;
   $("#arr-note").textContent = drivenMi >= 0.2 ? "Saved to Your trips on this phone." : "Short drive — not saved to Your trips.";
+  $("#arr-ride").innerHTML = carSvg(garage.carColor, garage.glow);
   setHudMode("arrive");
   if (dest) map.easeTo({ center: [dest.lon, dest.lat], zoom: 16, pitch: 30, bearing: 0, duration: 900 });
 }
@@ -940,6 +987,7 @@ async function fetchRanked(from: LonLat, to: LonLat): Promise<SlideRoute[]> {
 async function plan() {
   if (planning) return;
   showError("");
+  hidePlace();
   hideLocationProblem();
   hideFailure();
   if (!dest) return showError("Set a destination.");
@@ -1080,6 +1128,34 @@ function renderReview() {
     reviewEl.setAttribute("hidden", "");
     return;
   }
+  const cards = routeCards(routes, selectedId);
+  const track = $("#route-track");
+  const ids = cards.map((c) => c.id).join();
+  if (track.dataset.ids !== ids) {
+    track.dataset.ids = ids;
+    track.innerHTML = cards.map((c) => `<button type="button" class="route-card${c.selected ? " on" : ""}" data-id="${c.id}" aria-pressed="${c.selected}" aria-label="${esc(cardAriaLabel(c))}">
+      <span class="route-card-tag">${esc(c.tag)}</span>
+      <b>${esc(c.time)}</b>
+      <span class="route-card-mi">${esc(c.miles)}</span>
+      <span class="route-card-why">${esc(c.why)}</span>
+      ${c.toll ? `<em class="${c.toll === "Has tolls" ? "toll" : "free"}">${esc(c.toll)}</em>` : ""}
+    </button>`).join("");
+    const dots = $("#route-dots");
+    dots.hidden = cards.length < 2;
+    dots.innerHTML = cards.map((c) => `<i class="${c.selected ? "on" : ""}" data-id="${c.id}"></i>`).join("");
+    bindCarousel(track);
+  } else {
+    track.querySelectorAll<HTMLElement>(".route-card").forEach((el) => {
+      const on = el.dataset.id === selectedId;
+      el.classList.toggle("on", on);
+      el.setAttribute("aria-pressed", String(on));
+    });
+    $("#route-dots").querySelectorAll<HTMLElement>("i").forEach((el) => el.classList.toggle("on", el.dataset.id === selectedId));
+  }
+  const active = track.querySelector<HTMLElement>(`.route-card[data-id="${selectedId}"]`);
+  if (active && !track.dataset.swiping) {
+    active.scrollIntoView({ inline: "center", block: "nearest", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+  }
   $("#review-eta").textContent = formatDuration(sel.durationSec);
   $("#review-dist").textContent = formatMiles(sel.distanceMi);
   $("#review-via").textContent = viaLine(sel.maneuvers);
@@ -1090,6 +1166,29 @@ function renderReview() {
     : [sel.tags.join(" · ") || sel.label, shortWhy].filter(Boolean).join(" · ");
   $("#review-tag").textContent = toll && !sel.tags.includes("No tolls") ? `${head} · ${toll}` : head;
   renderStops();
+}
+
+function bindCarousel(track: HTMLElement) {
+  track.querySelectorAll<HTMLButtonElement>(".route-card").forEach((btn) => {
+    btn.onclick = () => { if (btn.dataset.id) selectRoute(btn.dataset.id); };
+  });
+  let timer = 0;
+  track.onscroll = () => {
+    track.dataset.swiping = "1";
+    window.clearTimeout(timer);
+    timer = window.setTimeout(() => {
+      const mid = track.getBoundingClientRect().left + track.clientWidth / 2;
+      let bestId = "";
+      let bestD = Infinity;
+      for (const el of track.querySelectorAll<HTMLElement>(".route-card")) {
+        const r = el.getBoundingClientRect();
+        const d = Math.abs(r.left + r.width / 2 - mid);
+        if (d < bestD) { bestD = d; bestId = el.dataset.id || ""; }
+      }
+      delete track.dataset.swiping;
+      if (bestId && bestId !== selectedId) selectRoute(bestId);
+    }, 80);
+  };
 }
 /** Stops as a reorderable list: drag the grip (pointer events, so it works on touch too) or remove. */
 function renderStops() {
@@ -1142,7 +1241,7 @@ function renderDash() {
 function renderSpeedRail() {
   const route = routes.find((r) => r.id === selectedId);
   if (!route) { speedsEl.setAttribute("hidden", ""); return; }
-  speedsEl.innerHTML = `<h2>${originLabel || "Start"} → ${destLabel || "End"} · posted ${Math.round(route.postedCoverage * 100)}%</h2><div class="bands">${route.bands.map((b) => `<div class="band"><div class="name">${esc(b.name)}</div><div class="spd">${b.postedMph ?? "—"} <small>posted</small></div><div class="sub">expect ${b.expectedMph || "—"} · ${formatMiles(b.toMi - b.fromMi)}</div></div>`).join("")}</div>`;
+  speedsEl.innerHTML = `<h2>${originLabel || "Start"} → ${destLabel || "End"} · posted ${Math.round(route.postedCoverage * 100)}%</h2><div class="bands">${route.bands.map((b) => `<div class="band"><div class="name">${esc(b.name)}</div><div class="spd">${b.postedMph ?? EMPTY.posted} <small>posted</small></div><div class="sub">expect ${b.expectedMph || EMPTY.expected} · ${formatMiles(b.toMi - b.fromMi)}</div></div>`).join("")}</div>`;
   if (hudMode === "plan") speedsEl.removeAttribute("hidden");
   else speedsEl.setAttribute("hidden", "");
 }
@@ -1273,7 +1372,7 @@ function tick(ts: number) {
     // Live drive with no fix yet: no car on the map rather than a pretend one.
     el.style.visibility = "hidden";
   }
-  $("#speed-n").textContent = mph === null ? "—" : String(mph);
+  $("#speed-n").textContent = mph === null ? "0" : String(mph);
   $("#speed-src").textContent = "MPH";
 
   renderGuidance(progressMi, mph ?? 0);
