@@ -690,8 +690,25 @@ button.ghost.on { color: var(--glow); }
 .maneuver.imminent .arrow { color: var(--text-inverse); background: var(--text); }
 .maneuver.off-route .arrow { color: var(--you-core); background: var(--danger); }
 .man-text { min-width: 0; }
-.man-text b { display: block; font-size: var(--fs-2xl); line-height: 1.1; }
-.man-text span { display: block; font-size: var(--fs-md); color: var(--text); font-weight: var(--fw-semibold); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.man-text b {
+  display: block;
+  font-size: var(--fs-2xl);
+  line-height: 1.1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.man-text span {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  font-size: var(--fs-md);
+  color: var(--text);
+  font-weight: var(--fw-semibold);
+  line-height: var(--lh-snug);
+}
 .man-bar { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--line); }
 .man-bar i { display: block; height: 100%; width: 0; background: var(--glow); transition: width 0.2s linear; }
 
@@ -2078,9 +2095,7 @@ body[data-mode="drive"] .man-text b { font-size: var(--fs-hero); }
 body[data-mode="drive"] .man-text b.is-empty { font-size: var(--fs-lg); }
 body[data-mode="drive"] .man-text span {
   font-size: var(--fs-xl);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: var(--lh-snug);
 }
 body[data-mode="drive"] .maneuver .arrow { width: 72px; height: 72px; padding: var(--space-3); border-radius: var(--radius-xl); }
 body[data-mode="drive"] .speedo {
@@ -2094,7 +2109,7 @@ body[data-mode="drive"] .speedo .cluster { justify-content: flex-start; }
 body[data-mode="drive"] .speedo .n { font-size: clamp(var(--fs-3xl), 14vw, var(--fs-hero)); }
 body[data-mode="drive"] .limit { width: 56px; height: 72px; }
 body[data-mode="drive"] .limit b { font-size: clamp(var(--fs-xl), 5.4vw, var(--fs-2xl)); }
-body[data-mode="drive"] .posted-chip { top: 108px; }
+body[data-mode="drive"] .posted-chip { top: 148px; }
 body[data-mode="drive"] .recenter {
   left: 50%;
   right: auto;
@@ -2190,7 +2205,7 @@ body[data-mode="drive"] .radar-banner { top: calc(112px + env(safe-area-inset-to
   .review-sheet { bottom: calc(12px + env(safe-area-inset-bottom)); padding: var(--space-4) var(--space-3) var(--space-3); }
   .maneuver { top: calc(12px + env(safe-area-inset-top)); left: var(--gutter); right: var(--gutter); }
   .posted-chip { top: calc(108px + env(safe-area-inset-top)); left: 50%; right: auto; width: auto; transform: translateX(-50%); }
-  body[data-mode="drive"] .posted-chip { top: calc(118px + env(safe-area-inset-top)); }
+  body[data-mode="drive"] .posted-chip { top: calc(168px + env(safe-area-inset-top)); }
   .status-pill { top: calc(12px + env(safe-area-inset-top)); left: 50%; right: auto; width: auto; transform: translateX(-50%); }
   .dash { display: none; }
   .speed-rail { bottom: calc(12px + env(safe-area-inset-bottom)); }
@@ -2241,7 +2256,7 @@ body[data-mode="drive"] .radar-banner { top: calc(112px + env(safe-area-inset-to
     background: var(--surface);
     color: var(--text);
   }
-  body[data-mode="drive"] .posted-chip { top: calc(150px + env(safe-area-inset-top)); }
+  body[data-mode="drive"] .posted-chip { top: calc(168px + env(safe-area-inset-top)); }
   body[data-mode="drive"] .radar-banner { top: calc(150px + env(safe-area-inset-top)); }
   body[data-mode="drive"] .radar { top: calc(200px + env(safe-area-inset-top)); }
   body[data-mode="drive"] .lane-strip:not([hidden]) { top: calc(118px + env(safe-area-inset-top)); }
@@ -2428,6 +2443,7 @@ body[data-mode="drive"] .radar-banner { top: calc(112px + env(safe-area-inset-to
     min-width: 0;
     flex: 1;
   }
+  body.cmd[data-mode="drive"] .posted-chip { top: 148px; }
   body.cmd[data-mode="drive"] .cmd-stack { bottom: calc(128px + env(safe-area-inset-bottom)); }
   body.cmd .search-card { top: 76px; }
   body.cmd .menu-fab,
