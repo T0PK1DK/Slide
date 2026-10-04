@@ -186,3 +186,8 @@ Built from the owner's `sekai-live-network.html`. **Applies at ≥1100px only; t
 - BlaBlaCar route choice labelled by what it avoids ("No tolls"): https://mobbin.com/screens/fa750de7-2392-452e-b580-e06e5afedcb6
 - Tesla, Apple Maps, Google Maps and Waze drive views: from the shipped products, as summarised in `docs/STRATEGY.md` (Mobbin doesn't index them).
 - Owner screenshots: Waze on CarPlay, Snap Map (see STRATEGY "3D living map").
+
+
+## Themes (owner's LUMEN reference, 2026-10-04)
+
+Night (default), Ember and Sand. Switch them from the desktop top bar or Garage → Theme. A theme changes surfaces, lines, text and the basemap palette only. The Garage glow stays the accent, and layout is unchanged. All three are night themes; a daytime light mode would be a separate decision.

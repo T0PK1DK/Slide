@@ -136,6 +136,15 @@ describe("garage avoid options", () => {
   });
 });
 
+describe("garage theme", () => {
+  it("defaults to Night, keeps a valid saved theme, rejects junk", () => {
+    expect(migrateGarage(null).look).toBe("night");
+    expect(migrateGarage({ look: "ember" }).look).toBe("ember");
+    expect(migrateGarage({ look: "sand", glow: "#78e0c8" })).toMatchObject({ look: "sand", glow: "#78e0c8" });
+    expect(migrateGarage({ look: "neon" }).look).toBe("night");
+  });
+});
+
 import { retryable } from "../lib/valhalla";
 import { postedDropMarks } from "../lib/timeline";
 describe("retryable", () => {

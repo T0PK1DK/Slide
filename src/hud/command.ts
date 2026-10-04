@@ -3,6 +3,7 @@ import { loadTrips, minutesByDay, overview, weekTiles, type Tile, type TripRecor
 import { buildAlerts, suggestSwitch, type Alert } from "../lib/alerts";
 import { currentWeather } from "../lib/sources/weather";
 import { formatDuration, type SlideRoute } from "../lib/smooth";
+import { LOOKS, type Look } from "../lib/garage";
 
 /**
  * Command view — Slide's take on the owner's "SEKAI" network dashboard
@@ -21,16 +22,28 @@ export type CommandHooks = {
   onSelectRoute: (id: string) => void;
   /** Driver's Avoid-tolls option, so the alert list can say when it couldn't be honoured. */
   avoidTolls: () => boolean;
+  /** App theme (Night / Ember / Sand), saved in the Garage. */
+  look: () => Look;
+  setLook: (look: Look) => void;
 };
 
 export type CommandView = {
   setRoutes(routes: SlideRoute[], selectedId: string): void;
   refreshHistory(): void;
   openSheet(on: boolean): void;
+  /** Re-mark the theme switch after the Garage changes it. */
+  syncLook(): void;
 };
 
 const esc = (s: string) =>
   s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
+
+const LOOK_LABEL: Record<Look, string> = { night: "Night", ember: "Ember", sand: "Sand" };
+const LOOK_ICON: Record<Look, string> = {
+  night: `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>`,
+  ember: `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3.5"/></svg>`,
+  sand: `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3.5"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4"/></svg>`,
+};
 
 const ICON = {
   logo: `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 16c3-7 13-7 16 0"/><path d="M4 11c3-5 13-5 16 0" opacity=".55"/><path d="M4 6c3-3 13-3 16 0" opacity=".3"/></svg>`,
@@ -162,6 +175,7 @@ export function mountCommand(h: CommandHooks): CommandView {
       <button type="button" data-tab="garage">Garage</button>
     </nav>
     <button type="button" class="cmd-search">${ICON.search}<span>Search places, addresses, or routes…</span></button>
+    <div class="cmd-looks" role="radiogroup" aria-label="Theme">${LOOKS.map((l) => `<button type="button" role="radio" data-look="${l}">${LOOK_ICON[l]}<span>${LOOK_LABEL[l]}</span></button>`).join("")}</div>
     <button type="button" class="cmd-bell" aria-label="Alerts" aria-expanded="false" aria-controls="cmd-alerts-drop">${ICON.bell}<i hidden></i></button>
     <div class="cmd-alerts-drop" id="cmd-alerts-drop" role="region" aria-label="Alerts" hidden></div>
     <button type="button" class="cmd-avatar" aria-label="Your profile"></button>`;
@@ -212,6 +226,14 @@ export function mountCommand(h: CommandHooks): CommandView {
 
   // --- top bar
   top.querySelector(".cmd-search")!.addEventListener("click", h.onSearch);
+  const lookBtns = top.querySelectorAll<HTMLButtonElement>(".cmd-looks button");
+  const markLook = () => lookBtns.forEach((b) => {
+    const on = b.dataset.look === h.look();
+    b.classList.toggle("on", on);
+    b.setAttribute("aria-checked", String(on));
+  });
+  lookBtns.forEach((b) => b.addEventListener("click", () => { h.setLook(b.dataset.look as Look); markLook(); }));
+  markLook();
   top.querySelectorAll<HTMLButtonElement>(".cmd-tabs button").forEach((b) =>
     b.addEventListener("click", () => {
       const tab = b.dataset.tab;
@@ -429,6 +451,7 @@ export function mountCommand(h: CommandHooks): CommandView {
   window.addEventListener("resize", () => h.map.resize());
 
   return {
+    syncLook: markLook,
     setRoutes(next, id) {
       routes = next;
       selectedId = id;

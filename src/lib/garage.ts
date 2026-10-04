@@ -1,6 +1,9 @@
 export type CameraMode = "cinematic" | "chase" | "top";
 export type TrailStyle = "plasma" | "ember" | "ice" | "volt";
 export type MapSkin = "cinematic" | "apple" | "slide";
+/** App-wide theme (owner's LUMEN reference): panels, glass and map tint. */
+export type Look = "night" | "ember" | "sand";
+export const LOOKS: readonly Look[] = ["night", "ember", "sand"];
 
 export const MAP_STYLES: Record<MapSkin, string> = {
   cinematic: "https://tiles.openfreemap.org/styles/dark",
@@ -21,6 +24,7 @@ export type GarageConfig = {
   trail: TrailStyle;
   camera: CameraMode;
   mapSkin: MapSkin;
+  look: Look;
   showGhosts: boolean;
   showBuildings: boolean;
   shareGhost: boolean;
@@ -51,6 +55,7 @@ export const DEFAULT_GARAGE: GarageConfig = {
   trail: "plasma",
   camera: "cinematic",
   mapSkin: "cinematic",
+  look: "night",
   showGhosts: true,
   showBuildings: true,
   shareGhost: true,
@@ -100,6 +105,7 @@ export function migrateGarage(saved: unknown): GarageConfig {
   // The flat night skin was once called "waze"; it's Slide's own look now.
   const skin = saved.mapSkin === "waze" ? "slide" : saved.mapSkin;
   if (typeof skin === "string" && skin in MAP_STYLES) out.mapSkin = skin as MapSkin;
+  if (typeof saved.look === "string" && (LOOKS as readonly string[]).includes(saved.look)) out.look = saved.look as Look;
   for (const k of ["showGhosts", "showBuildings", "shareGhost", "coachDismissed", "shareWithFriends"] as const) {
     if (typeof saved[k] === "boolean") out[k] = saved[k] as boolean;
   }
