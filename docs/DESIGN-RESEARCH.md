@@ -97,7 +97,7 @@ Status: ✅ done · 🟡 partial · ❌ missing.
 
 | Gap | Status | Note |
 |---|---|---|
-| **Voice guidance** | ❌ | No speech at all. Waze, Google and Apple all talk. Use `speechSynthesis`, announce at 0.5 mi / 0.1 mi / now, with a mute button in the drive bar. **Biggest functional gap.** |
+| **Voice guidance** | 🟡 | `speechSynthesis` at 0.5 / 0.1 / now. Mute is Grim's `#drive-mute` (`slide:voice-mute` / `html[data-voice]`). `slide.voice.v1` stays in sync. |
 | Lane guidance | ❌ | Valhalla maneuvers carry lane data. Show a lane strip under the turn card (as Google does). |
 | Route alternatives list (phone) | ✅ | Swipeable review cards from real ranked routes (`#route-carousel`). Map bubbles stay. |
 | Leave-by / best time to leave | ❌ | `leaveByForTarget()` exists in `src/lib/smooth.ts` with no UI. Only show real typical times; the traffic chart waits for the traffic provider. |
