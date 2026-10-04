@@ -130,8 +130,8 @@ export const HUD_HTML = `
       <button type="button" id="ov-tune">Tune garage</button>
       <button type="button" id="ov-help">How to Slide</button>
       <button type="button" id="ov-rail">Speed rail</button>
-      <button type="button" id="ov-home">Save To as Home</button>
-      <button type="button" id="ov-work">Save To as Work</button>
+      <button type="button" id="ov-home">Save destination as Home</button>
+      <button type="button" id="ov-work">Save destination as Work</button>
       <button type="button" id="ov-insights">Drive insights</button>
       <button type="button" id="ov-lock">Lock Slide</button>
     </div>
