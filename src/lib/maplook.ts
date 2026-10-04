@@ -1,4 +1,5 @@
 import type { Map as MapLibreMap, PaddingOptions } from "maplibre-gl";
+import type { Look } from "./garage";
 
 /**
  * "Night network" palette (owner's SEKAI reference, docs/DESIGN.md): near-black
@@ -6,17 +7,30 @@ import type { Map as MapLibreMap, PaddingOptions } from "maplibre-gl";
  * side streets, brightest on motorways. Kept above the old pure-black OpenFreeMap
  * dark so the map never reads as a blank screen on a phone.
  */
-const LAND = "#0d1014";
-const WATER = "#05080c";
-const ROAD = "#8a6a42";
-const ROAD_CASE = "#1c1812";
-const MOTORWAY = "#c8914c";
-const MINOR = "#3b3429";
-const PARK = "#0f1a14";
-const BUILDING = "#1a1814";
-const LABEL = "#d8d4ca";
-const HALO = "#05070a";
+type Palette = {
+  land: string; water: string; road: string; roadCase: string; motorway: string;
+  minor: string; park: string; building: string; buildingEdge: string; path: string;
+  residential: string; label: string; halo: string;
+};
 
+/** Night = warm city light (default). Ember = hotter orange-red light. Sand = pale desert-dusk light. */
+const PALETTES: Record<Look, Palette> = {
+  night: {
+    land: "#0d1014", water: "#05080c", road: "#8a6a42", roadCase: "#1c1812", motorway: "#c8914c",
+    minor: "#3b3429", park: "#0f1a14", building: "#1a1814", buildingEdge: "#2a251d", path: "#2c2720",
+    residential: "#11141a", label: "#d8d4ca", halo: "#05070a",
+  },
+  ember: {
+    land: "#110c0a", water: "#060405", road: "#a2512f", roadCase: "#1e120d", motorway: "#e2703c",
+    minor: "#43281d", park: "#14130d", building: "#1d1410", buildingEdge: "#33221a", path: "#33231b",
+    residential: "#160f0c", label: "#f0d8c8", halo: "#070405",
+  },
+  sand: {
+    land: "#15130f", water: "#07090b", road: "#a08b66", roadCase: "#1f1b14", motorway: "#dcc59a",
+    minor: "#463e30", park: "#141811", building: "#211d16", buildingEdge: "#363024", path: "#383125",
+    residential: "#19160f", label: "#ece2cc", halo: "#07070a",
+  },
+};
 function paint(map: MapLibreMap, id: string, prop: string, value: unknown): void {
   if (!map.getLayer(id)) return;
   try {
@@ -27,18 +41,20 @@ function paint(map: MapLibreMap, id: string, prop: string, value: unknown): void
 }
 
 /** Lift OpenFreeMap dark so land, water, and roads separate on iPhone. */
-export function liftNightBasemap(map: MapLibreMap): void {
+export function liftNightBasemap(map: MapLibreMap, look: Look = "night"): void {
+  const { land: LAND, water: WATER, road: ROAD, roadCase: ROAD_CASE, motorway: MOTORWAY, minor: MINOR,
+    park: PARK, building: BUILDING, buildingEdge, path, residential, label: LABEL, halo: HALO } = PALETTES[look];
   paint(map, "background", "background-color", LAND);
   paint(map, "water", "fill-color", WATER);
   paint(map, "waterway", "line-color", WATER);
   paint(map, "landcover_ice_shelf", "fill-color", LAND);
   paint(map, "landcover_glacier", "fill-color", "#151a20");
-  paint(map, "landuse_residential", "fill-color", "#11141a");
+  paint(map, "landuse_residential", "fill-color", residential);
   paint(map, "landcover_wood", "fill-color", PARK);
   paint(map, "landuse_park", "fill-color", PARK);
   paint(map, "building", "fill-color", BUILDING);
-  paint(map, "building", "fill-outline-color", "#2a251d");
-  paint(map, "highway_path", "line-color", "#2c2720");
+  paint(map, "building", "fill-outline-color", buildingEdge);
+  paint(map, "highway_path", "line-color", path);
   paint(map, "highway_path", "line-width", ["interpolate", ["linear"], ["zoom"], 13, 0.4, 16, 0.9]);
   paint(map, "highway_minor", "line-color", MINOR);
   paint(map, "highway_minor", "line-width", ["interpolate", ["linear"], ["zoom"], 12, 0.5, 15, 1.2, 18, 2.4]);

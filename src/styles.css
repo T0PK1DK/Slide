@@ -956,3 +956,54 @@ body[data-mode="drive"] .friend-spot { display: none; }
 /* Offline / no-route sheet: same glass banner as the location one, with a title line. */
 .net-sheet .net-title { display: block; margin: 0 32px 4px 0; font-size: 15px; font-weight: 500; color: var(--text); }
 .net-sheet[data-kind="no-route"] { border-color: var(--line); }
+
+/* ==========================================================================
+   Themes from the owner's LUMEN reference: Night (default) / Ember / Sand.
+   Set by [data-look] on <html> (Garage → Theme, or the Command top bar).
+   Only surfaces, lines, text and the map tint change; the Garage glow stays
+   the accent, and layout is untouched.
+   ========================================================================== */
+:root[data-look="ember"] {
+  --bg: #0b0807; --glass: rgba(20, 13, 11, 0.74); --glass-2: rgba(20, 13, 11, 0.88);
+  --surface: #1b1311; --line: rgba(255, 200, 170, 0.09); --line-soft: rgba(255, 200, 170, 0.06);
+  --text: #f6efe9; --muted: #b4a49b; --faint: #94827a;
+}
+:root[data-look="sand"] {
+  --bg: #0d0c0a; --glass: rgba(24, 21, 17, 0.74); --glass-2: rgba(24, 21, 17, 0.88);
+  --surface: #1d1a15; --line: rgba(255, 240, 210, 0.09); --line-soft: rgba(255, 240, 210, 0.06);
+  --text: #f5f0e6; --muted: #b3ab9c; --faint: #918a7c;
+}
+:root[data-look="ember"], :root[data-look="ember"] body, :root[data-look="ember"] #app { background: #0b0807; }
+:root[data-look="sand"], :root[data-look="sand"] body, :root[data-look="sand"] #app { background: #0d0c0a; }
+
+.cmd-looks { display: none; }
+@media (min-width: 1100px) {
+  :root[data-look="ember"] body.cmd { --cmd-bg: #0a0706; --cmd-panel: #15100e; --cmd-panel-2: #120d0b; }
+  :root[data-look="sand"] body.cmd { --cmd-bg: #0c0b09; --cmd-panel: #17150f; --cmd-panel-2: #13120e; }
+  :root[data-look] body.cmd .cmd-top { background: var(--cmd-bg); }
+
+  /* Glass cards: a faint top-lit gradient, hairline highlight and soft depth. */
+  body.cmd .cmd-card, body.cmd .cmd-intel-card, body.cmd .cmd-trip {
+    background: linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,.008) 60%), var(--cmd-panel);
+    border-color: rgba(255,255,255,.07); border-radius: 16px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 12px 32px rgba(0,0,0,.32);
+  }
+  body.cmd .cmd-tile, body.cmd .cmd-sel {
+    background: linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,0)), var(--cmd-panel-2);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.05);
+  }
+  body.cmd #map { border-radius: 18px; }
+  body.cmd .cmd-seg, body.cmd .cmd-clock, body.cmd .cmd-route-card, body.cmd .cmd-zoom, body.cmd .cmd-ctl {
+    background: color-mix(in srgb, var(--cmd-panel) 82%, transparent);
+    backdrop-filter: blur(14px) saturate(1.2); -webkit-backdrop-filter: blur(14px) saturate(1.2);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.07), 0 10px 28px rgba(0,0,0,.35);
+  }
+
+  /* Night / Ember / Sand switch in the top bar */
+  body.cmd .cmd-looks { display: flex; gap: 2px; padding: 3px; margin-left: 12px; border-radius: 12px; border: 1px solid var(--line); background: rgba(255,255,255,.025); }
+  .cmd-looks button { display: flex; align-items: center; gap: 6px; min-height: 34px; padding: 0 12px; border: 0; border-radius: 9px; background: none; color: var(--muted); font: inherit; font-size: 12.5px; cursor: pointer; }
+  .cmd-looks button:hover { color: var(--text); }
+  .cmd-looks button.on { background: rgba(255,255,255,.08); color: var(--text); box-shadow: inset 0 1px 0 rgba(255,255,255,.08); }
+  .cmd-looks button:focus-visible { outline: 2px solid var(--glow); outline-offset: 1px; }
+}
+@media (min-width: 1100px) and (max-width: 1360px) { .cmd-looks button span { display: none; } }

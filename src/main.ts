@@ -20,7 +20,7 @@ import {
   viaLine,
   type SlideRoute,
 } from "./lib/smooth";
-import { loadGarage, saveGarage, TRAILS, type GarageConfig, type SavedPlace } from "./lib/garage";
+import { loadGarage, saveGarage, TRAILS, type GarageConfig, type Look, type SavedPlace } from "./lib/garage";
 import { bubbleCandidates, mergeVariantTrips, pickFree, tollLabel, variantsFor } from "./plan/routeset";
 import { dropIndex, MAX_STOPS, moveItem, stopsReached } from "./plan/stops";
 import { classifyFailure, type FailWhat } from "./plan/failure";
@@ -152,7 +152,7 @@ let hudMode: HudMode = "plan";
 map.on("load", () => {
   performance.mark("slide-map-load");
   styleReady = true;
-  liftNightBasemap(map);
+  liftNightBasemap(map, garage.look);
   ensure3DBuildings();
   addRouteLayers();
   if (hudMode === "drive") applyCamera(garage.camera);
@@ -306,6 +306,8 @@ const command = mountCommand({
   onLocate: () => { if (!tracker) locateMe(); else if (liveFix) map.easeTo({ center: [liveFix.pos.lon, liveFix.pos.lat], zoom: 15, duration: 700 }); },
   onSelectRoute: (id) => selectRoute(id),
   avoidTolls: () => garage.avoid.tolls,
+  look: () => garage.look,
+  setLook: (look) => setLook(look),
 });
 $("#ov-insights").addEventListener("click", () => { overflowEl.classList.remove("open"); command.openSheet(true); });
 $("#chip-home").addEventListener("click", () => useOrSavePlace("home"));
@@ -412,8 +414,19 @@ function whenStyleReady(fn: () => void) {
   else styleQueue.push(fn);
 }
 function applyTheme(cfg: GarageConfig) {
+  document.documentElement.dataset.look = cfg.look;
   document.documentElement.style.setProperty("--glow", cfg.glow);
   document.documentElement.style.setProperty("--mint", TRAILS[cfg.trail].line);
+}
+/** Night / Ember / Sand: panels follow via [data-look] CSS, the map is repainted here. */
+function setLook(look: Look) {
+  if (garage.look === look) return;
+  garage.look = look;
+  persist();
+  whenStyleReady(() => liftNightBasemap(map, look));
+  const sel = document.querySelector<HTMLSelectElement>("#g-look");
+  if (sel) sel.value = look;
+  command.syncLook();
 }
 function persist() {
   saveGarage(garage);
@@ -559,6 +572,9 @@ function refreshPlaceChips() {
 function wireGarage() {
   const tag = $("#g-tag") as HTMLInputElement;
   const trail = $("#g-trail") as HTMLSelectElement;
+  const look = $("#g-look") as HTMLSelectElement;
+  look.value = garage.look;
+  look.addEventListener("change", () => setLook(look.value as Look));
   const cam = $("#g-cam") as HTMLSelectElement;
   const build = $("#g-build") as HTMLInputElement;
   const ghostsBox = $("#g-ghosts") as HTMLInputElement;

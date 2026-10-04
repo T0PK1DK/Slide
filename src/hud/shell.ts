@@ -148,6 +148,7 @@ export const HUD_HTML = `
     </div>
     <div class="panel garage" id="garage">
       <div class="garage-head"><h3>Garage</h3><button class="close" id="g-close" aria-label="Close garage">×</button></div>
+      <label>Theme</label><select id="g-look"><option value="night">Night</option><option value="ember">Ember</option><option value="sand">Sand</option></select>
       <label>Tag</label><input id="g-tag" type="text" maxlength="12" />
       <label>Body</label><div class="swatches" id="g-body"></div>
       <label>Glow</label><div class="swatches" id="g-glow"></div>
