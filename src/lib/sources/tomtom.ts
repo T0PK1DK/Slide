@@ -152,3 +152,47 @@ export const TOMTOM_INCIDENTS = (bbox: string, key: string) =>
 
 export const TOMTOM_FLOW_SEGMENT = (lat: number, lon: number, key: string) =>
   `https://api.tomtom.com/traffic/services/4/flowSegmentData/relative0/10/json?point=${lat},${lon}&unit=MPH&key=${encodeURIComponent(key)}`;
+
+/** Calculate Route (traffic-aware times). Key stays in the Pages Function. */
+export type TomTomRouteSummary = {
+  lengthInMeters?: number;
+  travelTimeInSeconds?: number;
+  trafficDelayInSeconds?: number;
+  noTrafficTravelTimeInSeconds?: number;
+  liveTrafficIncidentsTravelTimeInSeconds?: number;
+};
+
+export type TomTomRouteResult = {
+  travelSec: number;
+  delaySec: number;
+  lengthM: number;
+};
+
+/** Pure: one Calculate Route entry → live time, or null without a real travelTime. */
+export function fromTomTomRoute(route: { summary?: TomTomRouteSummary } | null | undefined): TomTomRouteResult | null {
+  const travel = Number(route?.summary?.travelTimeInSeconds);
+  if (!Number.isFinite(travel) || travel <= 0) return null;
+  const delay = Number(route?.summary?.trafficDelayInSeconds);
+  const lengthM = Number(route?.summary?.lengthInMeters);
+  return {
+    travelSec: Math.round(travel),
+    delaySec: Number.isFinite(delay) ? Math.max(0, Math.round(delay)) : 0,
+    lengthM: Number.isFinite(lengthM) && lengthM > 0 ? Math.round(lengthM) : 0,
+  };
+}
+
+export const TOMTOM_CALCULATE_ROUTE = (
+  locations: string,
+  key: string,
+  opts: { alternatives?: number } = {},
+) => {
+  const q = new URLSearchParams({
+    key,
+    traffic: "true",
+    computeTravelTimeFor: "all",
+    travelMode: "car",
+    routeType: "fastest",
+    maxAlternatives: String(Math.max(0, Math.min(5, opts.alternatives ?? 0))),
+  });
+  return `https://api.tomtom.com/routing/1/calculateRoute/${locations}/json?${q}`;
+};

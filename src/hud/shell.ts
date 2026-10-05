@@ -142,6 +142,14 @@ export const HUD_HTML = `
     </div>
     <button class="panel recenter drive-only" id="recenter" hidden>Recenter</button>
     <div class="panel speed-rail" id="speeds" hidden></div>
+    <div class="panel reroute-card drive-only" id="reroute-card" hidden role="alertdialog" aria-live="assertive" aria-label="Faster route">
+      <p class="rr-line" id="rr-line">Faster route</p>
+      <div class="rr-actions">
+        <button class="primary" id="rr-take" type="button">Take it</button>
+        <button class="ghost" id="rr-keep" type="button">Keep</button>
+      </div>
+      <small class="rr-credit">© TomTom</small>
+    </div>
     <div class="panel drive-bar drive-only" id="drive-bar" hidden>
       <div class="meta"><b id="drive-eta" class="is-empty">After a plan</b><span id="drive-remain">Remaining once GPS locks</span><small id="drive-traffic" hidden></small></div>
       <div class="drive-controls">
@@ -191,6 +199,7 @@ export const HUD_HTML = `
       <label>Camera</label><select id="g-cam"><option value="cinematic">Cinematic 3D</option><option value="chase">Chase</option><option value="top">Top-down</option></select>
       <div class="toggle"><span>3D buildings</span><input id="g-build" type="checkbox" /></div>
       <div class="toggle"><span>Live traffic</span><input id="g-traffic" type="checkbox" /></div>
+      <div class="toggle toggle-sub" id="g-reroute-row"><span>Reroute suggestions<small>Ask during a drive when a faster line is real.</small></span><input id="g-reroute" type="checkbox" /></div>
       <div class="toggle"><span>Show ghosts</span><input id="g-ghosts" type="checkbox" /></div>
       <div class="toggle"><span>Share my ghost</span><input id="g-share" type="checkbox" /></div>
       <div class="toggle"><span>Weekly board<small>Opt in to this week's smooth average. Off by default.</small></span><input id="g-board" type="checkbox" /></div>

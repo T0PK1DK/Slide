@@ -45,6 +45,8 @@ export type GarageConfig = {
   shareWithFriends: boolean;
   /** Live traffic layer + incident icons. On by default. */
   showTraffic: boolean;
+  /** In-drive faster-route prompts. On by default; ignored when Live traffic is off. */
+  suggestReroute: boolean;
 };
 
 const KEY = "slide.garage.v1";
@@ -76,6 +78,7 @@ export const DEFAULT_GARAGE: GarageConfig = {
   avoid: { tolls: false, highways: false, ferries: false },
   shareWithFriends: false,
   showTraffic: true,
+  suggestReroute: true,
 };
 
 const CAMERAS: readonly CameraMode[] = ["cinematic", "chase", "top"];
@@ -119,7 +122,7 @@ export function migrateGarage(saved: unknown): GarageConfig {
   const skin = saved.mapSkin === "waze" ? "slide" : saved.mapSkin;
   if (typeof skin === "string" && skin in MAP_STYLES) out.mapSkin = skin as MapSkin;
   if (typeof saved.look === "string" && (LOOKS as readonly string[]).includes(saved.look)) out.look = saved.look as Look;
-  for (const k of ["showGhosts", "showBuildings", "shareGhost", "coachDismissed", "shareWithFriends", "showTraffic"] as const) {
+  for (const k of ["showGhosts", "showBuildings", "shareGhost", "coachDismissed", "shareWithFriends", "showTraffic", "suggestReroute"] as const) {
     if (typeof saved[k] === "boolean") out[k] = saved[k] as boolean;
   }
   if (Array.isArray(saved.recents)) {

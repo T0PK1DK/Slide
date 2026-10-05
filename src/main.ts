@@ -57,6 +57,8 @@ import { ago, type RadarItem } from "./lib/reports";
 import { mountRadar } from "./hud/radar";
 import { mountFriends } from "./map/friends";
 import { mountTraffic } from "./map/traffic";
+import { altsFromRanked, mountReroute } from "./hud/reroute";
+import { routeFingerprint } from "./lib/reroute";
 import type { Alert } from "./lib/alerts";
 import type { TrafficSummary } from "./lib/traffic";
 import { createYouMarker } from "./map/you";
@@ -422,6 +424,55 @@ const traffic = mountTraffic({
   alongMi: () => progressMi,
   onSummary: applyTrafficHud,
 });
+const rerouteWatch = mountReroute({
+  map,
+  getDrive: () => {
+    if (hudMode !== "drive" || !dest || !liveFix) return null;
+    const route = routes.find((r) => r.id === selectedId);
+    if (!route || !selectedCoords.length) return null;
+    const remainMi = Math.max(0, route.distanceMi - progressMi);
+    const remainSec = route.durationSec * (remainMi / Math.max(route.distanceMi, 0.01));
+    const frac = remainMi / Math.max(route.distanceMi, 0.01);
+    const currentLiveSec = lastTraffic.live ? remainSec + lastTraffic.delaySec * frac : null;
+    return {
+      now: Date.now(),
+      flags: {
+        configured: traffic.configured(),
+        showTraffic: garage.showTraffic,
+        suggestReroute: garage.suggestReroute,
+      },
+      remainingSec: remainSec,
+      currentLiveSec,
+      currentCoords: selectedCoords,
+      alongMi: progressMi,
+      items: traffic.items(),
+      from: liveFix.pos,
+      dest,
+    };
+  },
+  findAlternatives: async (from) => {
+    if (!dest) return [];
+    const ranked = await fetchRanked(from, dest);
+    return altsFromRanked(ranked, routeFingerprint(selectedCoords));
+  },
+  applyRoute: (route) => {
+    if (hudMode !== "drive") return;
+    if (!routes.some((r) => r.id === route.id)) routes = [route, ...routes];
+    selectedId = route.id;
+    if (liveFix) {
+      origin = liveFix.pos;
+      originLabel = "Current location";
+    }
+    loadDriveRoute();
+    resetVoice();
+    startVoice();
+    paintRoutes();
+    renderDash();
+    spawnGhosts();
+    setStatus("New Slide line");
+    window.setTimeout(() => { if (statusEl.textContent === "New Slide line") setStatus(""); }, 2500);
+  },
+});
 function applyTrafficHud(s: TrafficSummary) {
   lastTraffic = s;
   const note = $("#review-eta-note");
@@ -440,7 +491,10 @@ function applyTrafficHud(s: TrafficSummary) {
   if (sel && hudMode === "review") {
     $("#review-eta").textContent = formatDuration(sel.durationSec + (s.live ? s.delaySec : 0));
   }
-  if (hudMode === "drive" && sel) updateDriveMeta(sel, progressMi);
+  if (hudMode === "drive" && sel) {
+    updateDriveMeta(sel, progressMi);
+    rerouteWatch.tick();
+  }
 }
 function incidentAlert(it: RadarItem): Alert {
   const level = it.kind === "crash" || it.kind === "closure" ? "red" : it.kind === "jam" || it.kind === "roadwork" || it.kind === "hazard" ? "orange" : "info";
@@ -758,10 +812,16 @@ function wireGarage() {
   const cam = $("#g-cam") as HTMLSelectElement;
   const build = $("#g-build") as HTMLInputElement;
   const trafficBox = $("#g-traffic") as HTMLInputElement;
+  const rerouteBox = $("#g-reroute") as HTMLInputElement;
   const ghostsBox = $("#g-ghosts") as HTMLInputElement;
   const share = $("#g-share") as HTMLInputElement;
   tag.value = garage.tag; trail.value = garage.trail; cam.value = garage.camera;
-  build.checked = garage.showBuildings; trafficBox.checked = garage.showTraffic; ghostsBox.checked = garage.showGhosts; share.checked = garage.shareGhost;
+  build.checked = garage.showBuildings; trafficBox.checked = garage.showTraffic; rerouteBox.checked = garage.suggestReroute; ghostsBox.checked = garage.showGhosts; share.checked = garage.shareGhost;
+  const syncRerouteToggle = () => {
+    rerouteBox.disabled = !trafficBox.checked;
+    $("#g-reroute-row").classList.toggle("is-disabled", !trafficBox.checked);
+  };
+  syncRerouteToggle();
   paintSwatches($("#g-body"), PAINTS, garage.carColor, (c) => { garage.carColor = c; persist(); restylePlayer(); });
   paintSwatches($("#g-glow"), ["#f0a04b","#78e0c8","#b388ff","#8fd3ff","#d6ff3c","#ff4d6d"], garage.glow, (c) => { garage.glow = c; persist(); restylePlayer(); });
   paintShowroom();
@@ -769,7 +829,18 @@ function wireGarage() {
   trail.addEventListener("change", () => { garage.trail = trail.value as GarageConfig["trail"]; persist(); paintRoutes(); });
   cam.addEventListener("change", () => { garage.camera = cam.value as GarageConfig["camera"]; persist(); applyCamera(garage.camera); });
   build.addEventListener("change", () => { garage.showBuildings = build.checked; persist(); toggleBuildings(build.checked); });
-  trafficBox.addEventListener("change", () => { garage.showTraffic = trafficBox.checked; persist(); traffic.setEnabled(trafficBox.checked); });
+  trafficBox.addEventListener("change", () => {
+    garage.showTraffic = trafficBox.checked;
+    persist();
+    traffic.setEnabled(trafficBox.checked);
+    syncRerouteToggle();
+    if (!trafficBox.checked) rerouteWatch.hide("off");
+  });
+  rerouteBox.addEventListener("change", () => {
+    garage.suggestReroute = rerouteBox.checked;
+    persist();
+    if (!rerouteBox.checked) rerouteWatch.hide("off");
+  });
   ghostsBox.addEventListener("change", () => { garage.showGhosts = ghostsBox.checked; persist(); setGhostVisibility(garage.showGhosts); });
   share.addEventListener("change", () => { garage.shareGhost = share.checked; persist(); });
   bindBoardToggle(board);
@@ -831,6 +902,7 @@ function startDrive() {
   renderSpeedRail();
   bootDrive();
   startVoice();
+  rerouteWatch.reset();
   setHudMode("drive");
   startLocation({ center: false });
   if (!liveFix) setStatus("Waiting for GPS…");
@@ -851,6 +923,7 @@ function stopDriveLoop() {
 }
 function endDrive() {
   stopVoice();
+  rerouteWatch.reset();
   saveDriveToHistory();
   stopDriveLoop();
   followCamera = true;
@@ -868,6 +941,7 @@ function endDrive() {
 /** Within ~40 m of the destination: stop live guidance and show the Arrival screen (DESIGN.md 07). */
 function arrive() {
   stopVoice();
+  rerouteWatch.reset();
   const route = routes.find((r) => r.id === selectedId);
   const startedAt = driveLog.startedAt;
   const drivenMi = driveLog.drivenMi;

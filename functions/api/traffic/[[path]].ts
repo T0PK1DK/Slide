@@ -6,12 +6,14 @@
  *   /api/traffic/flow/:z/:x/:y       relative vector flow tile (PBF)
  *   /api/traffic/incidents?bbox=     Incident Details → radar items
  *   /api/traffic/along?points=       Flow Segment Data for sampled points
+ *   /api/traffic/route?from=&to=     Calculate Route (traffic=true, computeTravelTimeFor=all)
+ *                                   optional alternatives=0..2, points=lat,lon|… reconstructs one line
  *
  * Missing key: status says configured:false, tiles 204, lists empty.
- * Never invents flow or incidents. Edge-cached ~2 min to stay inside the
- * TomTom free-tier daily cap (one upstream call per tile/bbox/point set).
+ * Never invents flow, incidents or travel times. Flow/incidents/along cache
+ * ~2 min; route answers cache 60 s (live ETAs go stale faster).
  */
-import { fromTomTom, TOMTOM_FLOW_SEGMENT, TOMTOM_FLOW_TILE, TOMTOM_INCIDENTS } from "../../../src/lib/sources/tomtom";
+import { fromTomTom, fromTomTomRoute, TOMTOM_CALCULATE_ROUTE, TOMTOM_FLOW_SEGMENT, TOMTOM_FLOW_TILE, TOMTOM_INCIDENTS } from "../../../src/lib/sources/tomtom";
 import type { RadarItem } from "../../../src/lib/reports";
 
 type Env = { TOMTOM_API_KEY?: string };
@@ -70,15 +72,22 @@ function parseBbox(raw: string | null): string | null {
   return `${minLon.toFixed(4)},${minLat.toFixed(4)},${maxLon.toFixed(4)},${maxLat.toFixed(4)}`;
 }
 
-function parsePoints(raw: string | null): Array<{ lat: number; lon: number }> {
+function parseLatLon(raw: string | null): { lat: number; lon: number } | null {
+  if (!raw) return null;
+  const [lat, lon] = raw.split(",").map(Number);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+  if (Math.abs(lat) > 90 || Math.abs(lon) > 180) return null;
+  return { lat, lon };
+}
+
+function parsePoints(raw: string | null, cap = 10): Array<{ lat: number; lon: number }> {
   if (!raw) return [];
   const out: Array<{ lat: number; lon: number }> = [];
   for (const part of raw.split("|")) {
-    const [lat, lon] = part.split(",").map(Number);
-    if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
-    if (Math.abs(lat) > 90 || Math.abs(lon) > 180) continue;
-    out.push({ lat, lon });
-    if (out.length >= 10) break;
+    const p = parseLatLon(part);
+    if (!p) continue;
+    out.push(p);
+    if (out.length >= cap) break;
   }
   return out;
 }
@@ -94,7 +103,7 @@ export async function onRequestGet({ request, env, waitUntil, params }: Ctx): Pr
 
   if (!key) {
     if (parts[0] === "flow") return new Response(null, { status: 204, headers: { "cache-control": "public, max-age=60" } });
-    return json({ configured: false, items: [], samples: [] }, 60);
+    return json({ configured: false, items: [], samples: [], routes: [] }, 60);
   }
 
   try {
@@ -120,6 +129,42 @@ export async function onRequestGet({ request, env, waitUntil, params }: Ctx): Pr
         .filter((x): x is RadarItem => x !== null)
         .slice(0, 80);
       return json({ configured: true, items }, 30);
+    }
+
+    if (parts[0] === "route") {
+      const from = parseLatLon(url.searchParams.get("from"));
+      const to = parseLatLon(url.searchParams.get("to"));
+      if (!from || !to) return json({ error: "from=lat,lon&to=lat,lon required" }, 0, 400);
+      const support = parsePoints(url.searchParams.get("points"), 40);
+      const altRaw = Number(url.searchParams.get("alternatives") ?? "0");
+      const alternatives = support.length ? 0 : (Number.isFinite(altRaw) ? Math.max(0, Math.min(2, Math.round(altRaw))) : 0);
+      const loc = `${from.lat.toFixed(5)},${from.lon.toFixed(5)}:${to.lat.toFixed(5)},${to.lon.toFixed(5)}`;
+      const via = support.map((p) => `${p.lat.toFixed(3)},${p.lon.toFixed(3)}`).join("_");
+      const cacheName = `route-${loc}-a${alternatives}-${via || "open"}`;
+      const up = TOMTOM_CALCULATE_ROUTE(loc, key, { alternatives });
+      const cache = (caches as unknown as { default: Cache }).default;
+      const ck = new Request(`https://slide-cache.invalid/traffic/${cacheName}`);
+      const hit = await cache.match(ck);
+      if (hit) return hit;
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 8000);
+      try {
+        const init: RequestInit = { headers: { accept: "application/json", "user-agent": UA }, signal: ctrl.signal };
+        const body = support.length
+          ? JSON.stringify({ supportingPoints: support.map((p) => ({ latitude: p.lat, longitude: p.lon })) })
+          : undefined;
+        const res = await fetch(up, body
+          ? { ...init, method: "POST", headers: { ...init.headers as Record<string, string>, "content-type": "application/json" }, body }
+          : init);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const raw = (await res.json()) as { routes?: Array<{ summary?: { travelTimeInSeconds?: number; trafficDelayInSeconds?: number; lengthInMeters?: number } }> };
+        const routes = (raw.routes ?? []).map(fromTomTomRoute).filter((x): x is NonNullable<typeof x> => x !== null).slice(0, alternatives + 1);
+        const out = json({ configured: true, routes }, 60);
+        waitUntil(cache.put(ck, out.clone()));
+        return out;
+      } finally {
+        clearTimeout(t);
+      }
     }
 
     if (parts[0] === "along") {
@@ -161,7 +206,7 @@ export async function onRequestGet({ request, env, waitUntil, params }: Ctx): Pr
     }
   } catch (e) {
     const msg = e instanceof Error && e.name === "AbortError" ? "timeout" : e instanceof Error ? e.message : "failed";
-    return json({ configured: true, error: msg, items: [], samples: [] }, 15, 502);
+    return json({ configured: true, error: msg, items: [], samples: [], routes: [] }, 15, 502);
   }
 
   return json({ error: "unknown traffic path" }, 0, 404);

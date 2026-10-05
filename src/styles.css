@@ -919,6 +919,44 @@ button.ghost.on { color: var(--glow); }
   gap: var(--space-2);
 }
 
+.reroute-card {
+  position: absolute;
+  left: var(--space-4);
+  right: var(--space-4);
+  bottom: calc(108px + env(safe-area-inset-bottom));
+  z-index: 5;
+  padding: var(--space-4);
+  display: grid;
+  gap: var(--space-3);
+}
+.reroute-card[hidden] { display: none; }
+.rr-line {
+  margin: 0;
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-semibold);
+  line-height: var(--lh-snug);
+  color: var(--text);
+}
+.rr-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
+}
+.rr-actions .primary,
+.rr-actions .ghost {
+  min-height: var(--touch);
+  font-size: var(--fs-lg);
+}
+.rr-credit {
+  font-size: var(--fs-2xs);
+  color: var(--faint);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+
+.toggle-sub { padding-left: var(--space-4); }
+.toggle.is-disabled { opacity: 0.45; }
+
 .coach {
   position: absolute;
   inset: 0;
@@ -2302,6 +2340,7 @@ body[data-mode="drive"] .radar-banner { top: calc(112px + env(safe-area-inset-to
   .status-pill,
   .recenter,
   .drive-bar,
+  .reroute-card,
   .review-sheet {
     left: var(--gutter);
     right: var(--gutter);
@@ -2380,6 +2419,7 @@ body[data-mode="drive"] .radar-banner { top: calc(112px + env(safe-area-inset-to
   .speedo { bottom: calc(118px + env(safe-area-inset-bottom)); left: 50%; right: auto; width: auto; transform: translateX(-50%); }
   body[data-mode="drive"] .speedo { left: var(--gutter); right: auto; transform: none; text-align: left; }
   .drive-bar { bottom: calc(12px + env(safe-area-inset-bottom)); }
+  .reroute-card { bottom: calc(188px + env(safe-area-inset-bottom)); }
   .drive-report { bottom: calc(118px + env(safe-area-inset-bottom)); }
   .place-card { left: var(--gutter); right: var(--gutter); width: auto; }
   .recenter { right: var(--gutter); left: auto; width: auto; bottom: calc(118px + env(safe-area-inset-bottom)); }
@@ -2392,6 +2432,7 @@ body[data-mode="drive"] .radar-banner { top: calc(112px + env(safe-area-inset-to
 @media (max-width: 820px) and (orientation: landscape) {
   .maneuver { width: min(420px, 52vw); right: auto; }
   .drive-bar,
+  .reroute-card,
   .review-sheet { left: var(--gutter); right: auto; width: min(360px, 52vw); }
   body[data-mode="drive"] .speedo { left: var(--gutter); right: auto; transform: none; bottom: calc(16px + env(safe-area-inset-bottom)); }
   body[data-mode="drive"] .drive-report { right: var(--gutter); bottom: calc(16px + env(safe-area-inset-bottom)); }

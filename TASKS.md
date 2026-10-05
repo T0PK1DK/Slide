@@ -17,6 +17,7 @@ Work top-down. Check the box in the same PR.
 ## Phase 1 — Better routes (owner prompt, 2026-09-25)
 
 - [x] **Traffic-aware ETAs** — TomTom flow + along-route delay via Pages Function (`TOMTOM_API_KEY`). Typical time kept when the key is missing. HERE still the pick if we want toll prices.
+- [x] **In-drive traffic reroute prompts** — every ~2.5 min (and on a new crash/closure within 150 m of the remaining line). Prompt only when a real TomTom time saves ≥ max(3 min, 10% remaining). Garage → Reroute suggestions (default on; Live traffic off silences it).
 - [x] 3+ routes drawn together (Slide / Fastest / No-tolls costings + `alternates`), tap line or bubble to select
 - [x] Tags: Slide pick, Fastest, No tolls (Your usual comes with Phase 2 learning)
 - [x] Tolls flagged per route from Valhalla `has_toll`; "Has tolls" with no price until a price source exists
