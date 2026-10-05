@@ -209,7 +209,7 @@ function renderCreate(gate: HTMLElement, onReady: Done) {
     <form class="login-card" novalidate>
       <span class="login-kicker">SLIDE</span>
       <h1 id="login-title">Set up your driver</h1>
-      <p class="login-sub">${email ? `Signed in as ${esc(email)}. ` : ""}Name and car stay on this phone, private to your account.</p>
+      <p class="login-sub">${email ? `Signed in as ${esc(email)}. Name and car stay on this phone, private to your account.` : cloudConfigured() ? "Name and car stay on this phone, private to your account." : "Everything stays on this phone. No email, no password."}</p>
       <label class="login-field"><span>Your name</span>
         <input name="name" autocomplete="nickname" maxlength="24" required placeholder="King" />
       </label>
@@ -256,7 +256,7 @@ function renderWelcomeBack(gate: HTMLElement, p: DriverProfile, onReady: Done) {
     <form class="login-card" novalidate>
       <span class="login-kicker">${esc(p.tag)}</span>
       <h1 id="login-title">Welcome back, ${esc(p.name)}</h1>
-      <p class="login-sub">${email ? `Signed in as ${esc(email)}. ` : ""}Your garage, places and ghosts are saved for this account.</p>
+      <p class="login-sub">${email ? `Signed in as ${esc(email)}. ` : ""}Your garage, places and ghosts are saved ${cloudConfigured() ? "for this account" : "on this phone"}.</p>
       ${p.pinHash ? `<label class="login-field"><span>PIN</span>
         <input name="pin" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="current-password" />
       </label>` : ""}
