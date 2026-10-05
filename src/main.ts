@@ -53,8 +53,12 @@ import { mountProfile } from "./hud/profile";
 import { setSocialNotice } from "./hud/social";
 import { cloudConfigured } from "./lib/cloud";
 import { finishEmailLink } from "./lib/social";
+import { ago, type RadarItem } from "./lib/reports";
 import { mountRadar } from "./hud/radar";
 import { mountFriends } from "./map/friends";
+import { mountTraffic } from "./map/traffic";
+import type { Alert } from "./lib/alerts";
+import type { TrafficSummary } from "./lib/traffic";
 import { createYouMarker } from "./map/you";
 import { mountCommand } from "./hud/command";
 import { recordTrip } from "./lib/history";
@@ -140,6 +144,7 @@ const fixWaiters: Array<{ resolve: (f: Fix) => void; reject: (p: LocationProblem
 const ARRIVE_M = 40;
 const OFF_ROUTE_M = 60;
 const REROUTE_AFTER_MS = 8000;
+let lastTraffic: TrafficSummary = { line: null, etaNote: "Typical time · no live traffic yet", delaySec: 0, live: false };
 
 const fromInput = $("#from") as HTMLInputElement;
 const toInput = $("#to") as HTMLInputElement;
@@ -308,7 +313,11 @@ const profileSheet = mountProfile({
   setSharing: (on) => { garage.shareWithFriends = on; persist(); friends.refresh(); },
 });
 // Real GPS only.
-const radar = mountRadar({ getFix: () => liveFix, openProfile: () => profileSheet.open() });
+const radar = mountRadar({
+  getFix: () => liveFix,
+  getCenter: () => ({ lat: map.getCenter().lat, lon: map.getCenter().lng }),
+  openProfile: () => profileSheet.open(),
+});
 $("#drive-report").addEventListener("click", () => radar.openReport());
 const friends = mountFriends({
   map,
@@ -333,6 +342,48 @@ const command = mountCommand({
   setLook: (look) => setLook(look),
 });
 $("#ov-insights").addEventListener("click", () => { overflowEl.classList.remove("open"); command.openSheet(true); });
+const traffic = mountTraffic({
+  map,
+  look: () => garage.look,
+  enabled: () => garage.showTraffic,
+  getCenter: () => ({ lat: map.getCenter().lat, lon: map.getCenter().lng }),
+  getBounds: () => {
+    if (!styleReady) return null;
+    const b = map.getBounds();
+    return { west: b.getWest(), south: b.getSouth(), east: b.getEast(), north: b.getNorth() };
+  },
+  getRoute: () => {
+    const r = routes.find((x) => x.id === selectedId);
+    if (!r || !selectedCoords.length) return null;
+    return { id: r.id, coords: selectedCoords, durationSec: r.durationSec, distanceMi: r.distanceMi };
+  },
+  alongMi: () => progressMi,
+  onSummary: applyTrafficHud,
+});
+function applyTrafficHud(s: TrafficSummary) {
+  lastTraffic = s;
+  const note = $("#review-eta-note");
+  if (note) note.textContent = s.etaNote;
+  const chip = $("#drive-traffic");
+  if (chip) {
+    chip.hidden = !s.line || hudMode !== "drive";
+    chip.textContent = s.line ?? "";
+  }
+  const sel = routes.find((r) => r.id === selectedId);
+  command.setTraffic({
+    line: s.line,
+    live: s.live || traffic.items().length > 0,
+    incidents: traffic.items().slice(0, 4).map(incidentAlert),
+  });
+  if (sel && hudMode === "review") {
+    $("#review-eta").textContent = formatDuration(sel.durationSec + (s.live ? s.delaySec : 0));
+  }
+  if (hudMode === "drive" && sel) updateDriveMeta(sel, progressMi);
+}
+function incidentAlert(it: RadarItem): Alert {
+  const level = it.kind === "crash" || it.kind === "closure" ? "red" : it.kind === "jam" || it.kind === "roadwork" || it.kind === "hazard" ? "orange" : "info";
+  return { level, title: it.title, detail: `${it.detail} · ${ago(it.createdAt)}` };
+}
 $("#chip-home").addEventListener("click", () => useOrSavePlace("home"));
 $("#chip-work").addEventListener("click", () => useOrSavePlace("work"));
 $("#chip-saved").addEventListener("click", () => {
@@ -446,6 +497,7 @@ function setLook(look: Look) {
   const sel = document.querySelector<HTMLSelectElement>("#g-look");
   if (sel) sel.value = look;
   command.syncLook();
+  traffic?.restyle();
 }
 function persist() {
   saveGarage(garage);
@@ -634,10 +686,11 @@ function wireGarage() {
   look.addEventListener("change", () => setLook(look.value as Look));
   const cam = $("#g-cam") as HTMLSelectElement;
   const build = $("#g-build") as HTMLInputElement;
+  const trafficBox = $("#g-traffic") as HTMLInputElement;
   const ghostsBox = $("#g-ghosts") as HTMLInputElement;
   const share = $("#g-share") as HTMLInputElement;
   tag.value = garage.tag; trail.value = garage.trail; cam.value = garage.camera;
-  build.checked = garage.showBuildings; ghostsBox.checked = garage.showGhosts; share.checked = garage.shareGhost;
+  build.checked = garage.showBuildings; trafficBox.checked = garage.showTraffic; ghostsBox.checked = garage.showGhosts; share.checked = garage.shareGhost;
   paintSwatches($("#g-body"), PAINTS, garage.carColor, (c) => { garage.carColor = c; persist(); restylePlayer(); });
   paintSwatches($("#g-glow"), ["#f0a04b","#78e0c8","#b388ff","#8fd3ff","#d6ff3c","#ff4d6d"], garage.glow, (c) => { garage.glow = c; persist(); restylePlayer(); });
   paintShowroom();
@@ -645,6 +698,7 @@ function wireGarage() {
   trail.addEventListener("change", () => { garage.trail = trail.value as GarageConfig["trail"]; persist(); paintRoutes(); });
   cam.addEventListener("change", () => { garage.camera = cam.value as GarageConfig["camera"]; persist(); applyCamera(garage.camera); });
   build.addEventListener("change", () => { garage.showBuildings = build.checked; persist(); toggleBuildings(build.checked); });
+  trafficBox.addEventListener("change", () => { garage.showTraffic = trafficBox.checked; persist(); traffic.setEnabled(trafficBox.checked); });
   ghostsBox.addEventListener("change", () => { garage.showGhosts = ghostsBox.checked; persist(); setGhostVisibility(garage.showGhosts); });
   share.addEventListener("change", () => { garage.shareGhost = share.checked; persist(); });
 }
@@ -1127,6 +1181,7 @@ function paintRoutes() {
     if (map.getLayer("route-core")) map.setPaintProperty("route-core", "line-color", next.core["line-color"] as never);
   });
   paintRouteChips();
+  traffic.refresh();
 }
 /** Tappable time chips sitting on each line, the way every map app labels alternatives. */
 function paintRouteChips() {
@@ -1147,8 +1202,9 @@ function paintRouteChips() {
     const toll = tollLabel(r.hasToll);
     const tag = r.tags[0] ?? "";
     const showToll = toll && tag !== "No tolls";
-    el.innerHTML = `<b>${formatDuration(r.durationSec)}</b>${tag ? `<span>${tag}</span>` : ""}${showToll ? `<em class="${r.hasToll ? "toll" : "free"}">${toll}</em>` : ""}`;
-    el.setAttribute("aria-label", [...new Set([formatDuration(r.durationSec), ...r.tags, toll].filter(Boolean))].join(", "));
+    const chipSec = r.durationSec + (r.id === selectedId && lastTraffic.live ? lastTraffic.delaySec : 0);
+    el.innerHTML = `<b>${formatDuration(chipSec)}</b>${tag ? `<span>${tag}</span>` : ""}${showToll ? `<em class="${r.hasToll ? "toll" : "free"}">${toll}</em>` : ""}`;
+    el.setAttribute("aria-label", [...new Set([formatDuration(chipSec), ...r.tags, toll].filter(Boolean))].join(", "));
     el.onclick = (ev) => { ev.stopPropagation(); selectRoute(r.id); };
     const others = routes.filter((o) => o.id !== r.id).map((o) => decodePolyline6(tripShape(o.trip)));
     const cands = bubbleCandidates(coords, others);
@@ -1191,7 +1247,8 @@ function renderReview() {
   if (active && !track.dataset.swiping) {
     active.scrollIntoView({ inline: "center", block: "nearest", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
   }
-  setMaybeEmpty($("#review-eta"), formatDuration(sel.durationSec));
+  const liveSec = sel.durationSec + (lastTraffic.live ? lastTraffic.delaySec : 0);
+  setMaybeEmpty($("#review-eta"), formatDuration(liveSec));
   $("#review-dist").textContent = formatMiles(sel.distanceMi);
   $("#review-via").textContent = viaLine(sel.maneuvers);
   const shortWhy = sel.why.split(" · ")[0] || sel.label;
@@ -1200,6 +1257,7 @@ function renderReview() {
     ? "Slide pick · Fastest is also the smoothest line we found"
     : [sel.tags.join(" · ") || sel.label, shortWhy].filter(Boolean).join(" · ");
   $("#review-tag").textContent = toll && !sel.tags.includes("No tolls") ? `${head} · ${toll}` : head;
+  $("#review-eta-note").textContent = lastTraffic.etaNote;
   renderStops();
 }
 
@@ -1265,8 +1323,9 @@ function renderDash() {
   dashEl.removeAttribute("hidden");
   const sel = routes.find((r) => r.id === selectedId);
   if (sel) {
+    const liveSec = sel.durationSec + (lastTraffic.live ? lastTraffic.delaySec : 0);
     setMaybeEmpty($("#stat-score"), String(sel.slideScore));
-    setMaybeEmpty($("#stat-eta"), arrivalClock(sel.durationSec));
+    setMaybeEmpty($("#stat-eta"), arrivalClock(liveSec));
   }
   routesEl.innerHTML = routes.map((r) => {
     const on = r.id === selectedId ? " selected" : "";
@@ -1469,8 +1528,14 @@ function updateDriveMeta(route: SlideRoute | undefined, mi: number) {
   if (hudMode !== "drive" || !route) return;
   const remainMi = Math.max(0, route.distanceMi - mi);
   const remainSec = route.durationSec * (remainMi / Math.max(route.distanceMi, 0.01));
-  setMaybeEmpty($("#drive-eta"), formatDuration(remainSec));
-  $("#drive-remain").textContent = `${formatMiles(remainMi)} · ${arrivalClock(remainSec)}`;
+  const liveRemain = remainSec + (lastTraffic.live ? lastTraffic.delaySec * (remainMi / Math.max(route.distanceMi, 0.01)) : 0);
+  setMaybeEmpty($("#drive-eta"), formatDuration(liveRemain));
+  $("#drive-remain").textContent = `${formatMiles(remainMi)} · ${arrivalClock(liveRemain)}`;
+  const chip = $("#drive-traffic");
+  if (chip) {
+    chip.hidden = !lastTraffic.line;
+    chip.textContent = lastTraffic.line ?? "";
+  }
 }
 function setOffRoute(off: boolean) {
   maneuverEl.classList.toggle("off-route", off);

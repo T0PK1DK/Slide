@@ -9,8 +9,8 @@ import { LOOKS, type Look } from "../lib/garage";
  * Command view — Slide's take on the owner's "SEKAI" network dashboard
  * (docs/DESIGN.md). Wide screens get the full three-column layout around the
  * map; phones get the same panels as an Insights sheet. Every figure is drawn
- * from on-device drive history or the route currently planned — nothing is
- * predicted, invented, or shown as traffic.
+ * from on-device drive history, the planned line, or live traffic when a feed
+ * is actually answering — nothing is predicted or invented.
  */
 export type CommandHooks = {
   map: maplibregl.Map;
@@ -33,6 +33,8 @@ export type CommandView = {
   openSheet(on: boolean): void;
   /** Re-mark the theme switch after the Garage changes it. */
   syncLook(): void;
+  /** Live traffic line + official incident alerts. Real data only. */
+  setTraffic(input: { line: string | null; live: boolean; incidents: Alert[] }): void;
 };
 
 const esc = (s: string) =>
@@ -162,6 +164,9 @@ export function mountCommand(h: CommandHooks): CommandView {
   let alerts: Alert[] = [];
   let routes: SlideRoute[] = [];
   let selectedId = "";
+  let trafficLine: string | null = null;
+  let trafficLive = false;
+  let trafficIncidents: Alert[] = [];
 
   const top = document.createElement("header");
   top.className = "cmd-top";
@@ -361,7 +366,14 @@ export function mountCommand(h: CommandHooks): CommandView {
   const drop = top.querySelector<HTMLElement>("#cmd-alerts-drop")!;
   const bell = top.querySelector<HTMLButtonElement>(".cmd-bell")!;
   const renderAlerts = () => {
-    alerts = buildAlerts({ route: routes.find((r) => r.id === selectedId), avoidTolls: h.avoidTolls(), trips: loadTrips(), weather: wxLabel });
+    alerts = buildAlerts({
+      route: routes.find((r) => r.id === selectedId),
+      avoidTolls: h.avoidTolls(),
+      trips: loadTrips(),
+      weather: wxLabel,
+      incidentFeed: trafficLive || trafficIncidents.length > 0,
+      incidents: trafficIncidents,
+    });
     const live = alerts.filter((a) => a.level === "red" || a.level === "orange");
     bell.querySelector<HTMLElement>("i")!.hidden = live.length === 0;
     bell.setAttribute("aria-label", live.length ? `Alerts, ${live.length} active` : "Alerts");
@@ -410,11 +422,13 @@ export function mountCommand(h: CommandHooks): CommandView {
     const sug = suggestSwitch(routes, selectedId);
     const wideIntel = `
       <section class="cmd-card cmd-wide cmd-nav-intel">
-        <header><div><h2>Navigation intelligence</h2><p class="cmd-dim">From your planned lines · typical times, no live traffic yet</p></div></header>
+        <header><div><h2>Navigation intelligence</h2><p class="cmd-dim">From your planned lines${trafficLive ? " · live traffic" : " · typical times"}</p></div></header>
         ${sel ? `<div class="cmd-sel"><span class="cmd-dim">${esc(sel.tags.join(" · ") || sel.label)}</span><b>${formatDuration(sel.durationSec)}</b><span>${sel.distanceMi.toFixed(1)} mi · ${sel.lefts} left${sel.lefts === 1 ? "" : "s"} · ${sel.signals} signals${sel.hasToll === true ? " · tolls" : sel.hasToll === false ? " · no tolls" : ""}</span></div>` : `<p class="cmd-empty">Plan a trip to compare lines here.</p>`}
         ${sug ? `<div class="cmd-sug ${sug.savesMin > 0 ? "faster" : "smoother"}"><div><em>${esc(sug.title)}</em><p>${esc(sug.detail)}</p></div><button type="button" class="cmd-switch" data-route="${sug.targetId}">Switch</button></div>`
           : sel && routes.length > 1 ? `<p class="cmd-best"><i class="dot ok"></i>You're on the best line: nothing quicker, nothing smoother within 10%.</p>` : ""}
-        <p class="cmd-congestion"><i class="dot"></i>Predicted congestion needs a live traffic provider (not connected).</p>
+        <p class="cmd-congestion"><i class="dot${trafficLive || trafficIncidents.length ? " ok" : ""}"></i>${
+          trafficLine ? esc(trafficLine) : trafficLive ? "Live traffic on the map." : trafficIncidents.length ? `${trafficIncidents.length} official incident${trafficIncidents.length === 1 ? "" : "s"} on the map.` : "Typical times · live speeds need a TomTom key."
+        }</p>
       </section>
       <section class="cmd-card cmd-wide">
         <header><h2>Alerts</h2><span class="cmd-dim">route, weather, your drives</span></header>
@@ -422,7 +436,7 @@ export function mountCommand(h: CommandHooks): CommandView {
       </section>`;
     right.innerHTML = `${wideIntel}
       <section class="cmd-intel">
-        <header class="cmd-narrow"><div><h2>Route intelligence</h2><p class="cmd-dim">Scored from Valhalla routes and posted limits. No live traffic yet.</p></div></header>
+        <header class="cmd-narrow"><div><h2>Route intelligence</h2><p class="cmd-dim">Scored from Valhalla routes and posted limits.${trafficLive ? " Live traffic on the selected line." : ""}</p></div></header>
         <div class="cmd-narrow cmd-intel">${verdict}${alt}</div>
         <article class="cmd-intel-card"><span class="cmd-ico">${ICON.bars}</span><div>
           <em>Arrival accuracy</em><b${onTime === null ? ` class="is-empty"` : ""}>${onTime === null ? "After saved drives" : `${Math.round(onTime * 100)}%`}</b>
@@ -477,6 +491,12 @@ export function mountCommand(h: CommandHooks): CommandView {
       selectedId = id;
       renderRight();
       renderRouteCard();
+    },
+    setTraffic(input) {
+      trafficLine = input.line;
+      trafficLive = input.live;
+      trafficIncidents = input.incidents;
+      renderRight();
     },
     refreshHistory() {
       paintAvatar();

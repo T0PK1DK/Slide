@@ -143,7 +143,7 @@ export const HUD_HTML = `
     <button class="panel recenter drive-only" id="recenter" hidden>Recenter</button>
     <div class="panel speed-rail" id="speeds" hidden></div>
     <div class="panel drive-bar drive-only" id="drive-bar" hidden>
-      <div class="meta"><b id="drive-eta" class="is-empty">After a plan</b><span id="drive-remain">Remaining once GPS locks</span></div>
+      <div class="meta"><b id="drive-eta" class="is-empty">After a plan</b><span id="drive-remain">Remaining once GPS locks</span><small id="drive-traffic" hidden></small></div>
       <div class="drive-controls">
         <button type="button" id="drive-mute" class="drive-mute" data-slot="drive-mute" aria-label="Mute voice guidance" aria-pressed="false" hidden></button>
         <button class="icon" id="more" type="button" aria-label="More">⋯</button>
@@ -190,6 +190,7 @@ export const HUD_HTML = `
       <label>Trail</label><select id="g-trail"><option value="plasma">Plasma</option><option value="ember">Ember</option><option value="ice">Ice</option><option value="volt">Volt</option></select>
       <label>Camera</label><select id="g-cam"><option value="cinematic">Cinematic 3D</option><option value="chase">Chase</option><option value="top">Top-down</option></select>
       <div class="toggle"><span>3D buildings</span><input id="g-build" type="checkbox" /></div>
+      <div class="toggle"><span>Live traffic</span><input id="g-traffic" type="checkbox" /></div>
       <div class="toggle"><span>Show ghosts</span><input id="g-ghosts" type="checkbox" /></div>
       <div class="toggle"><span>Share my ghost</span><input id="g-share" type="checkbox" /></div>
     </div>

@@ -28,6 +28,8 @@ import { REPORT_SUBTYPES, reportKindIcon } from "./report-ui";
  */
 export type RadarHooks = {
   getFix: () => Fix | null;
+  /** Map centre — official incidents still load before GPS locks (the phone bug). */
+  getCenter?: () => { lat: number; lon: number };
   /** Opens the profile so a signed-out driver can sign in before reporting. */
   openProfile: () => void;
 };
@@ -92,16 +94,16 @@ export function mountRadar(h: RadarHooks): RadarView {
   const alerted = new Set<string>();
   let bannerTimer = 0;
 
-  const poll = async (fix: Fix) => {
+  const poll = async (pos: { lat: number; lon: number }) => {
     if (polling) return;
     polling = true;
     lastPollAt = Date.now();
-    lastPollPos = fix.pos;
+    lastPollPos = pos;
     const [drivers, official, cameras, transit] = await Promise.all([
-      reportsNear(fix.pos.lat, fix.pos.lon).catch(() => [] as RadarItem[]),
-      officialIncidents(fix.pos.lat, fix.pos.lon),
-      enforcementCameras(fix.pos.lat, fix.pos.lon),
-      transitVehicles(fix.pos.lat, fix.pos.lon),
+      reportsNear(pos.lat, pos.lon).catch(() => [] as RadarItem[]),
+      officialIncidents(pos.lat, pos.lon),
+      enforcementCameras(pos.lat, pos.lon),
+      transitVehicles(pos.lat, pos.lon),
     ]);
     items = [...drivers, ...official, ...cameras, ...transit];
     polling = false;
@@ -157,7 +159,7 @@ export function mountRadar(h: RadarHooks): RadarView {
           await voteReport(Number(btn.dataset.vote), btn.dataset.yes === "1");
           msg.textContent = "Thanks — that helps other drivers.";
           const f = h.getFix();
-          if (f) void poll(f);
+          if (f) void poll(f.pos);
         } catch (e) {
           msg.textContent = e instanceof Error ? e.message : "Couldn't send that.";
         }
@@ -219,7 +221,7 @@ export function mountRadar(h: RadarHooks): RadarView {
           await submitReport(kind, f.pos.lat, f.pos.lon, f.headingDeg);
           const sub = subs.find((s) => s.id === picked)?.label ?? "";
           msg.textContent = sub ? `Reported ${meta.label.toLowerCase()} · ${sub}. Thanks for looking out.` : "Reported. Thanks for looking out.";
-          void poll(f);
+          void poll(f.pos);
           window.setTimeout(closeSheet, 900);
         } catch (e) {
           msg.textContent = e instanceof Error ? e.message : "Couldn't report right now.";
@@ -240,9 +242,10 @@ export function mountRadar(h: RadarHooks): RadarView {
 
   const tick = () => {
     const fix = h.getFix();
-    if (fix && !document.hidden) {
-      const moved = lastPollPos ? Math.hypot(fix.pos.lat - lastPollPos.lat, fix.pos.lon - lastPollPos.lon) > 0.01 : true;
-      if (Date.now() - lastPollAt > POLL_MS || moved) void poll(fix);
+    const pos = fix?.pos ?? h.getCenter?.();
+    if (pos && !document.hidden) {
+      const moved = lastPollPos ? Math.hypot(pos.lat - lastPollPos.lat, pos.lon - lastPollPos.lon) > 0.01 : true;
+      if (Date.now() - lastPollAt > POLL_MS || moved) void poll(pos);
     }
     draw();
   };
