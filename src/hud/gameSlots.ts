@@ -363,6 +363,7 @@ declare global {
       arrival: () => void;
       share: () => void;
       stage: () => void;
+      ride: (id: string, livery?: string) => void;
     };
   }
 }

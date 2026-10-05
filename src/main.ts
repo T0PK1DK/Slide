@@ -124,6 +124,25 @@ window.slidePreviewGame = {
     slots.hideAward();
     slots.preview.stage(currentRide(garage));
   },
+  ride(id, livery) {
+    document.body.dataset.mode = "plan";
+    $("#arrival").hidden = true;
+    $("#share-card-mount").hidden = true;
+    $("#search-card").setAttribute("hidden", "");
+    slots.hideAward();
+    const v = vehicleById(id);
+    const liv = (livery === "solid" || livery === "stripes" || livery === "fade" || livery === "halo" || livery === "dusk"
+      ? livery
+      : garage.livery) as Livery;
+    slots.preview.stage({
+      vehicle: v.id,
+      livery: liv,
+      name: v.name,
+      liveryLabel: LIVERY_LABEL[liv],
+      paint: garage.carColor,
+      accent: garage.glow,
+    });
+  },
 };
 
 const map = new maplibregl.Map({
