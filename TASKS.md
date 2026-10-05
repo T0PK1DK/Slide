@@ -78,6 +78,7 @@ Work top-down. Check the box in the same PR.
 - [ ] Leave-by: user sets arrival clock → show depart time + 3 min buffer (`leaveByForTarget` already exists)
 - [ ] Door-level destination note in UI (entrance / garage) even if pin is still centroid
 - [x] Offline message when Photon/Valhalla fail
+- [x] Address search: Enter / Drop the line geocodes typed text; Photon → Nominatim → Census; "No match, try adding city"
 
 ## P2 — ghosts that can become real
 

@@ -6,11 +6,11 @@ import {
   requestRouteVariant,
   type RouteResponse,
   requestTraceAttributes,
-  searchPlaces,
   tripShape,
   type LonLat,
   type SearchHit,
 } from "./lib/valhalla";
+import { looksCompleteQuery, NO_MATCH, searchPlaces } from "./lib/geocode";
 import {
   arrivalClock,
   formatDuration,
@@ -850,19 +850,24 @@ function bindSearch(input: HTMLInputElement, box: HTMLElement, onPick: (hit: Sea
   const draw = () => renderSuggest(box, items, active, (hit) => { onPick(hit); close(); });
 
   input.addEventListener("input", () => {
+    if (input === toInput && dest && input.value.trim() !== destLabel) dest = null;
     window.clearTimeout(timer);
     timer = window.setTimeout(async () => {
       try {
-        items = await searchPlaces(input.value, origin ?? MIAMI);
+        items = await searchPlaces(input.value, origin ?? MIAMI, { intent: "suggest" });
         active = -1;
         draw();
         box.hidden = items.length === 0;
+        if (input === toInput) {
+          if (items.length === 0 && looksCompleteQuery(input.value)) showError(NO_MATCH);
+          else if (errorEl.textContent === NO_MATCH) showError("");
+        }
         if (netWhat === "search") hideFailure();
       } catch (err) {
         close();
         if (input.value.trim().length >= 2) showFailure(err, "search", () => input.dispatchEvent(new Event("input")));
       }
-    }, 200);
+    }, 220);
   });
 
   input.addEventListener("keydown", (e) => {
@@ -999,17 +1004,33 @@ async function plan() {
   hidePlace();
   hideLocationProblem();
   hideFailure();
-  if (!dest) return showError("Set a destination.");
+  const typed = toInput.value.trim();
+  if (!dest && !typed) return showError("Set a destination.");
   planning = true;
   const goBtn = $("#go") as HTMLButtonElement;
   goBtn.disabled = true;
   try {
+    if (!dest) {
+      setStatus("Finding that place…");
+      const hits = await searchPlaces(typed, origin ?? MIAMI, { intent: "resolve" });
+      if (!hits.length) {
+        showError(NO_MATCH);
+        setStatus("");
+        return;
+      }
+      rememberRecent(hits[0]);
+      dest = { lon: hits[0].lon, lat: hits[0].lat };
+      destLabel = hits[0].label;
+      toInput.value = hits[0].label;
+    }
+    const to = dest;
+    if (!to) return;
     const start = await resolveOrigin();
     if (!start) return;
     origin = start;
     if (!originPicked) originLabel = "Current location";
     setStatus("Scoring the smoothest 3D line…");
-    routes = await fetchRanked(start, dest);
+    routes = await fetchRanked(start, to);
     if (!routes.length) throw new Error("No routes returned.");
     selectedId = routes[0]?.id ?? "";
     loadSelectedRoute();
@@ -1020,7 +1041,7 @@ async function plan() {
     setStatus("");
   } catch (err) {
     $("#search-card").classList.add("open");
-    showFailure(err, "route", () => void plan());
+    showFailure(err, dest ? "route" : "search", () => void plan());
     setStatus("");
   } finally {
     planning = false;

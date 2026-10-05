@@ -16,7 +16,7 @@ npm run dev
 Vite + TypeScript. No env file required: without env vars, accounts, radar feeds and transit simply stay off. See **Owner setup for accounts + radar** to turn them on.
 
 - Routing: `https://valhalla1.openstreetmap.de`
-- Geocode: `https://photon.komoot.io/api`
+- Geocode: Photon (`photon.komoot.io`), then Nominatim + US Census via `/api/geocode`
 - Tiles: `https://tiles.openfreemap.org/styles/dark`
 
 Units are **miles / mph**. First proving ground is **Miami**.
@@ -25,7 +25,7 @@ Units are **miles / mph**. First proving ground is **Miami**.
 
 Everything below is on `main` (PR #13, 2026-09-25): 0 TS errors, 54/54 unit tests, `npm run build` clean.
 
-- **Search + plan:** Photon search, GPS locate, a "you" marker, and up to 5 stops (drag to reorder).
+- **Search + plan:** Photon + Nominatim + US Census search, GPS locate, a "you" marker, and up to 5 stops (drag to reorder). Typing a full address and pressing Enter or Drop the line geocodes even without tapping a suggestion.
 - **Routes:** Valhalla `/route` + `/trace_attributes`. Three or more lines are drawn together; tap a line or its bubble to pick one.
   - Tags: **Slide pick** (smoothest within +10% of fastest), **Fastest**, **No tolls**.
   - Routes with tolls are flagged; there's no price yet.
@@ -62,7 +62,10 @@ src/voice/             spoken turn-by-turn; listens for `slide:voice-mute`, mirr
 src/hud/report-ui.ts   report glass icons + subtypes (submit still sends kind)
 src/node-fs.d.ts       types for the metrics test
 tools/shoot-screens.mjs  phone/desktop HUD screenshots (390 + 1440)
-src/lib/valhalla.ts    route / trace / search
+src/lib/valhalla.ts    route / trace
+src/lib/geocode.ts     Photon + Nominatim + Census search; lat,lng; US street expand
+src/lib/geocode.test.ts  address search tests (King's queries + fallbacks)
+functions/api/geocode.ts  Pages Function: Nominatim User-Agent + 1 req/s, Census (no CORS)
 src/lib/smooth.ts      Slide score + speed bands
 src/lib/polyline.ts    precision-6 decode
 src/lib/garage.ts      customization persist
@@ -303,6 +306,8 @@ Read `TASKS.md` top unchecked item. Do not rebase history. Do not rename the pro
 - 2026-10-04 Grim: **PR 2 — screen pass.** Review `#route-carousel` from real ranked routes only. Drive: `#speedo` bottom-left, `#drive-report` bottom-right; `#lane-strip` still empty for Nard; `#drive-mute` is a working mute button that sets `document.documentElement.dataset.voice` and fires `slide:voice-mute`. Report grid uses glass icons + a subtype step, then Send / Later (RPC still only gets the kind). `#place-card` (name, address, Save, Go) after a real search pick. Fail sheets: `#loc-banner` + `#loc-title` for denied / unavailable / timeout / insecure; `#net-sheet` already covers offline / no-route. Arrival is a trip card with `#arr-share` (native share, no address) and `slide:share-trip`; `#arr-xp` / `#share-card-mount` stay Leon's. Empty states use `src/lib/empty.ts` instead of "—". Tokens/components only.
 - 2026-10-04 Nard: **Lane strip on Grim's #35 drive layout.** Based on `grim/screen-pass-c69a`. `#lane-strip` unhides only with real Valhalla `lanes` within 0.75 mi. Child arrows use existing tokens (`--glow`, `--fill-07`, `--fs-xl`, `--radius-md`) in the one stylesheet — no override layer. Drive chrome stays #35: speedo bottom-left, Report bottom-right.
 - 2026-10-04 Nard: **Speech hooks Grim's #35 mute, does not own the button.** Based on `grim/screen-pass-c69a`. `listenVoiceMute` follows `slide:voice-mute` `{ muted }` and `html[data-voice]`, cancels speech when muted, and writes `slide.voice.v1` to match. No `mountMuteToggle`, no second button, no click handler on `#drive-mute`. `startVoice` on Go now re-reads the attribute.
+
+- 2026-10-05 Cursor: **Address search.** King typed a full Fort Lauderdale street into Where to? and Drop the line still said "Set a destination." Two bugs: dest was only set when a suggestion was tapped, and Photon returned a fire station on the same street instead of house 1020 (it doesn't expand NW/Ave well, and it isn't a house geocoder). Enter / Drop the line now `resolve` the typed text. Chain: local lat,lng → Photon (bias, not a box) → `/api/geocode` Nominatim (UA + 1 req/s) + US Census for streets/intersections. Unmatched house numbers no longer pick a nearby POI; the HUD says "No match, try adding city". SearchHit is unchanged except the name comment.
 
 ## Teammate slots (stable IDs — do not rename)
 
