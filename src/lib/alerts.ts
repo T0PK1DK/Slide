@@ -4,8 +4,8 @@ import type { SlideRoute } from "./smooth";
 /**
  * The desktop alert list (SEKAI's severity-dot feed), built only from data Slide
  * really has: the planned route's posted limits and tolls, the driver's own
- * recorded trips, and real weather. No incident or traffic feed is connected
- * yet, so the list says so instead of inventing one.
+ * recorded trips, real weather, and live incidents when a feed is actually
+ * answering. The list says so instead of inventing one.
  */
 export type AlertLevel = "red" | "orange" | "green" | "info";
 export type Alert = { level: AlertLevel; title: string; detail: string };
@@ -16,8 +16,10 @@ export type AlertInput = {
   trips: TripRecord[];
   /** Open-Meteo condition label at the map centre, if loaded. */
   weather?: string | null;
-  /** True once a live incident/traffic provider is wired (HANDOFF → Traffic provider decision). */
+  /** True once official incidents or TomTom are actually answering. */
   incidentFeed?: boolean;
+  /** Real incidents on or near the planned line (never invented). */
+  incidents?: Alert[];
 };
 
 /** A posted limit that falls this much (mph) is worth a heads-up — the 45 → 30 pattern. */
@@ -53,7 +55,9 @@ export function buildAlerts(input: AlertInput, now = Date.now()): Alert[] {
     const n = recentOff.reduce((a, t) => a + t.offRouteEvents, 0);
     out.push({ level: "orange", title: `${n} off-route moment${n === 1 ? "" : "s"} this week`, detail: `Latest: ${recentOff[0].destLabel || "a drive"}` });
   }
-  if (!input.incidentFeed) {
+  if (input.incidents?.length) {
+    for (const a of input.incidents.slice(0, 4)) out.push(a);
+  } else if (!input.incidentFeed) {
     out.push({ level: "info", title: "No live incident feed connected", detail: "Crashes and closures appear here once a traffic provider is approved" });
   }
   const rank: Record<AlertLevel, number> = { red: 0, orange: 1, green: 2, info: 3 };

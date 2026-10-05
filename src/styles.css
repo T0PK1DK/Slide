@@ -828,6 +828,13 @@ button.ghost.on { color: var(--glow); }
 .drive-bar .meta { min-width: 0; flex: 1; }
 .drive-bar .meta b { display: block; font-size: var(--fs-3xl); line-height: 1; }
 .drive-bar .meta span { font-size: var(--fs-md); color: var(--muted); }
+.drive-bar .meta small {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--fs-sm);
+  color: var(--warn);
+}
+.drive-bar .meta small[hidden] { display: none; }
 .drive-bar .end {
   background: var(--end-fill);
   color: var(--danger-text);
@@ -1726,6 +1733,85 @@ button.cmd-intel-card.on { border-color: var(--glass-border-strong); }
   background: var(--scrim);
 }
 .radar-sheet[hidden] { display: none; }
+
+.inc-pin {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--line);
+  display: grid;
+  place-items: center;
+  color: var(--text);
+  background: var(--glass-2);
+  box-shadow: var(--lift), 0 6px 14px -6px var(--ink-55);
+  backdrop-filter: blur(var(--blur-sm));
+  -webkit-backdrop-filter: blur(var(--blur-sm));
+  cursor: pointer;
+}
+.inc-pin svg { display: block; }
+.inc-pin.crash { color: var(--kind-crash); }
+.inc-pin.roadwork { color: var(--kind-hazard); }
+.inc-pin.hazard { color: var(--kind-hazard); }
+.inc-pin.closure { color: var(--kind-closure); }
+.inc-pin.jam { color: var(--kind-jam); }
+.inc-pin.police { color: var(--kind-police); }
+
+.incident-card {
+  position: fixed;
+  left: var(--gutter);
+  right: var(--gutter);
+  bottom: calc(96px + env(safe-area-inset-bottom));
+  z-index: 8;
+  display: grid;
+  place-items: end center;
+  pointer-events: none;
+}
+.incident-card[hidden] { display: none; }
+.ic-sheet {
+  pointer-events: auto;
+  width: min(420px, 100%);
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  gap: var(--space-3);
+  align-items: start;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--line);
+  background: var(--glass-tint), var(--glass-2);
+  box-shadow: var(--lift), var(--shadow);
+  backdrop-filter: blur(var(--blur-md));
+  -webkit-backdrop-filter: blur(var(--blur-md));
+}
+.ic-pin {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-full);
+  display: grid;
+  place-items: center;
+  background: var(--surface);
+  color: var(--text);
+}
+.ic-pin.crash { color: var(--kind-crash); }
+.ic-pin.roadwork, .ic-pin.hazard { color: var(--kind-hazard); }
+.ic-pin.closure { color: var(--kind-closure); }
+.ic-pin.jam { color: var(--kind-jam); }
+.ic-pin.police { color: var(--kind-police); }
+.ic-body { min-width: 0; }
+.ic-body b { display: block; font-size: var(--fs-md); font-weight: var(--fw-semibold); }
+.ic-body p { margin: 2px 0 0; font-size: var(--fs-sm); color: var(--text); }
+.ic-body span, .ic-body small { display: block; margin-top: 2px; font-size: var(--fs-xs); color: var(--muted); }
+.ic-close {
+  width: var(--touch);
+  height: var(--touch);
+  margin: calc(var(--space-2) * -1) calc(var(--space-3) * -1) 0 0;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: none;
+  color: var(--muted);
+  font-size: var(--fs-xl);
+  cursor: pointer;
+}
 .rs-card {
   width: min(480px, 100%);
   max-height: 80vh;

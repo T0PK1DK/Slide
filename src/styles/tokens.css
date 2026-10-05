@@ -190,6 +190,11 @@
   --friend-fill: rgba(12, 14, 20, 0.92);
   --friend-area: rgba(91, 140, 255, 0.22);
 
+  /* Live traffic (map + route). Tuned to read on the night basemap. */
+  --flow-free: #5dd17e;
+  --flow-slow: #f0a14a;
+  --flow-heavy: #e5484d;
+
   --fill-03: rgba(255, 255, 255, 0.03);
   --fill-04: rgba(255, 255, 255, 0.04);
   --fill-05: rgba(255, 255, 255, 0.05);
@@ -265,6 +270,10 @@
   --end-fill: #241210;
   --switch-track: #33271d;
   --friend-fill: rgba(20, 14, 10, 0.92);
+
+  --flow-free: #7fd67a;
+  --flow-slow: #ff9f43;
+  --flow-heavy: #f0544a;
 }
 
 /* ---------- 4. SAND — Slide sandy night (not the kit's light Warm) ---------- */
@@ -326,4 +335,8 @@
   --end-fill: #1e1812;
   --switch-track: #332e24;
   --friend-fill: rgba(18, 16, 12, 0.92);
+
+  --flow-free: #5dd17e;
+  --flow-slow: #f0c14a;
+  --flow-heavy: #e5484d;
 }

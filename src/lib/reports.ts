@@ -14,7 +14,7 @@ export type RadarKind = "police" | "crash" | "hazard" | "closure" | "jam" | "roa
 export type ReportableKind = "police" | "crash" | "hazard" | "closure" | "jam";
 export type RadarItem = {
   id: string;
-  source: "driver" | "fdot" | "mdpd" | "fl511" | "osm" | "transit";
+  source: "driver" | "fdot" | "mdpd" | "fl511" | "osm" | "transit" | "tomtom";
   kind: RadarKind;
   lat: number;
   lon: number;

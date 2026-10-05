@@ -15,7 +15,7 @@ Work top-down. Check the box in the same PR.
 
 ## Phase 1 — Better routes (owner prompt, 2026-09-25)
 
-- [ ] **Traffic-aware ETAs** — blocked on the owner approving a provider (HANDOFF → Traffic provider decision; HERE recommended)
+- [x] **Traffic-aware ETAs** — TomTom flow + along-route delay via Pages Function (`TOMTOM_API_KEY`). Typical time kept when the key is missing. HERE still the pick if we want toll prices.
 - [x] 3+ routes drawn together (Slide / Fastest / No-tolls costings + `alternates`), tap line or bubble to select
 - [x] Tags: Slide pick, Fastest, No tolls (Your usual comes with Phase 2 learning)
 - [x] Tolls flagged per route from Valhalla `has_toll`; "Has tolls" with no price until a price source exists
@@ -24,7 +24,7 @@ Work top-down. Check the box in the same PR.
 - [ ] Verify on the live site: real Valhalla returns `alternates` and `has_toll` for Fort Lauderdale → 9601 Collins Ave
 
 - [x] Desktop Command view: SEKAI Live Network pass (tiles + trends, week sparkline, alert list, navigation intelligence + Switch) — phones unchanged
-- [ ] Live incidents in the alert list — needs the traffic provider
+- [x] Live incidents in the alert list — FDOT / Miami-Dade / driver reports on the map + Command; TomTom when keyed
 
 - [x] Remove bot data: seeded ghost drivers and the old demo preview page
 - [x] Profile: driver, My car, all-time stats, places, privacy (on-device)
@@ -95,7 +95,7 @@ Work top-down. Check the box in the same PR.
 ## P4 — Miami-quality data
 
 - [ ] Document how to self-host Valhalla for Florida extract
-- [ ] Hook for FDOT / 511 speeds into `expectedMph` (`min(posted, live)`)
+- [x] Hook for FDOT / 511 speeds into `expectedMph` (`min(posted, live)`) — live delay from TomTom Flow Segment Data on the selected line (posted still the sign; never a target)
 - [ ] School-zone time window penalty in `smooth.ts`
 
 ## Out of scope until asked
