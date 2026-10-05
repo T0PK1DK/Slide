@@ -59,6 +59,7 @@ async function seed(page, look) {
 async function ready(page) {
   await page.waitForSelector("#search-card, .login-card", { timeout: 20000 });
   await page.waitForFunction(() => !document.querySelector(".boot"), { timeout: 10000 }).catch(() => {});
+  await page.waitForFunction(() => typeof window.slidePreviewGame === "object", { timeout: 20000 }).catch(() => {});
   await new Promise((r) => setTimeout(r, 400));
 }
 
@@ -136,6 +137,22 @@ try {
     const file = path.join(outDir, `reroute-${look}-390.png`);
     await page.screenshot({ path: file, fullPage: false });
     console.log("wrote", file);
+    if (look === "night") {
+      await page.evaluate(() => {
+        document.body.dataset.mode = "plan";
+        document.getElementById("reroute-card").hidden = true;
+        document.getElementById("drive-bar").hidden = true;
+        document.getElementById("speedo").hidden = true;
+        document.getElementById("maneuver").hidden = true;
+        document.getElementById("garage")?.classList.add("open");
+        const row = document.getElementById("g-reroute-row");
+        if (row) row.scrollIntoView({ block: "center" });
+      });
+      await new Promise((r) => setTimeout(r, 250));
+      const garage = path.join(outDir, "garage-reroute-toggle-390.png");
+      await page.screenshot({ path: garage, fullPage: false });
+      console.log("wrote", garage);
+    }
     await page.close();
   }
 } finally {
