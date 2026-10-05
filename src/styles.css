@@ -2031,30 +2031,33 @@ body[data-mode="drive"] .friend-spot { display: none; }
 }
 
 .inc-pin {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   padding: 0;
   border: 0;
   background: none;
   cursor: pointer;
-  filter: drop-shadow(0 2px 6px var(--ink-55));
+  filter: drop-shadow(0 2px 8px var(--ink-55));
 }
 .inc-mark {
   display: grid;
   place-items: center;
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   border-radius: var(--radius-full);
   color: var(--text);
-  background: var(--glass-2);
-  border: 1px solid var(--line);
+  background: color-mix(in srgb, currentColor 26%, var(--glass-2));
+  border: 1px solid color-mix(in srgb, currentColor 60%, var(--line));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--bg) 72%, transparent);
 }
+.inc-mark svg { display: block; }
 .inc-mark.crash { color: var(--kind-crash); }
 .inc-mark.closure { color: var(--kind-closure); }
 .inc-mark.construction { color: var(--kind-construction); }
 .inc-mark.hazard { color: var(--kind-hazard); }
 .inc-mark.jam { color: var(--kind-jam); }
 .inc-mark.police { color: var(--kind-police); }
+#map .maplibregl-marker:has(.inc-pin) { z-index: 2; }
 
 .incident-card {
   position: absolute;
@@ -2065,14 +2068,19 @@ body[data-mode="drive"] .friend-spot { display: none; }
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  padding: var(--space-3);
+  padding: var(--space-3) var(--space-8) var(--space-3) var(--space-3);
   border-radius: var(--radius-lg);
   max-width: 360px;
 }
 .incident-card[hidden] { display: none; }
 .incident-card .inc-ico { flex: 0 0 auto; }
 .incident-card .inc-text { min-width: 0; flex: 1; }
-.incident-card .inc-text b { display: block; font-size: var(--fs-lg); font-weight: var(--fw-semibold); }
+.incident-card .inc-text b {
+  display: block;
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--tracking-normal);
+}
 .incident-card .inc-text span { display: block; font-size: var(--fs-sm); color: var(--muted); }
 .incident-card .loc-close { position: absolute; top: 6px; right: 6px; }
 

@@ -22,6 +22,7 @@ import {
   type FlowSample,
 } from "./sources/tomtom";
 import { reviewTrafficNote, trafficDelayLabel } from "./traffic";
+import { incidentMarkerHtml } from "../map/incident-icons";
 
 /** Shape copied from TomTom Incident Details v5 docs (trimmed). */
 const TOMTOM_CRASH = {
@@ -168,6 +169,15 @@ describe("incident card and dedupe", () => {
     expect(isIncidentIconKind("roadwork")).toBe(true);
     expect(isIncidentIconKind("camera")).toBe(false);
     expect(isIncidentIconKind("bus")).toBe(false);
+  });
+  it("paints original glyphs for crash, closure, construction, hazard, jam, police", () => {
+    expect(incidentMarkerHtml("crash")).toContain("inc-mark crash");
+    expect(incidentMarkerHtml("closure")).toContain("inc-mark closure");
+    expect(incidentMarkerHtml("roadwork")).toContain("inc-mark construction");
+    expect(incidentMarkerHtml("hazard")).toContain("inc-mark hazard");
+    expect(incidentMarkerHtml("jam")).toContain("inc-mark jam");
+    expect(incidentMarkerHtml("police")).toContain("inc-mark police");
+    expect(incidentMarkerHtml("crash")).toContain("<svg");
   });
 });
 
