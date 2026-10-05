@@ -117,7 +117,8 @@ try {
       const r = document.getElementById("review-sheet");
       if (r) {
         r.hidden = false;
-        document.getElementById("review-eta").textContent = "14 min";
+        const re = document.getElementById("review-eta");
+        if (re) { re.textContent = "14 min"; re.classList.remove("is-empty"); }
         document.getElementById("review-dist").textContent = "6.2 mi";
         document.getElementById("review-via").textContent = "via Brickell Ave";
         document.getElementById("review-tag").textContent = "Slide pick · no tolls";
@@ -145,7 +146,8 @@ try {
       const man = document.getElementById("maneuver");
       if (man) {
         man.hidden = false;
-        document.getElementById("man-dist").textContent = "0.4 mi";
+        const md = document.getElementById("man-dist");
+        if (md) { md.textContent = "0.4 mi"; md.classList.remove("is-empty"); }
         document.getElementById("man-instr").textContent = "Turn right onto Biscayne Blvd";
       }
       const posted = document.getElementById("posted");
@@ -156,12 +158,17 @@ try {
         document.getElementById("speed-n").textContent = "28";
         document.getElementById("speed-src").textContent = "MPH";
         const lim = document.getElementById("limit");
-        if (lim) { lim.hidden = false; document.getElementById("limit-n").textContent = "35"; }
+        if (lim) {
+          lim.hidden = false;
+          lim.classList.remove("unsigned");
+          document.getElementById("limit-n").textContent = "35";
+        }
       }
       const bar = document.getElementById("drive-bar");
       if (bar) {
         bar.hidden = false;
-        document.getElementById("drive-eta").textContent = "12 min";
+        const de = document.getElementById("drive-eta");
+        if (de) { de.textContent = "12 min"; de.classList.remove("is-empty"); }
         document.getElementById("drive-remain").textContent = "4.1 mi · Brickell";
       }
       const mute = document.getElementById("drive-mute");
@@ -172,15 +179,35 @@ try {
     await shot(page, `05-drive-${tag}`);
 
     await show(page, () => {
+      const md = document.getElementById("man-dist");
+      if (md) { md.textContent = "Next turn"; md.classList.add("is-empty"); }
+      const instr = document.getElementById("man-instr");
+      if (instr) instr.textContent = "Turn right onto Northwest 27th Avenue Extension";
+      const posted = document.getElementById("posted");
+      if (posted) { posted.hidden = false; posted.textContent = "25 in 350 ft"; }
+      const lim = document.getElementById("limit");
+      if (lim) {
+        lim.hidden = false;
+        lim.classList.add("unsigned");
+        document.getElementById("limit-n").textContent = "--";
+      }
+      const de = document.getElementById("drive-eta");
+      if (de) { de.textContent = "After a plan"; de.classList.add("is-empty"); }
+      document.getElementById("speed-n").textContent = "0";
+    });
+    await shot(page, `05b-drive-empty-${tag}`);
+
+    await show(page, () => {
       document.body.dataset.mode = "arrive";
       const a = document.getElementById("arrival");
       if (a) {
         a.hidden = false;
         document.getElementById("arr-kicker").textContent = "ARRIVED · 4:12 PM";
         document.getElementById("arr-dest").textContent = "Bayside Marketplace";
-        document.getElementById("arr-time").textContent = "14 min";
-        document.getElementById("arr-dist").textContent = "6.2 mi";
-        document.getElementById("arr-line").textContent = "Slide";
+        for (const [id, value] of [["arr-time", "14 min"], ["arr-dist", "6.2 mi"], ["arr-line", "Slide"]]) {
+          const el = document.getElementById(id);
+          if (el) { el.textContent = value; el.classList.remove("is-empty"); }
+        }
         document.getElementById("arr-note").textContent = "Typical time · no live traffic yet";
         const ride = document.getElementById("arr-ride");
         const preview = document.getElementById("g-preview");
@@ -283,7 +310,7 @@ try {
             <button type="button" class="pf-close" aria-label="Close">×</button>
           </header>
           <section class="pf-stats"><div><b>0</b><span>Drives</span></div>
-            <div><b>0</b><span>Miles</span></div><div><b>After a drive</b><span>Avg smooth</span></div></section>
+            <div><b>0</b><span>Miles</span></div><div><b class="is-empty">After a drive</b><span>Avg smooth</span></div></section>
           <section class="pf-section"><h3>Driver</h3><p class="pf-note">Name, tag and My car stay on this phone.</p></section>
         </div>`;
         document.body.appendChild(sheet);
@@ -306,7 +333,7 @@ try {
               <div><b>0</b><span><i class="dot warn"></i>Off-route</span></div>
               <div><b>0</b><span><i class="dot"></i>Miles</span></div></div></section>
             <section class="cmd-card"><header><h2 class="cmd-sub">Smooth score</h2></header>
-              <div class="cmd-big">After a drive</div>
+              <div class="cmd-big is-empty">After a drive</div>
               <div class="cmd-empty">No drives yet. Plan a route and tap Go with location on — only real GPS drives are saved.</div>
             </section>
           </div>`;
@@ -364,6 +391,50 @@ try {
     await page.setViewport({ width: w, height: h, deviceScaleFactor: 2, isMobile: w < 800, hasTouch: w < 800 });
     await seed(page);
     await screens(page, tag);
+    await page.close();
+  }
+
+  // iPhone SE-class: unsigned sign + long street + upcoming chip
+  {
+    const page = await browser.newPage();
+    await page.setViewport({ width: 375, height: 667, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+    await seed(page);
+    await page.goto(baseUrl, { waitUntil: "domcontentloaded", timeout: 30000 });
+    await ready(page);
+    await page.evaluate(() => {
+      document.querySelector(".login")?.remove();
+      document.body.dataset.mode = "drive";
+      const man = document.getElementById("maneuver");
+      if (man) {
+        man.hidden = false;
+        const md = document.getElementById("man-dist");
+        if (md) { md.textContent = "Next turn"; md.classList.add("is-empty"); }
+        const instr = document.getElementById("man-instr");
+        if (instr) instr.textContent = "Turn right onto Northwest 27th Avenue Extension";
+      }
+      const posted = document.getElementById("posted");
+      if (posted) { posted.hidden = false; posted.textContent = "25 in 350 ft"; }
+      const speedo = document.getElementById("speedo");
+      if (speedo) {
+        speedo.hidden = false;
+        document.getElementById("speed-n").textContent = "0";
+        document.getElementById("speed-src").textContent = "MPH";
+        const lim = document.getElementById("limit");
+        if (lim) {
+          lim.hidden = false;
+          lim.classList.add("unsigned");
+          document.getElementById("limit-n").textContent = "--";
+        }
+      }
+      const bar = document.getElementById("drive-bar");
+      if (bar) {
+        bar.hidden = false;
+        const de = document.getElementById("drive-eta");
+        if (de) { de.textContent = "After a plan"; de.classList.add("is-empty"); }
+      }
+    });
+    await new Promise((r) => setTimeout(r, 250));
+    await shot(page, "05c-drive-empty-375");
     await page.close();
   }
 

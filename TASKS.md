@@ -9,6 +9,7 @@ Work top-down. Check the box in the same PR.
 - [x] Phase 0–1: `docs/STRATEGY.md` (Magi pass + design recon)
 - [x] **Grim PR 1:** design system rebuild — one token file (`src/styles/tokens.css`), Night/Ember/Sand via `[data-look]`, stacked CSS layers deleted, teammate slots documented
 - [x] **Grim PR 2:** screen pass — review carousel, drive Report/speedo, report grid + subtypes, place card, fail sheets, arrival trip card, empty states
+- [x] **Grim PR 3:** polish — desktop drive top row + End vs map stack, `.is-empty` placeholders, Sand map/surfaces, unsigned `--` speed-limit sign
 - [ ] Phase 4/5: 3D living map — garage car on Explore, "Miami driven %" (on-device), Effort icons on the route
 - [ ] Presence design (friends' cars, opt-in) before any backend
 - [ ] Phase 3: `rankRoutes()` = least Effort within +10% of fastest (today it has no time bound)

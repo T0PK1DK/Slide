@@ -26,7 +26,7 @@ import { bubbleCandidates, mergeVariantTrips, pickFree, tollLabel, variantsFor }
 import { dropIndex, MAX_STOPS, moveItem, stopsReached } from "./plan/stops";
 import { classifyFailure, type FailWhat } from "./plan/failure";
 import { cardAriaLabel, routeCards } from "./plan/review-cards";
-import { EMPTY } from "./lib/empty";
+import { EMPTY, postedSignText, setMaybeEmpty } from "./lib/empty";
 import { splitPlaceLabel } from "./lib/place";
 import { mountVoiceMute } from "./hud/voice-mute";
 import { resetVoice, startVoice, stopVoice, tickVoice } from "./voice";
@@ -748,9 +748,9 @@ function arrive() {
   $("#arr-kicker").textContent = `ARRIVED · ${now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`;
   const destName = destLabel ? splitPlaceLabel(destLabel).name : EMPTY.dest;
   $("#arr-dest").textContent = destName;
-  $("#arr-time").textContent = startedAt ? formatDuration((now.getTime() - startedAt) / 1000) : EMPTY.driveTime;
-  $("#arr-dist").textContent = formatMiles(drivenMi);
-  $("#arr-line").textContent = route?.tags[0] ?? route?.label ?? EMPTY.line;
+  setMaybeEmpty($("#arr-time"), startedAt ? formatDuration((now.getTime() - startedAt) / 1000) : EMPTY.driveTime);
+  setMaybeEmpty($("#arr-dist"), formatMiles(drivenMi));
+  setMaybeEmpty($("#arr-line"), route?.tags[0] ?? route?.label ?? EMPTY.line);
   $("#arr-note").textContent = drivenMi >= 0.2 ? "Saved to Your trips on this phone." : "Short drive — not saved to Your trips.";
   $("#arr-ride").innerHTML = carSvg(garage.carColor, garage.glow);
   setHudMode("arrive");
@@ -1166,7 +1166,7 @@ function renderReview() {
   if (active && !track.dataset.swiping) {
     active.scrollIntoView({ inline: "center", block: "nearest", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
   }
-  $("#review-eta").textContent = formatDuration(sel.durationSec);
+  setMaybeEmpty($("#review-eta"), formatDuration(sel.durationSec));
   $("#review-dist").textContent = formatMiles(sel.distanceMi);
   $("#review-via").textContent = viaLine(sel.maneuvers);
   const shortWhy = sel.why.split(" · ")[0] || sel.label;
@@ -1239,7 +1239,10 @@ function renderStops() {
 function renderDash() {
   dashEl.removeAttribute("hidden");
   const sel = routes.find((r) => r.id === selectedId);
-  if (sel) { $("#stat-score").textContent = String(sel.slideScore); $("#stat-eta").textContent = arrivalClock(sel.durationSec); }
+  if (sel) {
+    setMaybeEmpty($("#stat-score"), String(sel.slideScore));
+    setMaybeEmpty($("#stat-eta"), arrivalClock(sel.durationSec));
+  }
   routesEl.innerHTML = routes.map((r) => {
     const on = r.id === selectedId ? " selected" : "";
     return `<button class="route-option${on}" data-id="${r.id}"><div class="row"><span class="tag">${r.label} · ${r.slideScore}</span><b>${formatDuration(r.durationSec)}</b></div><div class="why">${formatMiles(r.distanceMi)} · ${r.turns} turn${r.turns === 1 ? "" : "s"} · ${r.why}</div></button>`;
@@ -1441,7 +1444,7 @@ function updateDriveMeta(route: SlideRoute | undefined, mi: number) {
   if (hudMode !== "drive" || !route) return;
   const remainMi = Math.max(0, route.distanceMi - mi);
   const remainSec = route.durationSec * (remainMi / Math.max(route.distanceMi, 0.01));
-  $("#drive-eta").textContent = formatDuration(remainSec);
+  setMaybeEmpty($("#drive-eta"), formatDuration(remainSec));
   $("#drive-remain").textContent = `${formatMiles(remainMi)} · ${arrivalClock(remainSec)}`;
 }
 function setOffRoute(off: boolean) {
@@ -1455,6 +1458,7 @@ function renderGuidance(mi: number, mph: number) {
   if (!route || !steps.length) {
     maneuverEl.setAttribute("hidden", "");
     postedEl.setAttribute("hidden", "");
+    paintLimit(null, mph);
     renderLaneStrip(null);
     return;
   }
@@ -1462,7 +1466,7 @@ function renderGuidance(mi: number, mph: number) {
   if (move) {
     maneuverEl.removeAttribute("hidden");
     $("#man-arrow").setAttribute("d", maneuverArrow(move.type));
-    $("#man-dist").textContent = formatShortDistance(move.distanceMi);
+    setMaybeEmpty($("#man-dist"), formatShortDistance(move.distanceMi));
     $("#man-instr").textContent = move.instruction;
     $("#man-fill").style.width = `${Math.round(move.proximity * 100)}%`;
     maneuverEl.classList.toggle("imminent", move.distanceMi < 0.08);
@@ -1474,15 +1478,7 @@ function renderGuidance(mi: number, mph: number) {
   }
 
   const outlook = postedOutlook(route.bands, mi);
-  const limitEl = $("#limit");
-  if (outlook?.currentMph) {
-    limitEl.removeAttribute("hidden");
-    $("#limit-n").textContent = String(outlook.currentMph);
-    // Flag the driver only against the sign, never nudge them toward it.
-    limitEl.classList.toggle("over", mph > outlook.currentMph + 2);
-  } else {
-    limitEl.setAttribute("hidden", "");
-  }
+  paintLimit(outlook?.currentMph, mph);
 
   if (outlook && outlook.nextMph && outlook.changeInMi != null && outlook.changeInMi < 1.2) {
     postedEl.removeAttribute("hidden");
@@ -1492,6 +1488,22 @@ function renderGuidance(mi: number, mph: number) {
       : `${outlook.nextMph} in ${formatShortDistance(outlook.changeInMi)}`;
   } else {
     postedEl.setAttribute("hidden", "");
+  }
+}
+function paintLimit(postedMph: number | null | undefined, liveMph: number) {
+  const limitEl = $("#limit");
+  const n = $("#limit-n");
+  limitEl.removeAttribute("hidden");
+  n.textContent = postedSignText(postedMph);
+  if (postedMph) {
+    limitEl.classList.remove("unsigned");
+    // Flag the driver only against the sign, never nudge them toward it.
+    limitEl.classList.toggle("over", liveMph > postedMph + 2);
+    limitEl.setAttribute("aria-label", `Speed limit ${postedMph}`);
+  } else {
+    limitEl.classList.add("unsigned");
+    limitEl.classList.remove("over");
+    limitEl.setAttribute("aria-label", "No posted limit");
   }
 }
 function setStatus(text: string) { statusEl.textContent = text; statusEl.classList.toggle("show", Boolean(text)); }

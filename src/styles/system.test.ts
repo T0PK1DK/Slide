@@ -33,7 +33,16 @@ describe("design system metrics", () => {
       "var(--fs-3xl)",
       "var(--fs-hero)",
     ]);
-    expect(new Set(sizes)).toEqual(allowed);
+    const token = /var\(--fs-(?:2xs|xs|sm|md|lg|xl|2xl|3xl|hero)\)/g;
+    for (const size of sizes) {
+      if (size.startsWith("clamp(")) {
+        const used = size.match(token) ?? [];
+        expect(used.length, size).toBeGreaterThan(0);
+        expect(size.replace(token, "").replace(/clamp\(|\)|,|\s|[\d.]+vw/g, "")).toBe("");
+        continue;
+      }
+      expect(allowed.has(size), size).toBe(true);
+    }
   });
 
   it("uses only the 6 radius tokens", () => {

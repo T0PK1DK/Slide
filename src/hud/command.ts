@@ -134,7 +134,7 @@ function tileHtml(label: string, t: Tile, fmt: (n: number) => string, unit: stri
   const trend = d === null || Math.abs(d) < 0.05
     ? `<span class="cmd-tile-d flat">${d === null ? "no prior week" : "same as last week"}</span>`
     : `<span class="cmd-tile-d ${good ? "up" : "down"}">${d > 0 ? "+" : "−"}${fmt(Math.abs(d))} vs last week</span>`;
-  return `<div class="cmd-tile"><span class="cmd-tile-l">${label}</span><b>${t.value === null ? "Soon" : fmt(t.value)}<small>${t.value === null ? "" : unit}</small></b>${t.value === null ? `<span class="cmd-tile-d flat">Appears after your first week of drives</span>` : trend}</div>`;
+  return `<div class="cmd-tile"><span class="cmd-tile-l">${label}</span><b${t.value === null ? ` class="is-empty"` : ""}>${t.value === null ? "Soon" : fmt(t.value)}<small>${t.value === null ? "" : unit}</small></b>${t.value === null ? `<span class="cmd-tile-d flat">Appears after your first week of drives</span>` : trend}</div>`;
 }
 
 /** Seven-day sparkline (minutes driven per day), today last. */
@@ -190,14 +190,17 @@ export function mountCommand(h: CommandHooks): CommandView {
   const overlay = document.createElement("div");
   overlay.className = "cmd-overlay";
   overlay.innerHTML = `
-    <div class="cmd-seg" role="tablist" aria-label="Map view">
-      <button type="button" class="on" data-view="map" role="tab" aria-selected="true">Map</button>
-      <button type="button" data-view="3d" role="tab" aria-selected="false">3D</button>
-      <button type="button" data-view="sat" role="tab" aria-selected="false" aria-disabled="true" title="Satellite needs a licensed imagery source">Satellite</button>
-    </div>
-    <div class="cmd-clock">
-      <span class="cmd-wx" hidden><span class="cmd-wx-ico"></span><span><b class="cmd-temp"></b><small class="cmd-cond"></small></span></span>
-      <span><b class="cmd-time"></b><small class="cmd-date"></small></span>
+    <div class="cmd-toprow">
+      <div class="cmd-seg" role="tablist" aria-label="Map view">
+        <button type="button" class="on" data-view="map" role="tab" aria-selected="true">Map</button>
+        <button type="button" data-view="3d" role="tab" aria-selected="false">3D</button>
+        <button type="button" data-view="sat" role="tab" aria-selected="false" aria-disabled="true" title="Satellite needs a licensed imagery source">Satellite</button>
+      </div>
+      <div class="cmd-banner-slot"></div>
+      <div class="cmd-clock">
+        <span class="cmd-wx" hidden><span class="cmd-wx-ico"></span><span><b class="cmd-temp"></b><small class="cmd-cond"></small></span></span>
+        <span><b class="cmd-time"></b><small class="cmd-date"></small></span>
+      </div>
     </div>
     <div class="cmd-route-card" hidden></div>
     <div class="cmd-stack">
@@ -264,6 +267,23 @@ export function mountCommand(h: CommandHooks): CommandView {
   overlay.querySelector('[data-ctl="locate"]')!.addEventListener("click", h.onLocate);
   overlay.querySelector('[data-ctl="layers"]')!.addEventListener("click", h.onGarage);
 
+  const bannerSlot = overlay.querySelector<HTMLElement>(".cmd-banner-slot")!;
+  const parkDriveBanner = () => {
+    const el = document.getElementById("maneuver");
+    const home = document.getElementById("lane-strip");
+    if (!el) return;
+    const wide = window.matchMedia("(min-width: 1100px)").matches;
+    const drive = document.body.dataset.mode === "drive";
+    if (drive && wide) {
+      if (el.parentElement !== bannerSlot) bannerSlot.append(el);
+      return;
+    }
+    if (home && el.parentElement !== home.parentElement) home.before(el);
+  };
+  new MutationObserver(parkDriveBanner).observe(document.body, { attributes: true, attributeFilter: ["data-mode"] });
+  window.addEventListener("resize", parkDriveBanner);
+  parkDriveBanner();
+
   // --- clock + weather
   const tick = () => {
     const now = new Date();
@@ -322,7 +342,7 @@ export function mountCommand(h: CommandHooks): CommandView {
       </section>
       <section class="cmd-card">
         <header><h2 class="cmd-sub">Smooth score</h2>${delta !== null ? `<span class="cmd-delta ${delta >= 0 ? "up" : "down"}">${delta >= 0 ? "↑" : "↓"} ${Math.abs(delta).toFixed(1)}</span>` : ""}</header>
-        <div class="cmd-big">${o.smoothAvg !== null ? `${o.smoothAvg.toFixed(1)}<small>%</small>` : `After a drive`}</div>
+        <div class="cmd-big${o.smoothAvg !== null ? "" : " is-empty"}">${o.smoothAvg !== null ? `${o.smoothAvg.toFixed(1)}<small>%</small>` : `After a drive`}</div>
         ${trendSvg(o.trend)}
       </section>
       <section class="cmd-trips">
@@ -405,7 +425,7 @@ export function mountCommand(h: CommandHooks): CommandView {
         <header class="cmd-narrow"><div><h2>Route intelligence</h2><p class="cmd-dim">Scored from Valhalla routes and posted limits. No live traffic yet.</p></div></header>
         <div class="cmd-narrow cmd-intel">${verdict}${alt}</div>
         <article class="cmd-intel-card"><span class="cmd-ico">${ICON.bars}</span><div>
-          <em>Arrival accuracy</em><b>${onTime === null ? "After saved drives" : `${Math.round(onTime * 100)}%`}</b>
+          <em>Arrival accuracy</em><b${onTime === null ? ` class="is-empty"` : ""}>${onTime === null ? "After saved drives" : `${Math.round(onTime * 100)}%`}</b>
           <p>${onTime === null ? "Shows how close Slide's ETA is to your real arrival after you save drives." : "Drives that arrived within 2 min of the ETA."}</p>
           <div class="cmd-segbar" aria-hidden="true">${Array.from({ length: segs }, (_, i) => `<i${i < lit ? ' class="on"' : ""}></i>`).join("")}</div>
         </div></article>
