@@ -108,7 +108,11 @@ src/lib/incidents.test.ts tests for the FDOT + MDPD mappers (live-shaped fixture
 src/hud/radar.ts       mini radar, Report sheet, heads-up banner, Nearby list
 src/hud/social.ts      Profile → Friends & followers (sign in, handle, lists, search)
 functions/api/incidents.ts  Pages Function: FDOT DIVAS + Miami-Dade Police (keyless) + FL511 (if FL511_API_KEY) merged, per-source status
-functions/api/traffic/[[path]].ts  Pages Function: TomTom proxy (status, relative flow tiles, incidents, along-route). Secret TOMTOM_API_KEY
+functions/api/traffic/[[path]].ts  Pages Function: TomTom proxy (status, flow tiles, incidents, along-route, calculate-route). Secret TOMTOM_API_KEY
+src/lib/reroute.ts     in-drive faster-route decision (thresholds, cooldown, budget). Valhalla today; `RerouteEngine` for Nard's routing swap
+src/lib/reroute.test.ts  thresholds, cooldown, no-key, toggle off, call cap
+src/hud/reroute.ts     glanceable Take it / Keep card above the drive bar
+tools/shoot-reroute.mjs  mobile 390×844 prompt shots (Night / Ember / Sand); mocks only in this script
 functions/api/cameras.ts    Pages Function: OSM enforcement cameras via Overpass (24 h tile cache)
 functions/api/transit.ts    Pages Function: GTFS-realtime buses/trains from TRANSIT_FEEDS secret
 functions/api/geocode.ts    Pages Function: Photon → Nominatim → US Census for typed addresses
@@ -155,7 +159,7 @@ AGENTS.md / CLAUDE.md  short agent rules
 - Public Valhalla/Photon can rate-limit. Plan for self-host.
 - Phone demo is live on Cloudflare Pages: https://kings-slide.pages.dev (project `kings-slide`). Do not use slide.pages.dev — that hostname is an unrelated site.
 - Turn-by-turn is the next-maneuver banner plus a lane strip in `#lane-strip` when Valhalla sends `lanes` within 0.75 mi, plus spoken guidance (`speechSynthesis`). Grim's `#drive-mute` owns the button; speech listens for `slide:voice-mute` / `html[data-voice]` and mirrors `slide.voice.v1`. No full step list.
-- No leave-by target. Live traffic: FDOT / Miami-Dade / driver icons always (when the map has a centre). Green / yellow / red flow, route colour and live delay need the Pages secret `TOMTOM_API_KEY`. Off in Garage → Live traffic.
+- No leave-by target. Live traffic: FDOT / Miami-Dade / driver icons always (when the map has a centre). Green / yellow / red flow, route colour and live delay need the Pages secret `TOMTOM_API_KEY`. Off in Garage → Live traffic. In-drive faster-route prompts need the same key plus Garage → Reroute suggestions (on by default; ignored when Live traffic is off).
 - Native CarPlay requires an iOS app + Apple entitlement — Drive Mode is the phone-mounted stand-in.
 - Leave-by and "Your usual" aren't built yet. Avoid options and multi-stop are done.
 
@@ -341,6 +345,8 @@ Read `TASKS.md` top unchecked item. Do not rebase history. Do not rename the pro
 - 2026-10-04 Leon: **3D car models.** Branch `leon/car-models` on `leon/game-wire`. Replaced the box-and-stripes stage meshes with original lofted hulls in `src/lib/game/carMeshes.ts` (starter six + Nimbus + Glider, each a distinct silhouette). Liveries are materials (Solid / Stripes / Fade / Halo / Dusk). Soft studio lights + ground shadow. Still lazy `three`, no model files, no licensed brands, idle spin respects `prefers-reduced-motion`. No Grim layout CSS. Preview: `window.slidePreviewGame.ride(id, livery)`.
 - 2026-10-04 Leon: **Car-stage review fix (PR #37).** Removed the under-glow slab so stripes stay on body UVs only (`liveryU` is paint on the underside). Slipstream spoiler sits on the deck with body-colored struts. `deepenHull` + `hullLift` (rocker at `wheelR * 0.34`) tucks tires into side arches; wheels are tire + sidewall + rim dish. `frameCar` now fits the AABB to ~70% at a low 3/4 front (no longer uses length vs vertical FOV). Soft dual-blob contact shadow. `dataset.stageHold` still pauses spin for shots.
 
+- 2026-10-05 Cursor: **In-drive traffic reroute prompts.** While driving, Slide re-checks remaining delay every 150 s (and immediately on a new crash/closure within 150 m of the remaining line). Alternatives come from the current routing engine (Valhalla via `RerouteEngine`); live times come from `GET /api/traffic/route` (TomTom Calculate Route, `traffic=true`, `computeTravelTimeFor=all`, key stays in `TOMTOM_API_KEY`). Prompt only when both times are real and the alt saves ≥ max(3 min, 10% remaining). Card above the drive bar: `Faster route · saves 6 min · crash on I-95`, Take it / Keep, auto-dismiss 12 s keeps the line. Keep blacklists that fingerprint for the drive and starts a 5 min cooldown. Garage **Reroute suggestions** (default on) is ignored when Live traffic is off or `/api/traffic/status` is `configured:false`. Call budget: 1 route call per check, hard cap 40/hour (see PR). Preview line is Valhalla geometry with `© TomTom` on the card and the map source. Did not touch `#speedo` or `#maneuver`. Nard: swap `RerouteEngine.findAlternatives` when TomTom Routing lands; the proxy already accepts `from`, `to`, `alternatives=0..2`, and `points=` reconstruct. `weekBounds` calendar-day math from main is untouched.
+
 ## Teammate slots (stable IDs — do not rename)
 
 | Who | Slot | Selector | Where |
@@ -418,7 +424,7 @@ grant execute on function public.delete_my_account() to authenticated;
 2. **Cloudflare Pages `kings-slide`** (account `f52402ec…`). It is a **Direct Upload** project (no Git connection), so Cloudflare never builds the app: `VITE_` values are baked in on the machine that runs `npm run build`, and dashboard env vars never reach the bundle. Server keys are Pages **secrets** read by the Functions at runtime.
    - `VITE_SUPABASE_URL` is in the committed `.env.production` (public value).
    - `VITE_SUPABASE_ANON_KEY` (public by design, `role: anon`) is in `.env.production` too (2026-10-04). The same two values are also stored as Pages secrets for the record, but the bundle only gets them from `.env.production`.
-   - `TOMTOM_API_KEY` (secret, **optional**): free TomTom developer key. Turns on the flow layer, TomTom incident icons, route colour and live delay. Without it, FDOT / Miami-Dade / driver icons still show; the flow layer stays off.
+   - `TOMTOM_API_KEY` (secret, **optional**): free TomTom developer key. Turns on the flow layer, TomTom incident icons, route colour, live delay, and in-drive reroute prompts (`/api/traffic/route`). Without it, FDOT / Miami-Dade / driver icons still show; the flow layer and reroute prompts stay off.
    - `FL511_API_KEY` (secret, **optional** now that FDOT DIVAS + Miami-Dade Police feed `/api/incidents` without a key): a free key from fl511.com (Developers / API).
    - `TRANSIT_FEEDS` (secret): **set on 2026-10-04** for production and preview, with the three feeds that work without a key (see below).
    - Cameras need no key: they use the public Overpass API with OSM attribution.
