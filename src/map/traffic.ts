@@ -97,10 +97,17 @@ export function mountTraffic(h: TrafficHooks): TrafficView {
     el.querySelector(".ic-close")!.addEventListener("click", hideCard);
   };
 
-  const paint = flowPaint(h.look());
+  const flowColor = (p: ReturnType<typeof flowPaint>) => [
+    "interpolate", ["linear"], ["get", "traffic_level"],
+    0, p.heavy, 0.35, p.heavy, 0.55, p.slow, 0.78, p.free, 1, p.free,
+  ];
+  const routeColor = (p: ReturnType<typeof flowPaint>) => [
+    "match", ["get", "congestion"], "heavy", p.heavy, "slow", p.slow, p.free,
+  ];
 
   const addLayers = () => {
     whenStyle(map, () => {
+      const paint = flowPaint(h.look());
       if (!map.getSource("slide-traffic-flow") && configured && h.enabled()) {
         map.addSource("slide-traffic-flow", {
           type: "vector",
@@ -110,6 +117,19 @@ export function mountTraffic(h: TrafficHooks): TrafficView {
           attribution: "Traffic © TomTom",
         });
         const before = map.getLayer("route-glow") ? "route-glow" : undefined;
+        const flowCase = {
+          id: "slide-traffic-flow-case",
+          type: "line" as const,
+          source: "slide-traffic-flow",
+          "source-layer": FLOW_SOURCE_LAYER,
+          minzoom: 10,
+          layout: { "line-cap": "round" as const, "line-join": "round" as const },
+          paint: {
+            "line-color": paint.case,
+            "line-width": ["interpolate", ["linear"], ["zoom"], 10, 2.8, 14, 4.8, 16, 7],
+            "line-opacity": 0.78,
+          },
+        };
         const layer = {
           id: "slide-traffic-flow",
           type: "line" as const,
@@ -118,55 +138,67 @@ export function mountTraffic(h: TrafficHooks): TrafficView {
           minzoom: 10,
           layout: { "line-cap": "round" as const, "line-join": "round" as const },
           paint: {
-            "line-color": [
-              "interpolate", ["linear"], ["get", "traffic_level"],
-              0, paint.heavy,
-              0.35, paint.heavy,
-              0.55, paint.slow,
-              0.78, paint.free,
-              1, paint.free,
-            ],
+            "line-color": flowColor(paint),
             "line-width": ["interpolate", ["linear"], ["zoom"], 10, 1.6, 14, 3.2, 16, 5],
-            "line-opacity": 0.88,
+            "line-opacity": 0.94,
           },
         };
-        if (before) map.addLayer(layer as never, before);
-        else map.addLayer(layer as never);
+        if (before) {
+          map.addLayer(flowCase as never, before);
+          map.addLayer(layer as never, before);
+        } else {
+          map.addLayer(flowCase as never);
+          map.addLayer(layer as never);
+        }
       }
       if (!map.getSource("slide-traffic-route")) {
         map.addSource("slide-traffic-route", { type: "geojson", data: emptyFc() });
         const before = map.getLayer("route-core") ? "route-core" : map.getLayer("route-line") ? "route-line" : undefined;
+        const routeCase = {
+          id: "slide-traffic-route-case",
+          type: "line" as const,
+          source: "slide-traffic-route",
+          layout: { "line-cap": "round" as const, "line-join": "round" as const, "line-sort-key": 3 },
+          paint: {
+            "line-color": paint.case,
+            "line-width": ["interpolate", ["linear"], ["zoom"], 11, 4.6, 16, 8],
+            "line-opacity": 0.72,
+          },
+        };
         const routeLayer = {
           id: "slide-traffic-route",
           type: "line" as const,
           source: "slide-traffic-route",
           layout: { "line-cap": "round" as const, "line-join": "round" as const, "line-sort-key": 4 },
           paint: {
-            "line-color": [
-              "match", ["get", "congestion"],
-              "heavy", paint.heavy,
-              "slow", paint.slow,
-              paint.free,
-            ],
+            "line-color": routeColor(paint),
             "line-width": ["interpolate", ["linear"], ["zoom"], 11, 3.2, 16, 6],
             "line-opacity": 0.96,
           },
         };
-        if (before) map.addLayer(routeLayer as never, before);
-        else map.addLayer(routeLayer as never);
+        if (before) {
+          map.addLayer(routeCase as never, before);
+          map.addLayer(routeLayer as never, before);
+        } else {
+          map.addLayer(routeCase as never);
+          map.addLayer(routeLayer as never);
+        }
       }
       applyVisibility();
     });
   };
 
+  const setLayerVis = (id: string, vis: "visible" | "none") => {
+    if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", vis);
+  };
+
   const applyVisibility = () => {
-    const on = h.enabled() && configured;
-    if (map.getLayer("slide-traffic-flow")) {
-      map.setLayoutProperty("slide-traffic-flow", "visibility", on ? "visible" : "none");
-    }
-    if (map.getLayer("slide-traffic-route")) {
-      map.setLayoutProperty("slide-traffic-route", "visibility", h.enabled() ? "visible" : "none");
-    }
+    const flowOn = h.enabled() && configured ? "visible" : "none";
+    const routeOn = h.enabled() ? "visible" : "none";
+    setLayerVis("slide-traffic-flow-case", flowOn);
+    setLayerVis("slide-traffic-flow", flowOn);
+    setLayerVis("slide-traffic-route-case", routeOn);
+    setLayerVis("slide-traffic-route", routeOn);
     if (!h.enabled()) {
       clearMarkers();
       hideCard();
@@ -177,16 +209,17 @@ export function mountTraffic(h: TrafficHooks): TrafficView {
   const restyle = () => {
     const next = flowPaint(h.look());
     whenStyle(map, () => {
+      if (map.getLayer("slide-traffic-flow-case")) {
+        map.setPaintProperty("slide-traffic-flow-case", "line-color", next.case);
+      }
       if (map.getLayer("slide-traffic-flow")) {
-        map.setPaintProperty("slide-traffic-flow", "line-color", [
-          "interpolate", ["linear"], ["get", "traffic_level"],
-          0, next.heavy, 0.35, next.heavy, 0.55, next.slow, 0.78, next.free, 1, next.free,
-        ]);
+        map.setPaintProperty("slide-traffic-flow", "line-color", flowColor(next));
+      }
+      if (map.getLayer("slide-traffic-route-case")) {
+        map.setPaintProperty("slide-traffic-route-case", "line-color", next.case);
       }
       if (map.getLayer("slide-traffic-route")) {
-        map.setPaintProperty("slide-traffic-route", "line-color", [
-          "match", ["get", "congestion"], "heavy", next.heavy, "slow", next.slow, next.free,
-        ]);
+        map.setPaintProperty("slide-traffic-route", "line-color", routeColor(next));
       }
     });
   };

@@ -1739,17 +1739,15 @@ button.cmd-intel-card.on { border-color: var(--glass-border-strong); }
   height: 28px;
   padding: 0;
   border-radius: var(--radius-full);
-  border: 1px solid var(--line);
+  border: 1.5px solid currentColor;
   display: grid;
   place-items: center;
   color: var(--text);
-  background: var(--glass-2);
+  background: color-mix(in srgb, var(--surface) 82%, currentColor);
   box-shadow: var(--lift), 0 6px 14px -6px var(--ink-55);
-  backdrop-filter: blur(var(--blur-sm));
-  -webkit-backdrop-filter: blur(var(--blur-sm));
   cursor: pointer;
 }
-.inc-pin svg { display: block; }
+.inc-pin svg { display: block; filter: drop-shadow(0 1px 0 var(--bg-0)); }
 .inc-pin.crash { color: var(--kind-crash); }
 .inc-pin.roadwork { color: var(--kind-hazard); }
 .inc-pin.hazard { color: var(--kind-hazard); }
@@ -1787,9 +1785,10 @@ button.cmd-intel-card.on { border-color: var(--glass-border-strong); }
   width: 36px;
   height: 36px;
   border-radius: var(--radius-full);
+  border: 1.5px solid currentColor;
   display: grid;
   place-items: center;
-  background: var(--surface);
+  background: color-mix(in srgb, var(--surface) 82%, currentColor);
   color: var(--text);
 }
 .ic-pin.crash { color: var(--kind-crash); }

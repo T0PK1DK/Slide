@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { congestionOf, delaySecOf, firstCoord, fromTomTom, tomtomKind } from "./sources/tomtom";
 import {
   colorRoute,
+  flowPaint,
   incidentAhead,
   mergeMapIncidents,
   resetTomTomLog,
@@ -114,6 +115,23 @@ describe("traffic copy", () => {
       [item({ id: "1", kind: "crash" }), item({ id: "4", kind: "police", source: "driver" })],
     );
     expect(a.map((x) => x.id).sort()).toEqual(["1", "4"]);
+  });
+});
+
+describe("theme flow paint", () => {
+  it("keeps Ember slow off the rust road hue and Sand slow off pale gold", () => {
+    const night = flowPaint("night");
+    const ember = flowPaint("ember");
+    const sand = flowPaint("sand");
+    expect(ember.slow).toBe("#ffd24a");
+    expect(ember.slow).not.toBe("#ff9f43");
+    expect(ember.heavy).toBe("#ff5a62");
+    expect(sand.slow).toBe("#ff8c2a");
+    expect(sand.slow).not.toBe("#f0c14a");
+    expect(night.free).toBe("#5dd17e");
+    expect(new Set([night.free, night.slow, night.heavy]).size).toBe(3);
+    expect(new Set([ember.free, ember.slow, ember.heavy]).size).toBe(3);
+    expect(new Set([sand.free, sand.slow, sand.heavy]).size).toBe(3);
   });
 });
 

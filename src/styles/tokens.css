@@ -190,10 +190,11 @@
   --friend-fill: rgba(12, 14, 20, 0.92);
   --friend-area: rgba(91, 140, 255, 0.22);
 
-  /* Live traffic (map + route). Tuned to read on the night basemap. */
+  /* Live traffic (map + route). Night roads are gold (#c8914c motorway). */
   --flow-free: #5dd17e;
   --flow-slow: #f0a14a;
   --flow-heavy: #e5484d;
+  --flow-case: #05070a;
 
   --fill-03: rgba(255, 255, 255, 0.03);
   --fill-04: rgba(255, 255, 255, 0.04);
@@ -271,9 +272,17 @@
   --switch-track: #33271d;
   --friend-fill: rgba(20, 14, 10, 0.92);
 
-  --flow-free: #7fd67a;
-  --flow-slow: #ff9f43;
-  --flow-heavy: #f0544a;
+  /* Ember roads are rust / orange (#e2703c). Slow must not be that orange. */
+  --kind-crash: #ff6b6b;
+  --kind-hazard: #ffd36a;
+  --kind-jam: #ffe27a;
+  --kind-closure: #fff4ea;
+  --kind-police: #7eb0ff;
+
+  --flow-free: #6ee08a;
+  --flow-slow: #ffd24a;
+  --flow-heavy: #ff5a62;
+  --flow-case: #140806;
 }
 
 /* ---------- 4. SAND — Slide sandy night (not the kit's light Warm) ---------- */
@@ -336,7 +345,15 @@
   --switch-track: #332e24;
   --friend-fill: rgba(18, 16, 12, 0.92);
 
+  /* Sand motorways are pale gold (#dcc59a). Slow yellow would vanish. */
+  --kind-crash: #f25b5b;
+  --kind-hazard: #ff8f3a;
+  --kind-jam: #ffd24a;
+  --kind-closure: #fff8ec;
+  --kind-police: #6aa6f5;
+
   --flow-free: #5dd17e;
-  --flow-slow: #f0c14a;
+  --flow-slow: #ff8c2a;
   --flow-heavy: #e5484d;
+  --flow-case: #100e0a;
 }

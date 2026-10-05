@@ -300,14 +300,16 @@ export async function localIncidents(lat: number, lon: number, km = 18): Promise
   return mergeMapIncidents(official, drivers);
 }
 
-const FLOW_FALLBACK: Record<Look, { free: string; slow: string; heavy: string }> = {
-  night: { free: "#5dd17e", slow: "#f0a14a", heavy: "#e5484d" },
-  ember: { free: "#7fd67a", slow: "#ff9f43", heavy: "#f0544a" },
-  sand: { free: "#5dd17e", slow: "#f0a14a", heavy: "#e5484d" },
+export type FlowPaint = { free: string; slow: string; heavy: string; case: string };
+
+const FLOW_FALLBACK: Record<Look, FlowPaint> = {
+  night: { free: "#5dd17e", slow: "#f0a14a", heavy: "#e5484d", case: "#05070a" },
+  ember: { free: "#6ee08a", slow: "#ffd24a", heavy: "#ff5a62", case: "#140806" },
+  sand: { free: "#5dd17e", slow: "#ff8c2a", heavy: "#e5484d", case: "#100e0a" },
 };
 
-/** Theme-aware G/Y/R from tokens (--flow-free / --flow-slow / --flow-heavy). */
-export function flowPaint(look: Look): { free: string; slow: string; heavy: string } {
+/** Theme-aware G/Y/R + dark case from tokens. Ember/Sand avoid the road hue. */
+export function flowPaint(look: Look): FlowPaint {
   const fb = FLOW_FALLBACK[look] ?? FLOW_FALLBACK.night;
   if (typeof document === "undefined") return fb;
   const css = getComputedStyle(document.documentElement);
@@ -316,6 +318,7 @@ export function flowPaint(look: Look): { free: string; slow: string; heavy: stri
     free: read("--flow-free", fb.free),
     slow: read("--flow-slow", fb.slow),
     heavy: read("--flow-heavy", fb.heavy),
+    case: read("--flow-case", fb.case),
   };
 }
 
