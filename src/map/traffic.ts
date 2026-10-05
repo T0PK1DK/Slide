@@ -50,6 +50,7 @@ export type TrafficView = {
   setEnabled(on: boolean): void;
   restyle(): void;
   items(): RadarItem[];
+  configured(): boolean;
 };
 
 const emptyFc = (): FeatureCollection => ({ type: "FeatureCollection", features: [] });
@@ -353,5 +354,6 @@ export function mountTraffic(h: TrafficHooks): TrafficView {
     },
     restyle,
     items: () => items,
+    configured: () => configured,
   };
 }

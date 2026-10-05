@@ -55,6 +55,8 @@ import { mountRadar } from "./hud/radar";
 import { mountLeaveBy } from "./hud/leaveby";
 import { mountFriends } from "./map/friends";
 import { mountTraffic } from "./map/traffic";
+import { altsFromRanked, mountReroute } from "./hud/reroute";
+import { routeFingerprint } from "./lib/reroute";
 import type { Alert } from "./lib/alerts";
 import { sampleRoute, type TrafficSummary } from "./lib/traffic";
 import { fetchTrafficRoute } from "./lib/tomtom-route";
@@ -456,6 +458,54 @@ const traffic = mountTraffic({
 });
 // Any committed ETA change repaints every non-drive surface; drive reads the brain each frame.
 brain.subscribe(() => paintEta());
+const rerouteWatch = mountReroute({
+  map,
+  getDrive: () => {
+    if (hudMode !== "drive" || !dest || !liveFix) return null;
+    if (!selectedCoords.length) return null;
+    const snap = brain.snapshot();
+    if (!snap.routeKey || snap.routeKey !== selectedKey) return null;
+    const remainingSec = snap.remainingSec;
+    const currentLiveSec = snap.live && snap.remainingSec > 0 ? snap.remainingSec : null;
+    return {
+      now: Date.now(),
+      flags: {
+        configured: traffic.configured(),
+        showTraffic: garage.showTraffic,
+        suggestReroute: garage.suggestReroute,
+      },
+      remainingSec,
+      currentLiveSec,
+      currentCoords: selectedCoords,
+      alongMi: progressMi,
+      items: traffic.items(),
+      from: liveFix.pos,
+      dest,
+    };
+  },
+  findAlternatives: async (from) => {
+    if (!dest) return [];
+    const ranked = await fetchRanked(from, dest);
+    return altsFromRanked(ranked, routeFingerprint(selectedCoords));
+  },
+  applyRoute: (route) => {
+    if (hudMode !== "drive") return;
+    if (!routes.some((r) => r.id === route.id)) routes = [route, ...routes];
+    selectedId = route.id;
+    if (liveFix) {
+      origin = liveFix.pos;
+      originLabel = "Current location";
+    }
+    loadDriveRoute();
+    resetVoice();
+    startVoice();
+    paintRoutes();
+    renderDash();
+    spawnGhosts();
+    setStatus("New Slide line");
+    window.setTimeout(() => { if (statusEl.textContent === "New Slide line") setStatus(""); }, 2500);
+  },
+});
 function applyTrafficHud(s: TrafficSummary) {
   lastTraffic = s;
   const note = $("#review-eta-note");
@@ -472,7 +522,10 @@ function applyTrafficHud(s: TrafficSummary) {
     incidents: traffic.items().slice(0, 4).map(incidentAlert),
   });
   paintEta();
-  if (hudMode === "drive" && sel) updateDriveMeta(sel, progressMi);
+  if (hudMode === "drive" && sel) {
+    updateDriveMeta(sel, progressMi);
+    rerouteWatch.tick();
+  }
 }
 /** Paint the brain's ETA on the review sheet, selected card + map chip, dash and trip sheet. */
 function paintEta() {
@@ -800,10 +853,16 @@ function wireGarage() {
   const cam = $("#g-cam") as HTMLSelectElement;
   const build = $("#g-build") as HTMLInputElement;
   const trafficBox = $("#g-traffic") as HTMLInputElement;
+  const rerouteBox = $("#g-reroute") as HTMLInputElement;
   const ghostsBox = $("#g-ghosts") as HTMLInputElement;
   const share = $("#g-share") as HTMLInputElement;
   tag.value = garage.tag; trail.value = garage.trail; cam.value = garage.camera;
-  build.checked = garage.showBuildings; trafficBox.checked = garage.showTraffic; ghostsBox.checked = garage.showGhosts; share.checked = garage.shareGhost;
+  build.checked = garage.showBuildings; trafficBox.checked = garage.showTraffic; rerouteBox.checked = garage.suggestReroute; ghostsBox.checked = garage.showGhosts; share.checked = garage.shareGhost;
+  const syncRerouteToggle = () => {
+    rerouteBox.disabled = !trafficBox.checked;
+    $("#g-reroute-row").classList.toggle("is-disabled", !trafficBox.checked);
+  };
+  syncRerouteToggle();
   paintSwatches($("#g-body"), PAINTS, garage.carColor, (c) => { garage.carColor = c; persist(); restylePlayer(); });
   paintSwatches($("#g-glow"), ["#f0a04b","#78e0c8","#b388ff","#8fd3ff","#d6ff3c","#ff4d6d"], garage.glow, (c) => { garage.glow = c; persist(); restylePlayer(); });
   paintShowroom();
@@ -811,7 +870,18 @@ function wireGarage() {
   trail.addEventListener("change", () => { garage.trail = trail.value as GarageConfig["trail"]; persist(); paintRoutes(); });
   cam.addEventListener("change", () => { garage.camera = cam.value as GarageConfig["camera"]; persist(); applyCamera(garage.camera); });
   build.addEventListener("change", () => { garage.showBuildings = build.checked; persist(); toggleBuildings(build.checked); });
-  trafficBox.addEventListener("change", () => { garage.showTraffic = trafficBox.checked; persist(); traffic.setEnabled(trafficBox.checked); });
+  trafficBox.addEventListener("change", () => {
+    garage.showTraffic = trafficBox.checked;
+    persist();
+    traffic.setEnabled(trafficBox.checked);
+    syncRerouteToggle();
+    if (!trafficBox.checked) rerouteWatch.hide("off");
+  });
+  rerouteBox.addEventListener("change", () => {
+    garage.suggestReroute = rerouteBox.checked;
+    persist();
+    if (!rerouteBox.checked) rerouteWatch.hide("off");
+  });
   ghostsBox.addEventListener("change", () => { garage.showGhosts = ghostsBox.checked; persist(); setGhostVisibility(garage.showGhosts); });
   share.addEventListener("change", () => { garage.shareGhost = share.checked; persist(); });
   bindBoardToggle(board);
@@ -874,6 +944,7 @@ function startDrive() {
   renderSpeedRail();
   bootDrive();
   startVoice();
+  rerouteWatch.reset();
   setHudMode("drive");
   startLocation({ center: false });
   if (!liveFix) setStatus("Waiting for GPS…");
@@ -894,6 +965,7 @@ function stopDriveLoop() {
 }
 function endDrive() {
   stopVoice();
+  rerouteWatch.reset();
   saveDriveToHistory();
   stopDriveLoop();
   followCamera = true;
@@ -911,6 +983,7 @@ function endDrive() {
 /** Within ~40 m of the destination: stop live guidance and show the Arrival screen (DESIGN.md 07). */
 function arrive() {
   stopVoice();
+  rerouteWatch.reset();
   const route = routes.find((r) => r.id === selectedId);
   const startedAt = driveLog.startedAt;
   const drivenMi = driveLog.drivenMi;
