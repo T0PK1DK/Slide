@@ -183,7 +183,12 @@
   --kind-hazard: #f0a14a;
   --kind-closure: #f4f3ef;
   --kind-jam: #f5c14a;
+  --kind-construction: #f0a14a;
   --kind-camera: #c084fc;
+  --traffic-free: #3dcc6e;
+  --traffic-slow: #f5c14a;
+  --traffic-heavy: #e5484d;
+  --traffic-standstill: #7a1224;
   --kind-bus: #38bdf8;
   --kind-rail: #2dd4bf;
   --kind-friend: #5b8cff;

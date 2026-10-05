@@ -42,6 +42,8 @@ export type GarageConfig = {
   avoid: AvoidOptions;
   /** Friends on the map: share my rough (~1 km) location with mutual friends. Off by default. */
   shareWithFriends: boolean;
+  /** TomTom flow overlay + route colouring. On by default; incidents still show when this is off. */
+  showTraffic: boolean;
 };
 
 const KEY = "slide.garage.v1";
@@ -72,6 +74,7 @@ export const DEFAULT_GARAGE: GarageConfig = {
   work: null,
   avoid: { tolls: false, highways: false, ferries: false },
   shareWithFriends: false,
+  showTraffic: true,
 };
 
 const CAMERAS: readonly CameraMode[] = ["cinematic", "chase", "top"];
@@ -115,7 +118,7 @@ export function migrateGarage(saved: unknown): GarageConfig {
   const skin = saved.mapSkin === "waze" ? "slide" : saved.mapSkin;
   if (typeof skin === "string" && skin in MAP_STYLES) out.mapSkin = skin as MapSkin;
   if (typeof saved.look === "string" && (LOOKS as readonly string[]).includes(saved.look)) out.look = saved.look as Look;
-  for (const k of ["showGhosts", "showBuildings", "shareGhost", "coachDismissed", "shareWithFriends"] as const) {
+  for (const k of ["showGhosts", "showBuildings", "shareGhost", "coachDismissed", "shareWithFriends", "showTraffic"] as const) {
     if (typeof saved[k] === "boolean") out[k] = saved[k] as boolean;
   }
   if (Array.isArray(saved.recents)) {

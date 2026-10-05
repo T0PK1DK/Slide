@@ -71,6 +71,7 @@ import {
   type TrackerHandle,
 } from "./lib/tracking";
 import { mountLaneStrip, renderLaneStrip } from "./lanes";
+import { mountTraffic } from "./map/traffic";
 
 const MIAMI: LonLat = { lon: -80.1918, lat: 25.7617 };
 
@@ -96,6 +97,22 @@ const map = new maplibregl.Map({
 const PAINTS = ["#e8eef2", "#111318", "#d7263d", "#ff8a4c", "#f6c945", "#3ddc84", "#2f7cff", "#b388ff", "#7cf0d8", "#8fd3ff"];
 const you = createYouMarker(map);
 you.setCar(carSvg(garage.carColor, garage.glow));
+const driveTrafficEl = $("#drive-traffic");
+const reviewNoteEl = $("#review-eta-note");
+const traffic = mountTraffic(map, {
+  showLayer: () => garage.showTraffic,
+  onDelay: (label, note) => {
+    if (label) {
+      driveTrafficEl.textContent = label;
+      driveTrafficEl.removeAttribute("hidden");
+    } else {
+      driveTrafficEl.textContent = "";
+      driveTrafficEl.setAttribute("hidden", "");
+    }
+    if (reviewNoteEl) reviewNoteEl.textContent = note;
+  },
+});
+traffic.setCenter(MIAMI.lat, MIAMI.lon);
 /** Recorded into on-device history only when the drive ran on live GPS (never a false start). */
 type DriveLog = { startedAt: number; live: boolean; offRouteEvents: number; wasOff: boolean; drivenMi: number; lastPos: LonLat | null };
 const freshLog = (): DriveLog => ({ startedAt: 0, live: false, offRouteEvents: 0, wasOff: false, drivenMi: 0, lastPos: null });
@@ -166,6 +183,7 @@ map.on("load", () => {
   liftNightBasemap(map, garage.look);
   ensure3DBuildings();
   addRouteLayers();
+  traffic.attach();
   if (hudMode === "drive") applyCamera(garage.camera);
   else applyPlanView();
   styleQueue.splice(0).forEach((fn) => fn());
@@ -629,10 +647,11 @@ function wireGarage() {
   look.addEventListener("change", () => setLook(look.value as Look));
   const cam = $("#g-cam") as HTMLSelectElement;
   const build = $("#g-build") as HTMLInputElement;
+  const trafficBox = $("#g-traffic") as HTMLInputElement;
   const ghostsBox = $("#g-ghosts") as HTMLInputElement;
   const share = $("#g-share") as HTMLInputElement;
   tag.value = garage.tag; trail.value = garage.trail; cam.value = garage.camera;
-  build.checked = garage.showBuildings; ghostsBox.checked = garage.showGhosts; share.checked = garage.shareGhost;
+  build.checked = garage.showBuildings; trafficBox.checked = garage.showTraffic; ghostsBox.checked = garage.showGhosts; share.checked = garage.shareGhost;
   paintSwatches($("#g-body"), PAINTS, garage.carColor, (c) => { garage.carColor = c; persist(); restylePlayer(); });
   paintSwatches($("#g-glow"), ["#f0a04b","#78e0c8","#b388ff","#8fd3ff","#d6ff3c","#ff4d6d"], garage.glow, (c) => { garage.glow = c; persist(); restylePlayer(); });
   paintShowroom();
@@ -640,6 +659,7 @@ function wireGarage() {
   trail.addEventListener("change", () => { garage.trail = trail.value as GarageConfig["trail"]; persist(); paintRoutes(); });
   cam.addEventListener("change", () => { garage.camera = cam.value as GarageConfig["camera"]; persist(); applyCamera(garage.camera); });
   build.addEventListener("change", () => { garage.showBuildings = build.checked; persist(); toggleBuildings(build.checked); });
+  trafficBox.addEventListener("change", () => { garage.showTraffic = trafficBox.checked; persist(); traffic.setEnabled(trafficBox.checked); });
   ghostsBox.addEventListener("change", () => { garage.showGhosts = ghostsBox.checked; persist(); setGhostVisibility(garage.showGhosts); });
   share.addEventListener("change", () => { garage.shareGhost = share.checked; persist(); });
 }
@@ -764,6 +784,7 @@ function finishArrival() {
   dest = null;
   destLabel = "";
   toInput.value = "";
+  traffic.setRoute(null);
   paintRoutes();
   dashEl.setAttribute("hidden", "");
   setHudMode("plan");
@@ -915,6 +936,7 @@ function startLocation(opts: { center: boolean }) {
       liveFix = fix;
       lastProblem = null;
       you.update(fix);
+      traffic.setCenter(fix.pos.lat, fix.pos.lon);
       if (!originPicked) { origin = fix.pos; fromInput.value = document.activeElement === fromInput ? fromInput.value : "Current location"; }
       if (!$("#loc-banner").hasAttribute("hidden") && hudMode === "drive") hideLocationProblem();
       fixWaiters.splice(0).forEach((w) => w.resolve(fix));
@@ -1096,6 +1118,7 @@ function paintRoutes() {
       geometry: { type: "LineString" as const, coordinates: decodePolyline6(r.trip.legs.map((l) => l.shape).join("")) },
     }));
     (map.getSource("routes") as maplibregl.GeoJSONSource)?.setData({ type: "FeatureCollection", features });
+    traffic.setRoute(selectedCoords.length >= 2 ? selectedCoords : null);
     if (map.getLayer("route-glow")) map.setPaintProperty("route-glow", "line-color", TRAILS[garage.trail].line);
     const next = routeLayerPaints(TRAILS[garage.trail].line);
     if (map.getLayer("route-line")) map.setPaintProperty("route-line", "line-color", next.line["line-color"] as never);

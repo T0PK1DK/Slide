@@ -828,6 +828,15 @@ button.ghost.on { color: var(--glow); }
 .drive-bar .meta { min-width: 0; flex: 1; }
 .drive-bar .meta b { display: block; font-size: var(--fs-3xl); line-height: 1; }
 .drive-bar .meta span { font-size: var(--fs-md); color: var(--muted); }
+#drive-traffic {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  color: var(--amber);
+  letter-spacing: var(--tracking-normal);
+}
+#drive-traffic[hidden] { display: none; }
 .drive-bar .end {
   background: var(--end-fill);
   color: var(--danger-text);
@@ -1650,7 +1659,8 @@ button.cmd-intel-card.on { border-color: var(--glass-border-strong); }
 .radar .blip.rail { color: var(--kind-rail); }
 .radar .blip.fl511,
 .radar .blip.fdot,
-.radar .blip.mdpd { filter: drop-shadow(0 0 2px var(--you-core)); }
+.radar .blip.mdpd,
+.radar .blip.tomtom { filter: drop-shadow(0 0 2px var(--you-core)); }
 .radar-count {
   position: absolute;
   left: 50%;
@@ -2020,6 +2030,52 @@ body[data-mode="drive"] .friend-spot { display: none; }
   pointer-events: auto;
 }
 
+.inc-pin {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 6px var(--ink-55));
+}
+.inc-mark {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  color: var(--text);
+  background: var(--glass-2);
+  border: 1px solid var(--line);
+}
+.inc-mark.crash { color: var(--kind-crash); }
+.inc-mark.closure { color: var(--kind-closure); }
+.inc-mark.construction { color: var(--kind-construction); }
+.inc-mark.hazard { color: var(--kind-hazard); }
+.inc-mark.jam { color: var(--kind-jam); }
+.inc-mark.police { color: var(--kind-police); }
+
+.incident-card {
+  position: absolute;
+  left: var(--gutter);
+  right: var(--gutter);
+  bottom: calc(108px + env(safe-area-inset-bottom));
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border-radius: var(--radius-lg);
+  max-width: 360px;
+}
+.incident-card[hidden] { display: none; }
+.incident-card .inc-ico { flex: 0 0 auto; }
+.incident-card .inc-text { min-width: 0; flex: 1; }
+.incident-card .inc-text b { display: block; font-size: var(--fs-lg); font-weight: var(--fw-semibold); }
+.incident-card .inc-text span { display: block; font-size: var(--fs-sm); color: var(--muted); }
+.incident-card .loc-close { position: absolute; top: 6px; right: 6px; }
+
 /* =====================================================================
    SCREENS — plan / drive / review / arrive / command / phone
    ===================================================================== */
@@ -2053,6 +2109,7 @@ body[data-mode="drive"] .recenter {
 }
 body[data-mode="drive"] .radar { top: calc(196px + env(safe-area-inset-top)); }
 body[data-mode="drive"] .radar-banner { top: calc(112px + env(safe-area-inset-top)); }
+body[data-mode="drive"] .incident-card { bottom: calc(108px + env(safe-area-inset-bottom)); }
 
 @media (max-width: 820px) {
   .search-card,

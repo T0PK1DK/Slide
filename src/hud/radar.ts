@@ -4,6 +4,7 @@ import {
   ago,
   nextAlert,
   officialIncidents,
+  tomtomIncidents,
   radarBlips,
   REPORT_KINDS,
   reportsNear,
@@ -18,6 +19,7 @@ import {
 } from "../lib/reports";
 import { currentUserId } from "../lib/social";
 import { REPORT_SUBTYPES, reportKindIcon } from "./report-ui";
+import { dedupeIncidents } from "../lib/sources/tomtom";
 
 /**
  * The game-style mini radar: heading-up, range rings, a sweep, and a blip for
@@ -97,13 +99,14 @@ export function mountRadar(h: RadarHooks): RadarView {
     polling = true;
     lastPollAt = Date.now();
     lastPollPos = fix.pos;
-    const [drivers, official, cameras, transit] = await Promise.all([
+    const [drivers, official, tomtom, cameras, transit] = await Promise.all([
       reportsNear(fix.pos.lat, fix.pos.lon).catch(() => [] as RadarItem[]),
       officialIncidents(fix.pos.lat, fix.pos.lon),
+      tomtomIncidents(fix.pos.lat, fix.pos.lon),
       enforcementCameras(fix.pos.lat, fix.pos.lon),
       transitVehicles(fix.pos.lat, fix.pos.lon),
     ]);
-    items = [...drivers, ...official, ...cameras, ...transit];
+    items = [...dedupeIncidents([...drivers, ...official, ...tomtom]), ...cameras, ...transit];
     polling = false;
     draw();
   };
@@ -143,7 +146,7 @@ export function mountRadar(h: RadarHooks): RadarView {
       : `<li class="rs-empty">${fix ? "Nothing reported within 1.5 mi." : "Turn on location to see what's around you."}</li>`;
     sheet.innerHTML = `<div class="rs-card">
       <header><h2>Radar</h2><button type="button" class="rs-close" aria-label="Close">×</button></header>
-      <p class="rs-src">Driver reports${cloudConfigured() ? "" : " (accounts not set up on this build)"} · official incidents from FDOT and Miami-Dade Police (FL511 when keyed) · cameras mapped in OpenStreetMap (may be incomplete) · live buses and trains where agencies publish them. Slide never tracks police vehicles; police items are reports from other drivers.</p>
+      <p class="rs-src">Driver reports${cloudConfigured() ? "" : " (accounts not set up on this build)"} · official incidents from FDOT and Miami-Dade Police (FL511 when keyed) · TomTom when keyed · cameras mapped in OpenStreetMap (may be incomplete) · live buses and trains where agencies publish them. Slide never tracks police vehicles; police items are reports from other drivers.</p>
       <ul class="rs-list">${rows}</ul>
       <p class="rs-msg" role="status"></p>
     </div>`;

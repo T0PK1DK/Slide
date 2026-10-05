@@ -90,10 +90,20 @@ src/lib/reports.ts     radar items, heading-up geometry, alerts, report/vote RPC
 src/lib/sources/fl511.ts  FL511 event → radar item (pure, tested)
 src/lib/sources/fdot.ts   FDOT DIVAS event → radar item, South Florida query URL (pure, tested)
 src/lib/sources/mdpd.ts   Miami-Dade Police traffic call → radar item, Miami local time → UTC (pure, tested)
+src/lib/sources/tomtom.ts  TomTom Incident Details + flow-segment mappers, congestion, dedupe (pure, tested)
+src/lib/traffic.ts     client traffic status / route delay / map-incident merge
+src/lib/traffic.test.ts  TomTom fixtures, delay copy, garage showTraffic, dedupe
+src/map/traffic.ts     flow raster overlay, incident markers, small tap card, route colouring
+src/map/incident-icons.ts  original crash / closure / construction / hazard / jam / police glyphs
 src/lib/incidents.test.ts tests for the FDOT + MDPD mappers (live-shaped fixtures)
 src/hud/radar.ts       mini radar, Report sheet, heads-up banner, Nearby list
 src/hud/social.ts      Profile → Friends & followers (sign in, handle, lists, search)
 functions/api/incidents.ts  Pages Function: FDOT DIVAS + Miami-Dade Police (keyless) + FL511 (if FL511_API_KEY) merged, per-source status
+functions/api/traffic/status.ts     Pages Function: { configured } from TOMTOM_API_KEY (key never leaves the Worker)
+functions/api/traffic/incidents.ts  Pages Function: TomTom Incident Details proxy + 60 s cache
+functions/api/traffic/route.ts      Pages Function: Flow Segment Data along a line (≤10 points, 90 s cache)
+functions/api/traffic/flow/[[path]].ts  Pages Function: relative raster flow tiles (90 s cache; 204 if no key)
+functions/lib/cache.ts  shared edge cache helper for Functions
 functions/api/cameras.ts    Pages Function: OSM enforcement cameras via Overpass (24 h tile cache)
 functions/api/transit.ts    Pages Function: GTFS-realtime buses/trains from TRANSIT_FEEDS secret
 src/lib/sources/gtfsrt.ts   dependency-free GTFS-realtime VehiclePositions decoder (tested)
@@ -134,7 +144,7 @@ AGENTS.md / CLAUDE.md  short agent rules
 - Public Valhalla/Photon can rate-limit. Plan for self-host.
 - Phone demo is live on Cloudflare Pages: https://kings-slide.pages.dev (project `kings-slide`). Do not use slide.pages.dev — that hostname is an unrelated site.
 - Turn-by-turn is the next-maneuver banner plus a lane strip in `#lane-strip` when Valhalla sends `lanes` within 0.75 mi, plus spoken guidance (`speechSynthesis`). Grim's `#drive-mute` owns the button; speech listens for `slide:voice-mute` / `html[data-voice]` and mirrors `slide.voice.v1`. No full step list.
-- No leave-by target. No live traffic: that waits on the traffic provider decision.
+- No leave-by target. Live traffic overlay is in: TomTom flow tiles + incident icons when `TOMTOM_API_KEY` is set; FDOT / Miami-Dade / driver reports still show without it. Valhalla ETAs stay typical-time; the drive chip shows delay versus free-flow from real samples only.
 - Native CarPlay requires an iOS app + Apple entitlement — Drive Mode is the phone-mounted stand-in.
 - Leave-by and "Your usual" aren't built yet. Avoid options and multi-stop are done.
 
@@ -304,6 +314,8 @@ Read `TASKS.md` top unchecked item. Do not rebase history. Do not rename the pro
 - 2026-10-04 Nard: **Lane strip on Grim's #35 drive layout.** Based on `grim/screen-pass-c69a`. `#lane-strip` unhides only with real Valhalla `lanes` within 0.75 mi. Child arrows use existing tokens (`--glow`, `--fill-07`, `--fs-xl`, `--radius-md`) in the one stylesheet — no override layer. Drive chrome stays #35: speedo bottom-left, Report bottom-right.
 - 2026-10-04 Nard: **Speech hooks Grim's #35 mute, does not own the button.** Based on `grim/screen-pass-c69a`. `listenVoiceMute` follows `slide:voice-mute` `{ muted }` and `html[data-voice]`, cancels speech when muted, and writes `slide.voice.v1` to match. No `mountMuteToggle`, no second button, no click handler on `#drive-mute`. `startVoice` on Go now re-reads the attribute.
 
+- 2026-10-05 Cursor: **Live traffic layer + incident icons.** TomTom Traffic is proxied through Pages Functions (`/api/traffic/status`, `/flow/{z}/{x}/{y}`, `/incidents`, `/route`) using the Worker secret `TOMTOM_API_KEY` — the key never ships to the browser. Raster `relative` flow tiles colour roads green / yellow / red / dark red. Incident icons (original glyphs) merge TomTom Incident Details with FDOT, Miami-Dade and driver reports, then dedupe the same kind within ~160 m. Tap shows a small card (type, road, delay if known, when reported). Drive bar shows `+N min traffic` versus free-flow from real flow-segment samples and colours the selected line by congestion when samples exist. Tune → **Live traffic** (garage `showTraffic`, on by default). No key → no TomTom layer and no invented delay; FDOT / MDPD / user reports still show. Search and the speed-limit sign were not touched. No scoring-contract change: Valhalla typical time stays the ETA; live delay is an extra chip.
+
 ## Teammate slots (stable IDs — do not rename)
 
 | Who | Slot | Selector | Where |
@@ -360,6 +372,7 @@ grant execute on function public.delete_my_account() to authenticated;
 2. **Cloudflare Pages `kings-slide`** (account `f52402ec…`). It is a **Direct Upload** project (no Git connection), so Cloudflare never builds the app: `VITE_` values are baked in on the machine that runs `npm run build`, and dashboard env vars never reach the bundle. Server keys are Pages **secrets** read by the Functions at runtime.
    - `VITE_SUPABASE_URL` is in the committed `.env.production` (public value).
    - `VITE_SUPABASE_ANON_KEY` (public by design, `role: anon`) is in `.env.production` too (2026-10-04). The same two values are also stored as Pages secrets for the record, but the bundle only gets them from `.env.production`.
+   - `TOMTOM_API_KEY` (secret, **optional**): TomTom Traffic API key. When set, `/api/traffic/*` proxies flow tiles, Incident Details, and flow-segment samples. When missing, the flow layer and TomTom incidents stay hidden; FDOT, Miami-Dade and driver reports still show. Never a `VITE_` variable.
    - `FL511_API_KEY` (secret, **optional** now that FDOT DIVAS + Miami-Dade Police feed `/api/incidents` without a key): a free key from fl511.com (Developers / API).
    - `TRANSIT_FEEDS` (secret): **set on 2026-10-04** for production and preview, with the three feeds that work without a key (see below).
    - Cameras need no key: they use the public Overpass API with OSM attribution.
@@ -368,6 +381,7 @@ grant execute on function public.delete_my_account() to authenticated;
      ```bash
      export CLOUDFLARE_ACCOUNT_ID=f52402ec949a9f17b451e9ec801a9c68
      # FL511 key → production secret (repeat with --env preview for preview deploys)
+     printf %s "$TOMTOM_KEY" | npx wrangler pages secret put TOMTOM_API_KEY --project-name kings-slide
      printf %s "$FL511_KEY" | npx wrangler pages secret put FL511_API_KEY --project-name kings-slide
      # Build (reads .env.production) and deploy production
      npm run build && npx wrangler pages deploy dist --project-name kings-slide --branch main
@@ -448,7 +462,7 @@ Follow **Owner setup for accounts + radar** above, step by step:
 
 ### Waiting on the owner — do not start
 
-- **Traffic-aware ETAs** (Slide said 31 min where Google said 42): needs a paid provider. See **Traffic provider decision**; HERE is recommended. FL511 can't do this. Until it's approved, the ETA note stays "Typical time · no live traffic yet".
+- **Traffic-aware ETAs** (replace Valhalla time with a traffic router): still blocked. This PR adds a TomTom **overlay** and a delay-versus-free-flow chip from Flow Segment Data; it does not swap Valhalla for TomTom Routing. HERE remains the recommendation if King wants priced tolls + traffic ETAs on the line itself.
 - **Toll prices:** they come with HERE, so they're also blocked on that decision.
 
 ### Hard rules

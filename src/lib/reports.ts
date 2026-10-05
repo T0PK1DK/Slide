@@ -6,6 +6,7 @@ import { cloud, cloudConfigured } from "./cloud";
  *   - "fdot":   FDOT DIVAS events: crashes, disabled vehicles, congestion, roadwork (via /api/incidents)
  *   - "mdpd":   Miami-Dade Police dispatched traffic calls (via /api/incidents)
  *   - "fl511":  official Florida 511 incidents, when the FL511 key is set (via /api/incidents)
+ *   - "tomtom": live incidents from TomTom Incident Details (via /api/traffic/incidents, only with a key)
  * Nothing is predicted or invented, and police items are always worded as
  * "reported by drivers" — Slide doesn't track police vehicles; nobody can legally.
  */
@@ -14,7 +15,7 @@ export type RadarKind = "police" | "crash" | "hazard" | "closure" | "jam" | "roa
 export type ReportableKind = "police" | "crash" | "hazard" | "closure" | "jam";
 export type RadarItem = {
   id: string;
-  source: "driver" | "fdot" | "mdpd" | "fl511" | "osm" | "transit";
+  source: "driver" | "fdot" | "mdpd" | "fl511" | "osm" | "transit" | "tomtom";
   kind: RadarKind;
   lat: number;
   lon: number;
@@ -24,6 +25,10 @@ export type RadarItem = {
   confirms: number;
   /** Only driver reports can be voted on. */
   reportId: number | null;
+  /** Named road when the source sent one (TomTom / FDOT). */
+  road?: string;
+  /** Delay versus free-flow in seconds, only when the source measured one. */
+  delaySec?: number | null;
 };
 
 export const REPORT_KINDS: ReadonlyArray<{ kind: ReportableKind; label: string }> = [
@@ -159,3 +164,5 @@ export const officialIncidents = (lat: number, lon: number, km = 12) => ownFeed(
 export const enforcementCameras = (lat: number, lon: number, km = 5) => ownFeed("/api/cameras", lat, lon, km);
 /** Live bus and train positions from the configured GTFS-realtime feeds. */
 export const transitVehicles = (lat: number, lon: number, km = 4) => ownFeed("/api/transit", lat, lon, km);
+/** TomTom incidents. Empty when the Worker has no TOMTOM_API_KEY (never invented). */
+export const tomtomIncidents = (lat: number, lon: number, km = 12) => ownFeed("/api/traffic/incidents", lat, lon, km);

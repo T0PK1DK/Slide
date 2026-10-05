@@ -15,7 +15,8 @@ Work top-down. Check the box in the same PR.
 
 ## Phase 1 — Better routes (owner prompt, 2026-09-25)
 
-- [ ] **Traffic-aware ETAs** — blocked on the owner approving a provider (HANDOFF → Traffic provider decision; HERE recommended)
+- [ ] **Traffic-aware ETAs** — Valhalla time is still typical; TomTom now paints live flow + a delay-vs-free-flow chip (see HANDOFF). Replacing the router still waits on HERE/TomTom Routing approval.
+- [x] **Live traffic layer + incident icons** — TomTom flow tiles + Incident Details via `TOMTOM_API_KEY` Worker proxy; FDOT / Miami-Dade / driver reports stay; Tune toggle on by default (2026-10-05)
 - [x] 3+ routes drawn together (Slide / Fastest / No-tolls costings + `alternates`), tap line or bubble to select
 - [x] Tags: Slide pick, Fastest, No tolls (Your usual comes with Phase 2 learning)
 - [x] Tolls flagged per route from Valhalla `has_toll`; "Has tolls" with no price until a price source exists
@@ -24,7 +25,7 @@ Work top-down. Check the box in the same PR.
 - [ ] Verify on the live site: real Valhalla returns `alternates` and `has_toll` for Fort Lauderdale → 9601 Collins Ave
 
 - [x] Desktop Command view: SEKAI Live Network pass (tiles + trends, week sparkline, alert list, navigation intelligence + Switch) — phones unchanged
-- [ ] Live incidents in the alert list — needs the traffic provider
+- [~] Live incidents in the alert list — map icons + radar now merge TomTom / FDOT / MDPD / drivers; desktop Command alert list still uses the old "no feed" line
 
 - [x] Remove bot data: seeded ghost drivers and the old demo preview page
 - [x] Profile: driver, My car, all-time stats, places, privacy (on-device)
