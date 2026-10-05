@@ -23,13 +23,35 @@ function preloadApp(): Plugin {
   };
 }
 
+/** Local stand-in for functions/api/geocode.ts so `npm run dev` hits the same chain. */
+function geocodeApi(): Plugin {
+  const handle = async (req: { url?: string }, res: { statusCode: number; setHeader(k: string, v: string): void; end(s: string): void }, next: () => void) => {
+    const path = req.url?.split("?")[0] ?? "";
+    if (path !== "/api/geocode") return next();
+    const { handleGeocodeRequest } = await import("./src/lib/geocode");
+    const { hits, error } = await handleGeocodeRequest(`https://localhost${req.url ?? "/api/geocode"}`);
+    res.statusCode = 200;
+    res.setHeader("content-type", "application/json");
+    res.end(JSON.stringify({ hits, ...(error ? { error } : {}) }));
+  };
+  return {
+    name: "slide-geocode-api",
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => { void handle(req, res, next); });
+    },
+    configurePreviewServer(server) {
+      server.middlewares.use((req, res, next) => { void handle(req, res, next); });
+    },
+  };
+}
+
 export default defineConfig({
   base: "./",
   server: {
     host: true,
     port: 5173,
   },
-  plugins: [preloadApp()],
+  plugins: [preloadApp(), geocodeApi()],
   build: {
     // MapLibre is ~800 kB on its own; keep it in a separate long-cached chunk
     // so an app-only deploy doesn't make phones re-download the map engine.

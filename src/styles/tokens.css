@@ -289,30 +289,30 @@
 :root[data-look="sand"] {
   color-scheme: dark;
 
-  --bg-0: #0d0c0a;
-  --bg-1: #13120e;
-  --surface-1: #17150f;
-  --surface-2: #1d1a15;
-  --surface-3: #262218;
-  --surface-sel: #332e24;
+  --bg-0: #18140e;
+  --bg-1: #1f1a13;
+  --surface-1: #272116;
+  --surface-2: #31291c;
+  --surface-3: #3b3222;
+  --surface-sel: #463b28;
 
-  --glass-fill: rgba(24, 21, 17, 0.74);
-  --glass-fill-strong: rgba(24, 21, 17, 0.88);
-  --glass-tint: linear-gradient(180deg, rgba(255, 240, 210, 0.06) 0%, rgba(255, 240, 210, 0.012) 100%);
-  --glass-border: rgba(255, 240, 210, 0.09);
-  --glass-border-strong: rgba(255, 240, 210, 0.16);
-  --glass-highlight: inset 0 1px 0 rgba(255, 244, 220, 0.08);
-  --glass-shadow: 0 1px 2px rgba(0, 0, 0, 0.45), 0 12px 32px -12px rgba(10, 8, 4, 0.8);
-  --glass-shadow-float: 0 24px 60px -16px rgba(10, 8, 4, 0.9), 0 2px 6px rgba(0, 0, 0, 0.5);
+  --glass-fill: rgba(52, 42, 28, 0.72);
+  --glass-fill-strong: rgba(58, 46, 30, 0.88);
+  --glass-tint: linear-gradient(180deg, rgba(255, 226, 170, 0.12) 0%, rgba(255, 226, 170, 0.03) 100%);
+  --glass-border: rgba(255, 228, 176, 0.14);
+  --glass-border-strong: rgba(255, 228, 176, 0.22);
+  --glass-highlight: inset 0 1px 0 rgba(255, 236, 196, 0.12);
+  --glass-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 12px 32px -12px rgba(20, 12, 4, 0.75);
+  --glass-shadow-float: 0 24px 60px -16px rgba(20, 12, 4, 0.85), 0 2px 6px rgba(0, 0, 0, 0.45);
 
-  --text-1: #f5f0e6;
-  --text-2: #b3ab9c;
-  --text-3: #918a7c;
-  --text-inverse: #12100c;
+  --text-1: #f7f0e2;
+  --text-2: #c4b396;
+  --text-3: #8f8168;
+  --text-inverse: #16120c;
 
-  --line-token: rgba(255, 240, 210, 0.09);
-  --line-strong: rgba(255, 240, 210, 0.14);
-  --grid-line: rgba(255, 240, 210, 0.06);
+  --line-token: rgba(255, 228, 176, 0.12);
+  --line-strong: rgba(255, 228, 176, 0.2);
+  --grid-line: rgba(255, 228, 176, 0.08);
 
   --accent: #e79d58;
   --accent-strong: #f0a35e;
@@ -332,18 +332,18 @@
   --viz-line: rgba(245, 240, 230, 0.85);
   --viz-bar-peak: #e79d58;
 
-  --map-water: #0b0a08;
-  --map-land: #18160f;
-  --map-path: #fff8ec;
-  --map-vignette: rgba(10, 8, 5, 0.85);
-  --app-bg: radial-gradient(1000px 520px at 50% -10%, rgba(255, 220, 160, 0.06), transparent 60%), var(--bg-0);
+  --map-water: #120e0a;
+  --map-land: #241c12;
+  --map-path: #fff4dc;
+  --map-vignette: rgba(14, 10, 6, 0.72);
+  --app-bg: radial-gradient(1100px 560px at 50% -8%, rgba(255, 208, 128, 0.16), transparent 58%), var(--bg-0);
 
-  --cmd-bg: #0c0b09;
-  --cmd-panel: #17150f;
-  --cmd-panel-2: #13120e;
-  --end-fill: #1e1812;
-  --switch-track: #332e24;
-  --friend-fill: rgba(18, 16, 12, 0.92);
+  --cmd-bg: #16130e;
+  --cmd-panel: #242016;
+  --cmd-panel-2: #1c1812;
+  --end-fill: #2a2016;
+  --switch-track: #463b28;
+  --friend-fill: rgba(28, 22, 14, 0.92);
 
   /* Sand motorways are pale gold (#dcc59a). Slow yellow would vanish. */
   --kind-crash: #f25b5b;

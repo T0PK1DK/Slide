@@ -6,11 +6,11 @@ import {
   requestRouteVariant,
   type RouteResponse,
   requestTraceAttributes,
-  searchPlaces,
   tripShape,
   type LonLat,
   type SearchHit,
 } from "./lib/valhalla";
+import { geocode, searchPlaces } from "./lib/geocode";
 import {
   arrivalClock,
   formatDuration,
@@ -26,7 +26,7 @@ import { bubbleCandidates, mergeVariantTrips, pickFree, tollLabel, variantsFor }
 import { dropIndex, MAX_STOPS, moveItem, stopsReached } from "./plan/stops";
 import { classifyFailure, type FailWhat } from "./plan/failure";
 import { cardAriaLabel, routeCards } from "./plan/review-cards";
-import { EMPTY } from "./lib/empty";
+import { EMPTY, postedSignText, setMaybeEmpty } from "./lib/empty";
 import { splitPlaceLabel } from "./lib/place";
 import { mountVoiceMute } from "./hud/voice-mute";
 import { resetVoice, startVoice, stopVoice, tickVoice } from "./voice";
@@ -267,6 +267,11 @@ $("#compass-fab").addEventListener("click", () => {
   map.easeTo({ bearing: 0, pitch: window.innerWidth < 820 && hudMode === "plan" ? 8 : map.getPitch(), duration: 500 });
 });
 toInput.addEventListener("focus", () => $("#search-card").classList.add("open"));
+toInput.addEventListener("input", () => {
+  if (toInput.value.trim() !== destLabel) dest = null;
+  const msg = errorEl.textContent ?? "";
+  if (msg === "Set a destination." || msg.startsWith("No match")) showError("");
+});
 $("#go").addEventListener("click", plan);
 $("#tune").addEventListener("click", () => garageEl.classList.toggle("open"));
 $("#g-close").addEventListener("click", () => garageEl.classList.remove("open"));
@@ -802,9 +807,9 @@ function arrive() {
   $("#arr-kicker").textContent = `ARRIVED · ${now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`;
   const destName = destLabel ? splitPlaceLabel(destLabel).name : EMPTY.dest;
   $("#arr-dest").textContent = destName;
-  $("#arr-time").textContent = startedAt ? formatDuration((now.getTime() - startedAt) / 1000) : EMPTY.driveTime;
-  $("#arr-dist").textContent = formatMiles(drivenMi);
-  $("#arr-line").textContent = route?.tags[0] ?? route?.label ?? EMPTY.line;
+  setMaybeEmpty($("#arr-time"), startedAt ? formatDuration((now.getTime() - startedAt) / 1000) : EMPTY.driveTime);
+  setMaybeEmpty($("#arr-dist"), formatMiles(drivenMi));
+  setMaybeEmpty($("#arr-line"), route?.tags[0] ?? route?.label ?? EMPTY.line);
   $("#arr-note").textContent = drivenMi >= 0.2 ? "Saved to Your trips on this phone." : "Short drive — not saved to Your trips.";
   $("#arr-ride").innerHTML = carSvg(garage.carColor, garage.glow);
   setHudMode("arrive");
@@ -1053,11 +1058,31 @@ async function plan() {
   hidePlace();
   hideLocationProblem();
   hideFailure();
-  if (!dest) return showError("Set a destination.");
+  const typed = toInput.value.trim();
+  if (!typed) return showError("Set a destination.");
   planning = true;
   const goBtn = $("#go") as HTMLButtonElement;
   goBtn.disabled = true;
   try {
+    if (!dest) {
+      setStatus("Finding that place…");
+      let hit: SearchHit | null = null;
+      try {
+        hit = await geocode(typed, origin ?? MIAMI);
+      } catch (err) {
+        showFailure(err, "search", () => void plan());
+        setStatus("");
+        return;
+      }
+      if (!hit) {
+        showError("No match, try adding the city");
+        setStatus("");
+        return;
+      }
+      dest = { lon: hit.lon, lat: hit.lat };
+      destLabel = hit.label;
+      toInput.value = hit.label;
+    }
     const start = await resolveOrigin();
     if (!start) return;
     origin = start;
@@ -1223,7 +1248,7 @@ function renderReview() {
     active.scrollIntoView({ inline: "center", block: "nearest", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
   }
   const liveSec = sel.durationSec + (lastTraffic.live ? lastTraffic.delaySec : 0);
-  $("#review-eta").textContent = formatDuration(liveSec);
+  setMaybeEmpty($("#review-eta"), formatDuration(liveSec));
   $("#review-dist").textContent = formatMiles(sel.distanceMi);
   $("#review-via").textContent = viaLine(sel.maneuvers);
   const shortWhy = sel.why.split(" · ")[0] || sel.label;
@@ -1299,8 +1324,8 @@ function renderDash() {
   const sel = routes.find((r) => r.id === selectedId);
   if (sel) {
     const liveSec = sel.durationSec + (lastTraffic.live ? lastTraffic.delaySec : 0);
-    $("#stat-score").textContent = String(sel.slideScore);
-    $("#stat-eta").textContent = arrivalClock(liveSec);
+    setMaybeEmpty($("#stat-score"), String(sel.slideScore));
+    setMaybeEmpty($("#stat-eta"), arrivalClock(liveSec));
   }
   routesEl.innerHTML = routes.map((r) => {
     const on = r.id === selectedId ? " selected" : "";
@@ -1504,7 +1529,7 @@ function updateDriveMeta(route: SlideRoute | undefined, mi: number) {
   const remainMi = Math.max(0, route.distanceMi - mi);
   const remainSec = route.durationSec * (remainMi / Math.max(route.distanceMi, 0.01));
   const liveRemain = remainSec + (lastTraffic.live ? lastTraffic.delaySec * (remainMi / Math.max(route.distanceMi, 0.01)) : 0);
-  $("#drive-eta").textContent = formatDuration(liveRemain);
+  setMaybeEmpty($("#drive-eta"), formatDuration(liveRemain));
   $("#drive-remain").textContent = `${formatMiles(remainMi)} · ${arrivalClock(liveRemain)}`;
   const chip = $("#drive-traffic");
   if (chip) {
@@ -1523,6 +1548,7 @@ function renderGuidance(mi: number, mph: number) {
   if (!route || !steps.length) {
     maneuverEl.setAttribute("hidden", "");
     postedEl.setAttribute("hidden", "");
+    paintLimit(null, mph);
     renderLaneStrip(null);
     return;
   }
@@ -1530,7 +1556,7 @@ function renderGuidance(mi: number, mph: number) {
   if (move) {
     maneuverEl.removeAttribute("hidden");
     $("#man-arrow").setAttribute("d", maneuverArrow(move.type));
-    $("#man-dist").textContent = formatShortDistance(move.distanceMi);
+    setMaybeEmpty($("#man-dist"), formatShortDistance(move.distanceMi));
     $("#man-instr").textContent = move.instruction;
     $("#man-fill").style.width = `${Math.round(move.proximity * 100)}%`;
     maneuverEl.classList.toggle("imminent", move.distanceMi < 0.08);
@@ -1542,15 +1568,7 @@ function renderGuidance(mi: number, mph: number) {
   }
 
   const outlook = postedOutlook(route.bands, mi);
-  const limitEl = $("#limit");
-  if (outlook?.currentMph) {
-    limitEl.removeAttribute("hidden");
-    $("#limit-n").textContent = String(outlook.currentMph);
-    // Flag the driver only against the sign, never nudge them toward it.
-    limitEl.classList.toggle("over", mph > outlook.currentMph + 2);
-  } else {
-    limitEl.setAttribute("hidden", "");
-  }
+  paintLimit(outlook?.currentMph, mph);
 
   if (outlook && outlook.nextMph && outlook.changeInMi != null && outlook.changeInMi < 1.2) {
     postedEl.removeAttribute("hidden");
@@ -1560,6 +1578,22 @@ function renderGuidance(mi: number, mph: number) {
       : `${outlook.nextMph} in ${formatShortDistance(outlook.changeInMi)}`;
   } else {
     postedEl.setAttribute("hidden", "");
+  }
+}
+function paintLimit(postedMph: number | null | undefined, liveMph: number) {
+  const limitEl = $("#limit");
+  const n = $("#limit-n");
+  limitEl.removeAttribute("hidden");
+  n.textContent = postedSignText(postedMph);
+  if (postedMph) {
+    limitEl.classList.remove("unsigned");
+    // Flag the driver only against the sign, never nudge them toward it.
+    limitEl.classList.toggle("over", liveMph > postedMph + 2);
+    limitEl.setAttribute("aria-label", `Speed limit ${postedMph}`);
+  } else {
+    limitEl.classList.add("unsigned");
+    limitEl.classList.remove("over");
+    limitEl.setAttribute("aria-label", "No posted limit");
   }
 }
 function setStatus(text: string) { statusEl.textContent = text; statusEl.classList.toggle("show", Boolean(text)); }

@@ -67,7 +67,7 @@ export const HUD_HTML = `
     </div>
     <div class="panel maneuver drive-only" id="maneuver" hidden>
       <svg class="arrow" viewBox="0 0 24 24" aria-hidden="true"><path id="man-arrow" d="" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      <div class="man-text"><b id="man-dist">Next turn</b><span id="man-instr">Follow the line</span></div>
+      <div class="man-text"><b id="man-dist" class="is-empty">Next turn</b><span id="man-instr">Follow the line</span></div>
       <div class="man-bar"><i id="man-fill"></i></div>
     </div>
     <div id="lane-strip" class="lane-strip drive-only" data-slot="lane-strip" hidden aria-label="Lane guidance"></div>
@@ -78,7 +78,7 @@ export const HUD_HTML = `
         <div class="route-dots" id="route-dots" hidden></div>
       </div>
       <div class="review-head sr" aria-live="polite">
-        <b id="review-eta">After a plan</b>
+        <b id="review-eta" class="is-empty">After a plan</b>
         <span id="review-dist">After a plan</span>
       </div>
       <p class="review-via sr" id="review-via"></p>
@@ -112,9 +112,9 @@ export const HUD_HTML = `
       <div class="arr-ride" id="arr-ride" aria-hidden="true"></div>
       <h2 id="arr-dest">Your destination</h2>
       <div class="arr-stats">
-        <div><span>Drive time</span><b id="arr-time">After a trip</b></div>
-        <div><span>Driven</span><b id="arr-dist">After a trip</b></div>
-        <div><span>Line</span><b id="arr-line">After a trip</b></div>
+        <div><span>Drive time</span><b id="arr-time" class="is-empty">After a trip</b></div>
+        <div><span>Driven</span><b id="arr-dist" class="is-empty">After a trip</b></div>
+        <div><span>Line</span><b id="arr-line" class="is-empty">After a trip</b></div>
       </div>
       <div id="arr-xp" class="arr-xp" data-slot="arrival-xp" hidden aria-label="Trip XP and badges"></div>
       <p class="arr-note" id="arr-note"></p>
@@ -126,8 +126,8 @@ export const HUD_HTML = `
     <div id="share-card-mount" class="share-card-mount" data-slot="share-card" hidden aria-label="Shareable trip card"></div>
     <div class="panel dash plan-only" id="dash" hidden>
       <div class="stat-row">
-        <div class="stat"><span>Slide</span><b id="stat-score">After a plan</b></div>
-        <div class="stat"><span>Arrive</span><b id="stat-eta">After a plan</b></div>
+        <div class="stat"><span>Slide</span><b id="stat-score" class="is-empty">After a plan</b></div>
+        <div class="stat"><span>Arrive</span><b id="stat-eta" class="is-empty">After a plan</b></div>
         <div class="stat"><span>Ghosts</span><b id="stat-ghosts">0</b></div>
         <div class="stat"><span>Streak</span><b id="stat-streak">0</b></div>
       </div>
@@ -135,15 +135,15 @@ export const HUD_HTML = `
     </div>
     <div class="speedo drive-only" id="speedo" hidden>
       <div class="cluster">
-        <div class="limit" id="limit" hidden><span>Speed limit</span><b id="limit-n">No sign</b></div>
-        <div class="live"><div class="n" id="speed-n">0</div><div class="u" id="speed-src">Est</div></div>
+        <div class="limit unsigned" id="limit" aria-label="No posted limit"><span>Speed limit</span><b id="limit-n">--</b></div>
+        <div class="live"><div class="n" id="speed-n">0</div><div class="u" id="speed-src">MPH</div></div>
       </div>
       <div class="ghost-delta" id="ghost-delta" hidden>GHOST ±0.0s</div>
     </div>
     <button class="panel recenter drive-only" id="recenter" hidden>Recenter</button>
     <div class="panel speed-rail" id="speeds" hidden></div>
     <div class="panel drive-bar drive-only" id="drive-bar" hidden>
-      <div class="meta"><b id="drive-eta">After a plan</b><span id="drive-remain">Remaining once GPS locks</span><small id="drive-traffic" hidden></small></div>
+      <div class="meta"><b id="drive-eta" class="is-empty">After a plan</b><span id="drive-remain">Remaining once GPS locks</span><small id="drive-traffic" hidden></small></div>
       <div class="drive-controls">
         <button type="button" id="drive-mute" class="drive-mute" data-slot="drive-mute" aria-label="Mute voice guidance" aria-pressed="false" hidden></button>
         <button class="icon" id="more" type="button" aria-label="More">⋯</button>
