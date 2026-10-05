@@ -1,8 +1,11 @@
+import { scopedKey } from "./account-store";
+import { clearAuthStorage } from "./auth-storage";
+
 /**
- * On-device driver profile. There is no server: the "account" lives in this
- * browser's storage, so a tester's garage, places and ghosts stay on their phone
- * (HANDOFF rule 4). The PIN is a local lock to keep a friend's phone from
- * opening straight into your drives — it is not security against someone with
+ * On-device driver profile. The Slide account (email magic link) lives in
+ * Supabase; name, PIN, garage and places stay on this phone, keyed to that
+ * account so another driver on the same phone does not see them.
+ * The PIN is a local lock — it is not security against someone with
  * the device and dev tools.
  */
 export type Fuel = "gas" | "hybrid" | "electric" | "diesel";
@@ -42,7 +45,7 @@ const SESSION_KEY = "slide.session.v1";
 
 export function loadProfile(): DriverProfile | null {
   try {
-    const raw = localStorage.getItem(PROFILE_KEY);
+    const raw = localStorage.getItem(scopedKey(PROFILE_KEY));
     if (!raw) return null;
     const p = JSON.parse(raw) as Partial<DriverProfile>;
     if (typeof p.name !== "string" || !p.name) return null;
@@ -61,7 +64,7 @@ export function loadProfile(): DriverProfile | null {
 
 export function saveProfile(p: DriverProfile) {
   try {
-    localStorage.setItem(PROFILE_KEY, JSON.stringify(p));
+    localStorage.setItem(scopedKey(PROFILE_KEY), JSON.stringify(p));
   } catch {
     // Private mode or full storage: the session still works until the tab closes.
   }
@@ -70,7 +73,7 @@ export function saveProfile(p: DriverProfile) {
 /** Signed in stays on until the driver locks the app, so a returning tester opens straight in. */
 export function isSignedIn(): boolean {
   try {
-    return localStorage.getItem(SESSION_KEY) === "on";
+    return localStorage.getItem(scopedKey(SESSION_KEY)) === "on";
   } catch {
     return false;
   }
@@ -78,8 +81,8 @@ export function isSignedIn(): boolean {
 
 export function setSignedIn(on: boolean) {
   try {
-    if (on) localStorage.setItem(SESSION_KEY, "on");
-    else localStorage.removeItem(SESSION_KEY);
+    if (on) localStorage.setItem(scopedKey(SESSION_KEY), "on");
+    else localStorage.removeItem(scopedKey(SESSION_KEY));
   } catch {
     // Ignore; see saveProfile.
   }
@@ -97,6 +100,7 @@ export function eraseDeviceData() {
     for (const k of Object.keys(localStorage)) {
       if (k.startsWith("slide.")) localStorage.removeItem(k);
     }
+    clearAuthStorage();
   } catch {
     // Nothing to erase.
   }

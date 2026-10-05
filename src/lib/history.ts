@@ -1,7 +1,10 @@
+import { scopedKey } from "./account-store";
+
 /**
  * On-device drive history — the only data the Command view charts. Every
  * number on those panels comes from drives this phone actually recorded with
  * live GPS; simulated/preview drives are never saved. Nothing leaves the device.
+ * Scoped to the signed-in account so two drivers on one phone stay private.
  */
 export type TripRecord = {
   id: string;
@@ -26,7 +29,7 @@ const MAX_TRIPS = 400;
 
 export function loadTrips(): TripRecord[] {
   try {
-    const raw = localStorage.getItem(KEY);
+    const raw = localStorage.getItem(scopedKey(KEY));
     const list = raw ? (JSON.parse(raw) as TripRecord[]) : [];
     return Array.isArray(list) ? list.filter((t) => typeof t?.startedAt === "number") : [];
   } catch {
@@ -37,7 +40,7 @@ export function loadTrips(): TripRecord[] {
 export function recordTrip(trip: TripRecord) {
   const list = [trip, ...loadTrips()].slice(0, MAX_TRIPS);
   try {
-    localStorage.setItem(KEY, JSON.stringify(list));
+    localStorage.setItem(scopedKey(KEY), JSON.stringify(list));
   } catch {
     // Storage full or blocked: history is a nice-to-have, never block the drive.
   }
@@ -135,7 +138,7 @@ export function minutesByDay(all: TripRecord[], now = Date.now()): number[] {
 /** "Clear my drive history": removes every recorded trip from this device. */
 export function clearTrips() {
   try {
-    localStorage.removeItem(KEY);
+    localStorage.removeItem(scopedKey(KEY));
   } catch {
     // Nothing stored.
   }

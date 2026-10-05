@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { authReturn } from "./cloud";
+import { AUTH_SITE_URL, authRedirectUrl, authReturn } from "./cloud";
 
 describe("authReturn (emailed sign-in link)", () => {
   it("spots tokens in the hash (implicit flow) and a PKCE code", () => {
@@ -13,5 +13,12 @@ describe("authReturn (emailed sign-in link)", () => {
   it("ignores a normal load", () => {
     expect(authReturn("", "")).toBeNull();
     expect(authReturn("#map", "?utm=x")).toBeNull();
+  });
+});
+
+describe("authRedirectUrl", () => {
+  it("pins production and keeps preview hosts", () => {
+    expect(authRedirectUrl("https://kings-slide.pages.dev", "/foo")).toBe(`${AUTH_SITE_URL}/`);
+    expect(authRedirectUrl("https://grim-polish.kings-slide.pages.dev")).toBe("https://grim-polish.kings-slide.pages.dev/");
   });
 });
