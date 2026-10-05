@@ -543,6 +543,7 @@ button.ghost.on { color: var(--glow); }
 }
 .swatch.on { border-color: var(--text); box-shadow: 0 0 0 2px var(--bg) inset; }
 .toggle { display: flex; justify-content: space-between; align-items: center; font-size: var(--fs-md); margin-top: var(--space-2); }
+.toggle small { display: block; font-size: var(--fs-sm); color: var(--faint); }
 .garage h3, .speed-rail h2, .garage label {
   text-transform: uppercase;
   letter-spacing: 0.12em;
@@ -2159,19 +2160,46 @@ body[data-mode="drive"] .friend-spot { display: none; }
   background: var(--surface);
   border: 1px solid var(--line);
 }
-.share-card-mount:not([hidden]) {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  bottom: calc(16px + env(safe-area-inset-bottom));
-  z-index: 7;
-  width: min(420px, calc(100vw - 24px));
-  border-radius: var(--radius-xl);
-  background: var(--glass-tint), var(--glass-2);
-  border: 1px solid var(--line);
-  box-shadow: var(--lift), var(--shadow);
-  padding: var(--space-4);
+.arr-xp-xp { font-size: var(--fs-lg); font-weight: var(--fw-medium); color: var(--text); }
+.arr-xp-level {
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-medium);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--muted);
 }
+.arr-xp-bar {
+  flex: 1 1 100%;
+  height: var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--fill-07);
+  overflow: hidden;
+}
+.arr-xp-fill {
+  display: block;
+  height: 100%;
+  width: 0;
+  border-radius: var(--radius-pill);
+  background: var(--glow);
+}
+.arr-xp-badge {
+  font-size: var(--fs-xs);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--glow);
+}
+.share-card-mount:not([hidden]) {
+  display: block;
+  width: 100%;
+  max-height: 180px;
+  margin: 0 0 var(--space-3);
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+.share-card-frame { border-radius: var(--radius-lg); overflow: hidden; max-height: 180px; }
+.share-card-mount canvas { display: block; width: 100%; height: auto; }
 .car-stage[hidden] { display: none; }
 .car-stage:not([hidden]) {
   position: absolute;
@@ -2179,14 +2207,52 @@ body[data-mode="drive"] .friend-spot { display: none; }
   top: 50%;
   transform: translate(-50%, -50%);
   z-index: 4;
-  width: min(280px, 70vw);
-  height: min(320px, 50vh);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: min(360px, 86vw);
+  height: min(520px, 72vh);
   border-radius: var(--radius-xl);
   background: var(--glass-tint), var(--glass);
   border: 1px solid var(--line);
   box-shadow: var(--lift), var(--shadow);
   pointer-events: auto;
+  padding: var(--space-3);
+  overflow: hidden;
 }
+.car-stage-close { position: absolute; top: var(--space-2); right: var(--space-2); z-index: 1; }
+.car-stage-view {
+  flex: 1 1 auto;
+  min-height: 140px;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+.car-stage-view canvas,
+.car-stage-svg { display: block; width: 100%; height: 100%; }
+.car-stage-svg { color: var(--muted); }
+.car-stage-meta b { display: block; font-size: var(--fs-md); color: var(--text); }
+.car-stage-meta span { display: block; font-size: var(--fs-2xs); color: var(--muted); }
+.car-stage-ok,
+.car-stage-lock { display: block; font-size: var(--fs-2xs); }
+.car-stage-ok { color: var(--mint); }
+.car-stage-lock { color: var(--amber); }
+.car-stage-picks { flex: 0 1 auto; max-height: 44%; overflow: auto; }
+.car-stage .liveries { flex-wrap: wrap; }
+.car-stage .liveries button {
+  display: grid;
+  align-content: center;
+  min-width: 72px;
+}
+.car-stage .liveries button small,
+.car-stage .ride small {
+  display: block;
+  font-size: var(--fs-2xs);
+  color: var(--amber);
+}
+.ride.locked,
+.liveries button.locked { opacity: 0.55; }
 
 /* =====================================================================
    SCREENS — plan / drive / review / arrive / command / phone

@@ -75,7 +75,13 @@ src/lib/guidance.ts    next maneuver, posted-speed lookahead, turn arrows
 src/lanes/             Valhalla turn-lane strip for Grim's `#lane-strip` slot
 src/lib/tracking.ts    live GPS watch + snap-to-route progress
 src/lib/maplook.ts     night basemap lift (per theme), route ribbon, HUD fit padding
-src/lib/vehicles.ts    rides: original top-down car designs (SVG), liveries, pack field for future collabs (tested)
+src/lib/vehicles.ts    rides: original top-down car designs (SVG), starter + unlockable liveries, pack field for future collabs (tested)
+src/lib/game/          smooth score, XP/levels, badges, unlocks, share card, weekly board, `useGameProgress`, lazy 3D stage
+src/lib/game/carStage.ts  original low-poly three.js stage (lazy chunk; SVG fallback)
+src/lib/game/*.test.ts game-layer unit tests (speed never raises XP; share-card privacy; week rank)
+src/hud/gameSlots.ts   fills `#arr-xp`, `#share-card-mount`, `#car-stage` (unhide with `.hidden = false`)
+docs/GAME-LAYER.md     exported game API + share card + future leaderboard sync contract
+tools/shoot-game-wire.mjs  mobile shots of arrival XP, share card, car stage
 src/lib/profile.ts     on-device driver profile, session, PIN hash, persistent storage (keyed to the signed-in account)
 src/lib/auth-storage.ts  supabase-js storage: localStorage + 90-day SameSite=Lax cookie (Safari ↔ Home Screen)
 src/lib/account-store.ts  per-account local keys for home/work, history, ghosts, XP
@@ -325,6 +331,12 @@ Read `TASKS.md` top unchecked item. Do not rebase history. Do not rename the pro
 
 - 2026-10-05 Cursor: **Persistent accounts (Supabase email OTP + magic link, not D1).** King was getting logged out. Root cause: the session lived in Safari-only storage, and iOS Home Screen apps have their own jar (cookies included), so a cookie bridge cannot move a Safari login into the installed app. Fix: email a 6-digit `{{ .Token }}` plus the link; the driver types the code in whichever app they are in (`verifyOtp` type `email`); that app gets the session and `persistSession` / `autoRefreshToken` keep it. Magic link stays for Safari / desktop. Sign in / Create account + a dedicated code screen. Home/work/history/ghosts/XP keyed to `auth.uid()`. **No D1. No new SQL.** Nard: paste the Magic Link template in Owner setup, confirm Site URL + Redirect URLs, redeploy. Verify on https://kings-slide.pages.dev from the Home Screen by typing the code.
 
+- 2026-10-04 Leon: **Game layer 1 (logic only).** Branch `leon/game-core`. Per-trip smooth score from real GPS speed / heading / timestamps and posted limit when present (`src/lib/game/smoothScore.ts`). Missing signals are skipped, never faked. Faster driving never raises score or XP; time over the limit zeros that segment. XP/levels use `xpAtLevel(n) = 40·(n−1)·n` and trip XP = smooth-miles × 10 + a score-only bonus (`src/lib/game/xp.ts`). Tiered badges (First Line, Glass Line, Soft Pedal, Night Owl, Long Slide, Sign Reader, Causeway) in `src/lib/game/badges.ts`. Unlocks: Nimbus at level 5, Glider at Night Owl silver, Halo / Dusk liveries via badges — starter six + Solid/Stripes/Fade stay free so the Garage picker is unchanged. Progress is `slide.game.v1` in localStorage (wiped by `eraseDeviceData`). `useGameProgress()` is the hook for Grim's arrival XP/badge slot, share-card mount, and 3D stage. Drive loop records samples and commits next to history; no CSS or screen layout. API in `docs/GAME-LAYER.md`. Later: Opal stage + 3D car, share card UI, opt-in friends leaderboard.
+
+- 2026-10-04 Leon: **Game layer 2 (share card + local board).** Branch `leon/share-card` stacked on `leon/game-core`. `src/lib/game/shareCard.ts` paints `TripAward.shareCard` plus ride/livery names onto a 1080×1350 PNG (offscreen canvas). Theme reads `--bg` / `--surface` / `--text` / `--muted` / `--glow` / `--line` when Grim's tokens exist, else a neutral night palette. `mountShareCard(el)` is the preview for Grim's slot; `shareTrip()` uses Web Share with a PNG file and falls back to download. No addresses, coords, map tiles, or times of day. Weekly board (`src/lib/game/leaderboard.ts`) is local only: Mon–Sun buckets, opt-in default OFF, `rankWeek` does not invent friends. Future backend sync contract is in `docs/GAME-LAYER.md`. No CSS or screen-layout edits.
+
+- 2026-10-04 Leon: **Game layer 3 (wire Grim slots).** Branch `leon/game-wire` rebased onto Grim `grim/screen-pass-c69a` (PR #35, which sits on #29). Fills `#arr-xp`, `#share-card-mount` (inside `#arrival`, above `.arr-actions`), `#car-stage`. `#arr-share` is the only Share button; `slide:share-trip` calls `shareTrip(lastAward().shareCard + ride)`. `#arr-ride` stays Grim's 2D car. Unhide with `el.hidden = false`. Token-only CSS. `#g-board` Garage toggle (default off). Preview: `window.slidePreviewGame`. Stack: #29 → #35 → this PR → `leon/car-models` #37.
+
 ## Teammate slots (stable IDs — do not rename)
 
 | Who | Slot | Selector | Where |
@@ -333,8 +345,8 @@ Read `TASKS.md` top unchecked item. Do not rebase history. Do not rename the pro
 | Nard | Mute button | `#drive-mute` / `[data-slot="drive-mute"]` | Grim owns the button. Speech listens for `slide:voice-mute` and mirrors `slide.voice.v1`. |
 | Nard | Drive report | `#drive-report` | Bottom-right in drive. Calls `radar.openReport()`. |
 | Leon | XP / badges | `#arr-xp` / `[data-slot="arrival-xp"]` | Inside `#arrival`, under `.arr-stats`. Still empty/`hidden`. |
-| Leon | Share card | `#share-card-mount` / `[data-slot="share-card"]` | Sibling after `#arrival`. Still empty/`hidden`. Listen for `slide:share-trip`. |
-| Leon | Arrival share | `#arr-share` | Share button on the trip card (native share, no address). |
+| Leon | Share card | `#share-card-mount` / `[data-slot="share-card"]` | Inside `#arrival`, above `.arr-actions`. Preview only. Listen for `slide:share-trip` → `shareTrip(lastAward().shareCard + ride)`. |
+| Leon | Arrival share | `#arr-share` | Grim's Share on the trip card. One button; Leon does not add another. |
 | Leon | 3D car stage | `#car-stage` / `[data-slot="car-stage"]` | HUD overlay; 2D garage preview stays `#g-preview`. Arrival 2D ride is `#arr-ride`. |
 | Both | Place card | `#place-card` `#place-name` `#place-addr` `#place-save` `#place-go` | After a search pick, before routing. |
 | Both | Route carousel | `#route-carousel` `#route-track` `#route-dots` | Review sheet. One card per real `SlideRoute`. |

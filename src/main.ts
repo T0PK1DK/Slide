@@ -62,6 +62,8 @@ import type { TrafficSummary } from "./lib/traffic";
 import { createYouMarker } from "./map/you";
 import { mountCommand } from "./hud/command";
 import { recordTrip } from "./lib/history";
+import { useGameProgress, useLeaderboard } from "./lib/game";
+import { bindBoardToggle, currentRide, demoAward, mountGameSlots } from "./hud/gameSlots";
 import { loadProfile } from "./lib/profile";
 import {
   cumulativeMiles,
@@ -82,6 +84,47 @@ let garage = loadGarage();
 applyTheme(garage);
 // The HUD markup (#app) and the login gate were already painted by boot.ts.
 
+const game = useGameProgress();
+const board = useLeaderboard();
+const slots = mountGameSlots({
+  game,
+  onSelect: (next) => {
+    if (next.vehicle) garage.vehicle = next.vehicle;
+    if (next.livery) garage.livery = next.livery;
+    persist();
+    restylePlayer();
+  },
+});
+window.slidePreviewGame = {
+  arrival() {
+    document.body.dataset.mode = "arrive";
+    $("#arrival").hidden = false;
+    $("#car-stage").hidden = true;
+    $("#arr-kicker").textContent = "ARRIVED · 4:12 PM";
+    $("#arr-dest").textContent = "Bayside";
+    $("#arr-time").textContent = "18 min";
+    $("#arr-dist").textContent = "3.2 mi";
+    $("#arr-line").textContent = "Slide pick";
+    $("#arr-note").textContent = "Saved to Your trips on this phone.";
+    $("#arr-ride").innerHTML = carSvg(garage.carColor, garage.glow);
+    slots.preview.arrival(demoAward(), currentRide(garage));
+  },
+  share() {
+    document.body.dataset.mode = "arrive";
+    $("#arrival").hidden = false;
+    $("#car-stage").hidden = true;
+    $("#arr-ride").innerHTML = carSvg(garage.carColor, garage.glow);
+    slots.preview.share(demoAward(), currentRide(garage));
+  },
+  stage() {
+    document.body.dataset.mode = "plan";
+    $("#arrival").hidden = true;
+    $("#share-card-mount").hidden = true;
+    $("#search-card").setAttribute("hidden", "");
+    slots.hideAward();
+    slots.preview.stage(currentRide(garage));
+  },
+};
 
 const map = new maplibregl.Map({
   container: "map",
@@ -273,8 +316,8 @@ toInput.addEventListener("input", () => {
   if (msg === "Set a destination." || msg.startsWith("No match")) showError("");
 });
 $("#go").addEventListener("click", plan);
-$("#tune").addEventListener("click", () => garageEl.classList.toggle("open"));
-$("#g-close").addEventListener("click", () => garageEl.classList.remove("open"));
+$("#tune").addEventListener("click", () => openGarage(!garageEl.classList.contains("open")));
+$("#g-close").addEventListener("click", () => openGarage(false));
 recenterEl.addEventListener("click", () => {
   followCamera = true;
   recenterEl.setAttribute("hidden", "");
@@ -294,7 +337,7 @@ $("#coach-ok").addEventListener("click", () => {
   showCoach(false);
 });
 moreBtn.addEventListener("click", () => overflowEl.classList.toggle("open"));
-$("#ov-tune").addEventListener("click", () => { overflowEl.classList.remove("open"); garageEl.classList.add("open"); });
+$("#ov-tune").addEventListener("click", () => { overflowEl.classList.remove("open"); openGarage(true); });
 $("#ov-help").addEventListener("click", () => { overflowEl.classList.remove("open"); showCoach(true); });
 $("#ov-rail").addEventListener("click", () => {
   overflowEl.classList.remove("open");
@@ -306,7 +349,7 @@ $("#ov-lock").addEventListener("click", lockApp);
 const profileSheet = mountProfile({
   places: () => ({ home: garage.home, work: garage.work }),
   clearPlace: (which) => { garage[which] = null; persist(); },
-  openGarage: () => garageEl.classList.add("open"),
+  openGarage: () => openGarage(true),
   onChange: () => command.refreshHistory(),
   onHistoryCleared: () => command.refreshHistory(),
   sharing: () => garage.shareWithFriends,
@@ -333,7 +376,7 @@ const command = mountCommand({
   map,
   driverName: () => loadProfile()?.name ?? "",
   onSearch: () => { $("#search-card").classList.add("open"); toInput.focus(); },
-  onGarage: () => garageEl.classList.add("open"),
+  onGarage: () => openGarage(true),
   onProfile: () => profileSheet.open(),
   onLocate: () => { if (!tracker) locateMe(); else if (liveFix) map.easeTo({ center: [liveFix.pos.lon, liveFix.pos.lat], zoom: 15, duration: 700 }); },
   onSelectRoute: (id) => selectRoute(id),
@@ -509,6 +552,11 @@ function persist() {
   if (chip) chip.textContent = garage.tag;
   refreshPlaceChips();
 }
+function openGarage(on: boolean) {
+  garageEl.classList.toggle("open", on);
+  if (on) slots.showStage(currentRide(garage));
+  else slots.hideStage();
+}
 function rememberRecent(hit: { label: string; lon: number; lat: number }) {
   const recents = [
     { label: hit.label, lon: hit.lon, lat: hit.lat },
@@ -617,8 +665,9 @@ async function shareTrip() {
   const bits = ["Slide", time, dist];
   if (line && line !== EMPTY.line) bits.push(line);
   const text = bits.filter((s) => s && s !== EMPTY.driveTime && s !== EMPTY.driven).join(" · ");
-  const payload = { title: "Slide trip", text };
+  const payload = { title: "Slide trip", text, handled: false };
   window.dispatchEvent(new CustomEvent("slide:share-trip", { detail: payload }));
+  if (payload.handled) return;
   if (navigator.share) {
     try { await navigator.share(payload); } catch { /* dismissed */ }
   }
@@ -704,6 +753,7 @@ function wireGarage() {
   trafficBox.addEventListener("change", () => { garage.showTraffic = trafficBox.checked; persist(); traffic.setEnabled(trafficBox.checked); });
   ghostsBox.addEventListener("change", () => { garage.showGhosts = ghostsBox.checked; persist(); setGhostVisibility(garage.showGhosts); });
   share.addEventListener("change", () => { garage.shareGhost = share.checked; persist(); });
+  bindBoardToggle(board);
 }
 function paintSwatches(el: HTMLElement, colors: string[], current: string, onPick: (c: string) => void) {
   el.innerHTML = "";
@@ -735,7 +785,7 @@ function setHudMode(mode: HudMode) {
     $("#search-card").classList.remove("open");
   } else {
     overflowEl.classList.remove("open", "from-plan");
-    garageEl.classList.remove("open");
+    openGarage(false);
     maneuverEl.setAttribute("hidden", "");
     postedEl.setAttribute("hidden", "");
     $("#speedo").setAttribute("hidden", "");
@@ -754,6 +804,7 @@ function setHudMode(mode: HudMode) {
 function startDrive() {
   if (!routes.length) return;
   driveLog = { ...freshLog(), startedAt: Date.now() };
+  game.beginDrive();
   offSince = 0;
   disp = null;
   followCamera = true;
@@ -815,6 +866,9 @@ function arrive() {
   setMaybeEmpty($("#arr-line"), route?.tags[0] ?? route?.label ?? EMPTY.line);
   $("#arr-note").textContent = drivenMi >= 0.2 ? "Saved to Your trips on this phone." : "Short drive — not saved to Your trips.";
   $("#arr-ride").innerHTML = carSvg(garage.carColor, garage.glow);
+  const award = game.lastAward();
+  const tripId = startedAt ? `t${startedAt}` : "";
+  slots.showAward(award && award.tripId === tripId ? award : null, currentRide(garage));
   setHudMode("arrive");
   if (dest) map.easeTo({ center: [dest.lon, dest.lat], zoom: 16, pitch: 30, bearing: 0, duration: 900 });
 }
@@ -828,6 +882,7 @@ function finishArrival() {
   toInput.value = "";
   paintRoutes();
   dashEl.setAttribute("hidden", "");
+  slots.hideAward();
   setHudMode("plan");
 }
 function saveDriveToHistory() {
@@ -852,6 +907,13 @@ function saveDriveToHistory() {
     postedProfile: route.bands.filter((_, i) => i % step === 0).map((b) => b.postedMph ?? b.expectedMph),
     tollRoad: route.hasToll,
   });
+  const award = game.commit({
+    tripId: `t${log.startedAt}`,
+    startedAt: log.startedAt,
+    endedAt: Date.now(),
+    distanceMi: Math.round(log.drivenMi * 100) / 100,
+  });
+  if (award.score.total != null) board.recordTrip(award.score.total, award.shareCard.miles, Date.now());
   command.refreshHistory();
 }
 function backToSearch() {
@@ -990,6 +1052,16 @@ function startLocation(opts: { center: boolean }) {
             if (m < 500) driveLog.drivenMi += m / 1609.344;
           }
           driveLog.lastPos = fix.pos;
+          const route = routes.find((r) => r.id === selectedId);
+          const postedMph = route ? postedOutlook(route.bands, progressMi)?.currentMph ?? null : null;
+          game.recordSample({
+            at: fix.at,
+            speedMph: fix.speedMph,
+            headingDeg: fix.headingDeg,
+            postedMph,
+            lon: fix.pos.lon,
+            lat: fix.pos.lat,
+          });
         }
       }
       if (!first) return;
@@ -1380,6 +1452,7 @@ function spawnPlayer() {
 function restylePlayer() {
   paintShowroom();
   you.setCar(carSvg(garage.carColor, garage.glow));
+  slots.refreshStage(currentRide(garage));
   if (!playerMarker) return;
   playerMarker.getElement().innerHTML = carSvg(garage.carColor, garage.glow);
 }

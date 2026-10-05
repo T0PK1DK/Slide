@@ -89,9 +89,23 @@ Work top-down. Check the box in the same PR.
 - [ ] Sketch `src/lib/presence.ts` with `GhostSample` wire format (`tag`, `color`, `lon`, `lat`, `bearing`, `t`, `routeHash`)
 - [ ] Do not build a full multiplayer backend until P0 is done
 
+## Game layer (Leon — DESIGN-RESEARCH §4 step 4)
+
+- [x] Smooth-score engine from real GPS telemetry; faster never pays more; missing signals skipped (`src/lib/game/smoothScore.ts`)
+- [x] XP + levels from smooth score and smooth miles only (`src/lib/game/xp.ts`, curve in `docs/GAME-LAYER.md`)
+- [x] Tiered badges, no licensed brands (`src/lib/game/badges.ts`)
+- [x] Unlocks mapped to original rides/liveries; starter six still free (`src/lib/game/unlocks.ts`)
+- [x] On-device progress (`slide.game.v1`) + `useGameProgress()` for Grim's slots (`docs/GAME-LAYER.md`)
+- [x] Share card renderer + `mountShareCard` / `shareTrip` (1080×1350 PNG, no addresses) — Grim still places the slot
+- [x] Opt-in weekly leaderboard local model + `rankWeek` + sync contract in `docs/GAME-LAYER.md` (default OFF, no fake friends)
+- [x] Opal-style unlock stage + lazy 3D car (`#car-stage`, original low-poly, unlock labels)
+- [x] Arrival XP + share-card slots wired (`#arr-xp`, `#share-card-mount` + `#g-board` opt-in)
+- [ ] Friends leaderboard UI + backend sync (later; opt-in, mutual friends, contract in GAME-LAYER.md)
+
 ## P3 — cars and camera
 
 - [x] Pick-your-ride: 6 original top-down cars, paint + livery + glow, Garage showroom (`src/lib/vehicles.ts`). Later: 3D models (MapLibre custom layer / Three), licensed collab packs
+- [x] Unlockable originals (Nimbus, Glider) + Halo/Dusk liveries — gated by the game layer, not shown in the Garage picker yet
 - [ ] Trail particles or denser dashed ghost trails
 - [ ] Building extrusion fallback if `source-layer: building` missing (hide toggle, don’t crash)
 
