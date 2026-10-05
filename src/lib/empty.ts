@@ -18,3 +18,20 @@ export const EMPTY = {
   posted: "No sign",
   expected: "Typical",
 } as const;
+
+/** HUD placeholders that must render as `.is-empty`, not hero type. Wording above is unchanged. */
+const EMPTY_VALUES = new Set<string>([...Object.values(EMPTY), "Soon"]);
+
+export function isEmptyValue(text: string): boolean {
+  return EMPTY_VALUES.has(text);
+}
+
+export function setMaybeEmpty(el: HTMLElement, value: string): void {
+  el.textContent = value;
+  el.classList.toggle("is-empty", isEmptyValue(value));
+}
+
+/** Face of the US limit sign. `EMPTY.posted` stays for the speed-rail list, not this box. */
+export function postedSignText(mph: number | null | undefined): string {
+  return mph ? String(mph) : "--";
+}
