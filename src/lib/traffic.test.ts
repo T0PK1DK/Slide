@@ -36,6 +36,12 @@ describe("TomTom incident mapper", () => {
     });
     expect(fromTomTom({ properties: { iconCategory: 1 } })).toBeNull();
     expect(fromTomTom({ geometry: { coordinates: [-80, 25] }, properties: { iconCategory: 0 } })).toBeNull();
+    expect(
+      fromTomTom({
+        geometry: { coordinates: [-80.19, 25.77] },
+        properties: { id: "d", iconCategory: 6, delay: 180, events: [{ description: "Queueing" }] },
+      })?.detail,
+    ).toBe("TomTom · Queueing · +3 min");
   });
   it("reads a line's first vertex and maps every icon we show", () => {
     expect(firstCoord([[-80.2, 25.8], [-80.1, 25.9]])).toEqual({ lon: -80.2, lat: 25.8 });

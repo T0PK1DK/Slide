@@ -23,16 +23,20 @@ function preloadApp(): Plugin {
   };
 }
 
-/** Local stand-in for functions/api/geocode.ts so `npm run dev` hits the same chain. */
+/** Local stand-in for functions/api/geocode.ts + /api/suggest so `npm run dev` hits the same chain. */
 function geocodeApi(): Plugin {
   const handle = async (req: { url?: string }, res: { statusCode: number; setHeader(k: string, v: string): void; end(s: string): void }, next: () => void) => {
     const path = req.url?.split("?")[0] ?? "";
-    if (path !== "/api/geocode") return next();
+    if (path !== "/api/geocode" && path !== "/api/suggest") return next();
     const { handleGeocodeRequest } = await import("./src/lib/geocode");
-    const { hits, error } = await handleGeocodeRequest(`https://localhost${req.url ?? "/api/geocode"}`);
+    const key = process.env.TOMTOM_API_KEY?.trim();
+    const { hits, error, attribution } = await handleGeocodeRequest(`https://localhost${req.url ?? "/api/geocode"}`, {
+      tomtomKey: key,
+      tomtom: Boolean(key),
+    });
     res.statusCode = 200;
     res.setHeader("content-type", "application/json");
-    res.end(JSON.stringify({ hits, ...(error ? { error } : {}) }));
+    res.end(JSON.stringify({ hits, ...(error ? { error } : {}), ...(attribution ? { attribution } : {}) }));
   };
   return {
     name: "slide-geocode-api",

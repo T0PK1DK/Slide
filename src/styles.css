@@ -276,6 +276,12 @@ button.ghost.on { color: var(--glow); }
   cursor: pointer;
 }
 .suggest button.active { background: color-mix(in srgb, var(--glow) 18%, transparent); }
+.suggest-attr {
+  margin: 0;
+  padding: 4px var(--space-3) 6px;
+  font-size: var(--fs-2xs);
+  color: var(--muted);
+}
 
 .recents { margin-top: var(--space-2); display: grid; gap: var(--space-1); }
 .recents-label {

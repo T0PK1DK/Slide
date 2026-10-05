@@ -14,8 +14,10 @@ import {
   prettifyCensusAddress,
   resetNominatimGate,
   runGeocode,
+  searchPlaces,
   type GeocodeOpts,
 } from "./geocode";
+import { hitsFromTomTom } from "./tomtom-search";
 import type { SearchHit } from "./valhalla";
 
 afterEach(() => resetNominatimGate());
@@ -182,6 +184,35 @@ const CENSUS = {
   },
 };
 
+const TOMTOM = {
+  sixth: {
+    results: [
+      {
+        type: "Point Address",
+        address: {
+          streetNumber: "1020",
+          streetName: "NW 6th Avenue",
+          municipality: "Fort Lauderdale",
+          countrySubdivision: "FL",
+          freeformAddress: "1020 NW 6th Avenue, Fort Lauderdale, FL 33311",
+        },
+        position: { lat: 26.13717, lon: -80.14991 },
+      },
+    ],
+  },
+  shops: {
+    results: [
+      {
+        type: "POI",
+        poi: { name: "Bal Harbour Shops" },
+        address: { freeformAddress: "9700 Collins Avenue, Bal Harbour, FL 33154", streetNumber: "9700" },
+        position: { lat: 25.88822, lon: -80.12498 },
+      },
+    ],
+  },
+  empty: { results: [] as unknown[] },
+};
+
 const empty = { features: [], result: { addressMatches: [] as unknown[] } };
 
 function jsonRes(body: unknown, ok = true): Promise<Response> {
@@ -209,6 +240,7 @@ function mockFetch(): typeof fetch {
     if (host.includes("photon")) return jsonRes(pick(PHOTON));
     if (host.includes("nominatim")) return jsonRes(pick(NOMINATIM));
     if (host.includes("census")) return jsonRes(pick(CENSUS));
+    if (host.includes("tomtom")) return jsonRes(TOMTOM.empty);
     return jsonRes(empty);
   }) as typeof fetch;
 }
@@ -367,6 +399,73 @@ describe("handleGeocodeRequest + geocode()", () => {
   it("geocode() in Node skips the /api hop and still resolves", async () => {
     const hit = await geocode("25.9, -80.13");
     expect(hit).toMatchObject({ source: "coords", lat: 25.9, lon: -80.13 });
+  });
+});
+
+describe("TomTom is first when keyed", () => {
+  it("reads a Fuzzy house and POI", () => {
+    const house = hitsFromTomTom(TOMTOM.sixth);
+    expect(house[0]).toMatchObject({ source: "tomtom", housenumber: "1020", lat: 26.13717, lon: -80.14991 });
+    expect(hitsFromTomTom(TOMTOM.shops)[0].name).toBe("Bal Harbour Shops");
+    expect(hitsFromTomTom({ results: [{ address: { freeformAddress: "x" } }] })).toEqual([]);
+  });
+
+  it("uses TomTom for 1020 NW 6th Ave and does not call Photon", async () => {
+    const called: string[] = [];
+    const fetchImpl = (async (input: RequestInfo | URL) => {
+      const host = new URL(String(input)).host;
+      called.push(host);
+      if (host.includes("tomtom")) return jsonRes(TOMTOM.sixth);
+      throw new Error(`unexpected ${host}`);
+    }) as typeof fetch;
+    const [hit] = await runGeocode(Q.sixth, { ...resolveOpts(), fetch: fetchImpl, tomtomKey: "test-key" });
+    expect(hit.source).toBe("tomtom");
+    expect(hit.housenumber).toBe("1020");
+    expect(called.some((h) => h.includes("photon"))).toBe(false);
+  });
+
+  it("falls through to Nominatim when TomTom misses the house", async () => {
+    const fetchImpl = (async (input: RequestInfo | URL) => {
+      const url = new URL(String(input));
+      if (url.host.includes("tomtom")) return jsonRes(TOMTOM.empty);
+      if (url.host.includes("photon")) return jsonRes(PHOTON.sixth);
+      if (url.host.includes("nominatim")) return jsonRes(NOMINATIM.sixth);
+      if (url.host.includes("census")) return jsonRes(CENSUS.sixth);
+      return jsonRes(empty);
+    }) as typeof fetch;
+    const [hit] = await runGeocode(Q.sixth, { ...resolveOpts(), fetch: fetchImpl, tomtomKey: "test-key" });
+    expect(hit.source).toBe("nominatim");
+  });
+
+  it("falls through when TomTom errors or the search budget is spent", async () => {
+    const dead = (async (input: RequestInfo | URL) => {
+      const url = new URL(String(input));
+      if (url.host.includes("tomtom")) return jsonRes({}, false);
+      if (url.host.includes("photon")) return jsonRes(PHOTON.shops);
+      return jsonRes(empty);
+    }) as typeof fetch;
+    const [errored] = await runGeocode(Q.shops, { ...resolveOpts(), fetch: dead, tomtomKey: "test-key" });
+    expect(errored.source).toBe("photon");
+    const [capped] = await runGeocode(Q.shops, { ...resolveOpts(), tomtomKey: "test-key", tomtom: false });
+    expect(capped.source).toBe("photon");
+  });
+
+  it("suggest endpoint and handleGeocodeRequest keep TomTom first", async () => {
+    const fetchImpl = (async (input: RequestInfo | URL) => {
+      const url = new URL(String(input));
+      if (url.host.includes("tomtom")) return jsonRes(TOMTOM.shops);
+      return jsonRes(empty);
+    }) as typeof fetch;
+    const { hits, attribution } = await handleGeocodeRequest(
+      `https://kings-slide.pages.dev/api/suggest?q=${encodeURIComponent(Q.shops)}&lat=25.76&lon=-80.19`,
+      { fetch: fetchImpl, tomtomKey: "test-key" },
+    );
+    expect(hits[0]?.source).toBe("tomtom");
+    expect(attribution).toBe("© TomTom");
+  });
+
+  it("searchPlaces ignores 1–2 character queries", async () => {
+    await expect(searchPlaces("ba")).resolves.toEqual([]);
   });
 });
 

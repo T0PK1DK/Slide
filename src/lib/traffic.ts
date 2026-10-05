@@ -3,6 +3,8 @@ import { officialIncidents, reportsNear } from "./reports";
 import { congestionOf, delaySecOf, type Congestion, type TomTomFlowSample } from "./sources/tomtom";
 import { haversineMeters } from "./polyline";
 import type { Look } from "./garage";
+import { fetchTrafficRoute, speedLimitAt, type SpeedLimitSpan, type TrafficRoute } from "./tomtom-route";
+import { TOMTOM_ATTRIBUTION } from "./tomtom-budget";
 
 /**
  * Live traffic helpers. Every number comes from TomTom (via the Pages Function)
@@ -26,12 +28,15 @@ export type FlowSample = {
 };
 
 export type RouteTraffic = {
-  /** Extra seconds vs free-flow, only from real samples. */
+  /** Extra seconds vs free-flow, only from real samples or Routing. */
   delaySec: number;
   /** Share of the line that had a usable sample (0–1). */
   coverage: number;
   worst: Congestion | null;
   samples: FlowSample[];
+  travelTimeSec?: number;
+  speedLimits?: SpeedLimitSpan[];
+  source?: "routing" | "flow";
 };
 
 export type TrafficSummary = {
@@ -41,6 +46,8 @@ export type TrafficSummary = {
   etaNote: string;
   delaySec: number;
   live: boolean;
+  /** Posted mph from TomTom speedLimit sections at the driver's progress, when sent. */
+  speedLimitMph?: number | null;
 };
 
 export type AlongPoint = { lon: number; lat: number };
@@ -201,15 +208,32 @@ function formatMin(sec: number): string {
  * Drive / review copy from real delay + the nearest incident ahead on the line.
  * Never says "heavy" without a sample or a jam/crash/closure.
  */
+export function routeTrafficFromRouting(route: TrafficRoute): RouteTraffic {
+  const delay = route.trafficDelaySec;
+  const worst: Congestion | null = delay >= 180 ? "heavy" : delay >= 45 ? "slow" : "free";
+  return {
+    delaySec: delay,
+    coverage: 1,
+    worst,
+    samples: [],
+    travelTimeSec: route.travelTimeSec,
+    speedLimits: route.speedLimits,
+    source: "routing",
+  };
+}
+
 export function trafficSummary(input: {
   traffic: RouteTraffic | null;
   ahead: RadarItem | null;
   aheadMi: number | null;
   tomtom: boolean;
   on: boolean;
+  alongMi?: number;
 }): TrafficSummary {
+  const speedLimitMph = input.on ? speedLimitAt(input.traffic?.speedLimits, input.alongMi ?? 0) : null;
+  const attr = input.traffic?.source === "routing" ? ` · ${TOMTOM_ATTRIBUTION}` : "";
   if (!input.on) {
-    return { line: null, etaNote: "Typical time · traffic off", delaySec: 0, live: false };
+    return { line: null, etaNote: "Typical time · traffic off", delaySec: 0, live: false, speedLimitMph };
   }
   const delay = input.traffic?.delaySec ?? 0;
   const live = Boolean(input.traffic);
@@ -229,25 +253,26 @@ export function trafficSummary(input: {
     const extra = live && delay >= 45 ? `, +${formatMin(delay)}` : "";
     return {
       line: `${kind} ${dist}${extra}`,
-      etaNote: live ? `Live traffic${delay >= 45 ? ` · +${formatMin(delay)}` : ""}` : "Typical time · official incidents",
+      etaNote: live ? `Live traffic${delay >= 45 ? ` · +${formatMin(delay)}` : ""}${attr}` : "Typical time · official incidents",
       delaySec: live ? delay : 0,
       live,
+      speedLimitMph,
     };
   }
 
   if (live && worst === "heavy" && delay >= 45) {
-    return { line: `Heavy traffic ahead, +${formatMin(delay)}`, etaNote: `Live traffic · +${formatMin(delay)}`, delaySec: delay, live: true };
+    return { line: `Heavy traffic ahead, +${formatMin(delay)}`, etaNote: `Live traffic · +${formatMin(delay)}${attr}`, delaySec: delay, live: true, speedLimitMph };
   }
   if (live && worst === "slow" && delay >= 45) {
-    return { line: `Slow traffic, +${formatMin(delay)}`, etaNote: `Live traffic · +${formatMin(delay)}`, delaySec: delay, live: true };
+    return { line: `Slow traffic, +${formatMin(delay)}`, etaNote: `Live traffic · +${formatMin(delay)}${attr}`, delaySec: delay, live: true, speedLimitMph };
   }
   if (live) {
-    return { line: delay >= 45 ? `Traffic on this line, +${formatMin(delay)}` : "Traffic moving", etaNote: delay >= 45 ? `Live traffic · +${formatMin(delay)}` : "Live traffic", delaySec: delay, live: true };
+    return { line: delay >= 45 ? `Traffic on this line, +${formatMin(delay)}` : "Traffic moving", etaNote: delay >= 45 ? `Live traffic · +${formatMin(delay)}${attr}` : `Live traffic${attr}`, delaySec: delay, live: true, speedLimitMph };
   }
   if (input.tomtom) {
-    return { line: null, etaNote: "Live traffic · measuring this line", delaySec: 0, live: false };
+    return { line: null, etaNote: "Live traffic · measuring this line", delaySec: 0, live: false, speedLimitMph };
   }
-  return { line: null, etaNote: "Typical time · no live speeds (TomTom key not set)", delaySec: 0, live: false };
+  return { line: null, etaNote: "Typical time · no live speeds (TomTom key not set)", delaySec: 0, live: false, speedLimitMph };
 }
 
 /** Nearest map-incident along the remaining line (ahead of `alongMi`). */
@@ -326,5 +351,5 @@ export function delayOfSample(s: TomTomFlowSample): number | null {
   return delaySecOf(s);
 }
 
-export { congestionOf, delaySecOf };
-export type { Congestion };
+export { congestionOf, delaySecOf, fetchTrafficRoute, speedLimitAt };
+export type { Congestion, SpeedLimitSpan, TrafficRoute };

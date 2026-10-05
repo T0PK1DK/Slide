@@ -6,6 +6,7 @@ import { cloud, cloudConfigured } from "./cloud";
  *   - "fdot":   FDOT DIVAS events: crashes, disabled vehicles, congestion, roadwork (via /api/incidents)
  *   - "mdpd":   Miami-Dade Police dispatched traffic calls (via /api/incidents)
  *   - "fl511":  official Florida 511 incidents, when the FL511 key is set (via /api/incidents)
+ *   - "tomtom": Traffic Incident Details, when TOMTOM_API_KEY is set (via /api/incidents)
  * Nothing is predicted or invented, and police items are always worded as
  * "reported by drivers" — Slide doesn't track police vehicles; nobody can legally.
  */
@@ -153,7 +154,7 @@ async function ownFeed(path: string, lat: number, lon: number, km: number): Prom
   }
 }
 
-/** Official incidents: FDOT + Miami-Dade Police (+ FL511 when keyed), merged by the Function. */
+/** Official incidents: FDOT + Miami-Dade Police (+ FL511 / TomTom when keyed), merged by the Function. */
 export const officialIncidents = (lat: number, lon: number, km = 12) => ownFeed("/api/incidents", lat, lon, km);
 /** Speed / red-light cameras mapped in OpenStreetMap. */
 export const enforcementCameras = (lat: number, lon: number, km = 5) => ownFeed("/api/cameras", lat, lon, km);

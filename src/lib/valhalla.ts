@@ -13,7 +13,7 @@ export type SearchHit = {
   /** House number from the provider, when it sent one. */
   housenumber?: string;
   /** Which geocoder produced this hit. */
-  source?: "photon" | "nominatim" | "census" | "coords";
+  source?: "photon" | "nominatim" | "census" | "coords" | "tomtom";
 };
 
 /**

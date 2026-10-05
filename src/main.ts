@@ -10,7 +10,7 @@ import {
   type LonLat,
   type SearchHit,
 } from "./lib/valhalla";
-import { geocode, searchPlaces } from "./lib/geocode";
+import { geocode, parseLatLng, searchPlaces } from "./lib/geocode";
 import {
   arrivalClock,
   formatDuration,
@@ -989,23 +989,36 @@ function addRouteLayers() {
 }
 function bindSearch(input: HTMLInputElement, box: HTMLElement, onPick: (hit: SearchHit) => void) {
   let timer = 0; let items: SearchHit[] = []; let active = -1;
+  let inflight: AbortController | null = null;
   const close = () => { box.hidden = true; active = -1; };
   const draw = () => renderSuggest(box, items, active, (hit) => { onPick(hit); close(); });
 
   input.addEventListener("input", () => {
     window.clearTimeout(timer);
+    inflight?.abort();
+    const typed = input.value.trim();
+    if (typed.length < 3 && !parseLatLng(typed)) {
+      items = [];
+      close();
+      return;
+    }
     timer = window.setTimeout(async () => {
+      inflight?.abort();
+      inflight = new AbortController();
+      const mine = inflight;
       try {
-        items = await searchPlaces(input.value, origin ?? MIAMI);
+        items = await searchPlaces(input.value, origin ?? MIAMI, { signal: mine.signal });
+        if (mine.signal.aborted) return;
         active = -1;
         draw();
         box.hidden = items.length === 0;
         if (netWhat === "search") hideFailure();
       } catch (err) {
+        if (mine.signal.aborted || (err instanceof DOMException && err.name === "AbortError")) return;
         close();
-        if (input.value.trim().length >= 2) showFailure(err, "search", () => input.dispatchEvent(new Event("input")));
+        if (input.value.trim().length >= 3) showFailure(err, "search", () => input.dispatchEvent(new Event("input")));
       }
-    }, 200);
+    }, 350);
   });
 
   input.addEventListener("keydown", (e) => {
@@ -1038,6 +1051,12 @@ function renderSuggest(box: HTMLElement, items: SearchHit[], active: number, onP
     btn.onclick = () => { onPick(hit); box.hidden = true; };
     box.appendChild(btn);
   });
+  if (items.some((h) => h.source === "tomtom")) {
+    const attr = document.createElement("p");
+    attr.className = "suggest-attr";
+    attr.textContent = "© TomTom";
+    box.appendChild(attr);
+  }
 }
 function stopTracking() {
   tracker?.stop();
@@ -1663,7 +1682,7 @@ function renderGuidance(mi: number, mph: number) {
   }
 
   const outlook = postedOutlook(route.bands, mi);
-  paintLimit(outlook?.currentMph, mph);
+  paintLimit(lastTraffic.speedLimitMph ?? outlook?.currentMph, mph);
 
   if (outlook && outlook.nextMph && outlook.changeInMi != null && outlook.changeInMi < 1.2) {
     postedEl.removeAttribute("hidden");
