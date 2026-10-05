@@ -164,10 +164,22 @@ describe("query parsing", () => {
 });
 
 describe("provider mappers", () => {
-  it("does not treat a Photon POI on the same street as house 1020", () => {
-    const hits = hitsFromPhoton(PHOTON_1020);
-    expect(resultsSatisfied("1020 NW 6th Ave, Fort Lauderdale, FL", hits)).toBe(false);
-    expect(hits[0].kind).toBe("fire_station");
+  it("does not treat a bus stop named Avenue/Street as the intersection", () => {
+    const photon = {
+      features: [
+        {
+          geometry: { coordinates: [-80.143202, 26.114588] },
+          properties: {
+            osm_value: "bus_stop",
+            name: "Andrews Avenue/Southeast 6th Street",
+            street: "South Andrews Avenue",
+            city: "Fort Lauderdale",
+            state: "Florida",
+          },
+        },
+      ],
+    };
+    expect(resultsSatisfied("NW 6th Ave and Broward Blvd, Fort Lauderdale, FL", hitsFromPhoton(photon))).toBe(false);
   });
 
   it("reads Nominatim and Census house matches", () => {
@@ -176,6 +188,7 @@ describe("provider mappers", () => {
     expect(resultsSatisfied("1020 NW 6th Ave, Fort Lauderdale, FL", nom)).toBe(true);
     const census = hitsFromCensus(CENSUS_1020);
     expect(census[0].label).toMatch(/1020 NW 6th Ave/i);
+    expect(census[0].label).not.toMatch(/6Th/);
     expect(census[0].lat).toBeCloseTo(26.13713, 4);
   });
 });
@@ -263,6 +276,14 @@ describe("rankHits", () => {
       { label: "1020, Northwest 6th Avenue, Fort Lauderdale", lon: -80.14990, lat: 26.13717, kind: "house" },
     ], FLL);
     expect(ranked[0].label).toMatch(/^1020/);
+  });
+
+  it("prefers the named mall over its parking lot", () => {
+    const ranked = rankHits("Bal Harbour Shops", [
+      { label: "Bal Harbour Shops, 96th Street", name: "Bal Harbour Shops", lon: -80.12598, lat: 25.88728, kind: "parking" },
+      { label: "9700, Bal Harbour Shops, Collins Avenue", name: "Bal Harbour Shops", lon: -80.12498, lat: 25.88822, kind: "mall" },
+    ], FLL);
+    expect(ranked[0].kind).toBe("mall");
   });
 });
 

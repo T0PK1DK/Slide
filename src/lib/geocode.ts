@@ -157,10 +157,7 @@ export function hitHasHouse(hit: SearchHit, house: string): boolean {
 }
 
 export function hitLooksLikeIntersection(hit: SearchHit): boolean {
-  if (hit.kind === "intersection" || /&/.test(hit.label)) return true;
-  return /(?:ave(?:nue)?|st(?:reet)?|blvd|boulevard|r(?:oa)?d|dr(?:ive)?|ln|lane|hwy|highway|pkwy|way|ct|pl|ter(?:r)?)\b.{0,24}\/.{0,24}\b(?:ave(?:nue)?|st(?:reet)?|blvd|boulevard|r(?:oa)?d|dr(?:ive)?|ln|lane|hwy|highway|pkwy|way|ct|pl|ter(?:r)?)\b/i.test(
-    hit.label
-  );
+  return hit.kind === "intersection" || /&/.test(hit.label);
 }
 
 export function resultsSatisfied(query: string, hits: SearchHit[]): boolean {
@@ -266,12 +263,16 @@ export function rankHits(query: string, hits: SearchHit[], bias?: LonLat): Searc
   const zip = isZip(query);
   const inter = isIntersection(query);
   const here = bias ?? MIAMI;
+  const qn = query.trim().toLowerCase();
   return hits
     .map((hit, i) => {
       let s = 0;
       if (house && hitHasHouse(hit, house)) s += 100;
       if (inter && hitLooksLikeIntersection(hit)) s += 80;
       if (zip && /postcode|postal|zip/i.test(hit.kind)) s += 50;
+      if (hit.name && hit.name.toLowerCase() === qn) s += 40;
+      else if (hit.label.toLowerCase().includes(qn)) s += 15;
+      if (/^parking$/i.test(hit.kind) && !/park/i.test(qn)) s -= 30;
       const km = haversineMeters(here.lon, here.lat, hit.lon, hit.lat) / 1000;
       s += Math.max(0, 40 - km / 20);
       return { hit, s, i };
@@ -460,8 +461,9 @@ function escapeRe(s: string): string {
 }
 
 function titleAddress(s: string): string {
-  return s.replace(/[A-Za-z][A-Za-z']*/g, (w) => {
+  return s.replace(/[A-Za-z0-9']+/g, (w) => {
     if (/^(FL|NY|DC|NW|NE|SW|SE|US|USA)$/i.test(w)) return w.toUpperCase();
+    if (/^\d+(?:st|nd|rd|th)$/i.test(w)) return w.toLowerCase();
     return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
   });
 }
