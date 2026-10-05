@@ -29,8 +29,8 @@ const esc = (s: string) =>
   s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 
 /**
- * Gate the app. When accounts are on, restore the Supabase session first
- * (cookie + localStorage), show Sign in / Create account if needed, then the
+ * Gate the app. When accounts are on, restore the Supabase session first,
+ * show Sign in / Create account and the 6-digit code screen, then the
  * on-device driver card. Returning drivers skip straight in.
  */
 export function ensureSignedIn(root: HTMLElement, onReady: Done) {
@@ -101,28 +101,31 @@ function renderAccount(gate: HTMLElement, onReady: Done, notice: AuthLinkResult 
     const title = mode === "up" ? "Create your account" : "Sign in";
     const sub =
       mode === "up"
-        ? "Anyone can join. Enter your email — we'll send a link. No password."
-        : "We'll email you a sign-in link. Same form creates an account if you're new.";
-    const go = mode === "up" ? "Email me a sign-up link" : "Email me a sign-in link";
+        ? "Anyone can join. We'll email a 6-digit code. No password."
+        : "We'll email a 6-digit code. Type it in this app. On a computer you can tap the link instead.";
+    const go = mode === "up" ? "Email me a sign-up code" : "Email me a code";
     const switchLabel = mode === "up" ? "Already have an account? Sign in" : "New here? Create an account";
     const msg =
       afterLink && !afterLink.ok ? afterLink.message
         : afterLink?.ok ? "You're signed in. One moment…"
         : "";
+    const codeHint = isStandalone()
+      ? "Stay in this app and type the code. The email link opens Safari and will not sign the Home Screen app in."
+      : "Type the 6-digit code here. On a computer or in Safari you can tap the link in the email instead.";
     if (view === "check") {
       gate.innerHTML = `
         <form class="login-card" novalidate>
           <span class="login-kicker">SLIDE</span>
-          <h1 id="login-title">Check your email</h1>
-          <p class="login-sub">We sent a link to ${esc(pendingEmail)}. Open it on this phone. If the email shows a code, enter it here.</p>
-          <label class="login-field"><span>Code</span>
-            <input name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="123456" />
+          <h1 id="login-title">Enter your code</h1>
+          <p class="login-sub">We sent a 6-digit code to ${esc(pendingEmail)}.</p>
+          <label class="login-field login-code"><span>6-digit code</span>
+            <input name="code" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code" maxlength="6" placeholder="000000" />
           </label>
+          <p class="login-hint">${codeHint}</p>
           <p class="login-error" role="alert" hidden></p>
           <button class="primary login-go" type="submit">Sign in with code</button>
-          <button class="ghost login-reset" type="button" data-resend>Resend email</button>
+          <button class="ghost login-reset" type="button" data-resend>Resend code</button>
           <button class="ghost login-reset" type="button" data-restart>Use a different email</button>
-          ${homeScreenHint()}
         </form>`;
     } else {
       gate.innerHTML = `
@@ -147,7 +150,7 @@ function renderAccount(gate: HTMLElement, onReady: Done, notice: AuthLinkResult 
       const data = new FormData(form);
       if (view === "check") {
         const code = String(data.get("code") ?? "").trim();
-        if (!code) return showError(err, "Enter the code from the email, or tap the link.");
+        if (!code) return showError(err, "Enter the 6-digit code from the email.");
         try {
           await verifyMagicCode(pendingEmail, code);
         } catch (ex) {
@@ -176,7 +179,7 @@ function renderAccount(gate: HTMLElement, onReady: Done, notice: AuthLinkResult 
     gate.querySelector("[data-resend]")?.addEventListener("click", async () => {
       try {
         await sendMagicLink(pendingEmail);
-        showError(err, "Sent another link.");
+        showError(err, "Sent another code.");
       } catch (ex) {
         showError(err, ex instanceof Error ? ex.message : "Couldn't send the email.");
       }

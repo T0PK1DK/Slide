@@ -56,7 +56,18 @@ function applySession(session: Session | null) {
   setAccountOwner(cached?.id ?? null);
 }
 
-/** Anyone can join: first use creates the user. */
+/** Pure: the 6-digit email OTP Slide accepts. Spaces are ignored. */
+export function normalizeEmailOtp(raw: string): string | null {
+  const digits = raw.replace(/\s+/g, "").trim();
+  return /^\d{6}$/.test(digits) ? digits : null;
+}
+
+/**
+ * Anyone can join: first use creates the user. The email has a 6-digit
+ * code ({{ .Token }} in the Magic Link template) plus a link for Safari
+ * or desktop. iPhone Home Screen must type the code — that webview does
+ * not share cookies or localStorage with Safari.
+ */
 export async function sendMagicLink(email: string, api?: AuthApi, redirectTo?: string): Promise<void> {
   const sb = api ?? (await cloud());
   const back = redirectTo ?? authRedirectUrl(
@@ -70,11 +81,14 @@ export async function sendMagicLink(email: string, api?: AuthApi, redirectTo?: s
   if (error) throw new Error(error.message);
 }
 
+/** Finish sign-in in *this* app via the emailed OTP. persistSession then keeps it. */
 export async function verifyMagicCode(email: string, code: string, api?: AuthApi): Promise<void> {
+  const token = normalizeEmailOtp(code);
+  if (!token) throw new Error("Enter the 6-digit code from the email.");
   const sb = api ?? (await cloud());
   const { error } = await sb.auth.verifyOtp({
     email: email.trim(),
-    token: code.trim(),
+    token,
     type: "email",
   });
   if (error) throw new Error(error.message);

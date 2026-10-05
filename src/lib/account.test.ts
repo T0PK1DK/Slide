@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Session } from "@supabase/supabase-js";
 import {
   listenAuthState,
+  normalizeEmailOtp,
   restoreSession,
   sendMagicLink,
   signOutAccount,
@@ -21,11 +22,18 @@ function fakeSession(email: string, id = "user-1"): Session {
   } as Session;
 }
 
-function mockAuth(start: Session | null = null): AuthApi & { lastOtp: { email: string; options?: { shouldCreateUser?: boolean; emailRedirectTo?: string } } | null } {
+function mockAuth(start: Session | null = null): AuthApi & {
+  lastOtp: { email: string; options?: { shouldCreateUser?: boolean; emailRedirectTo?: string } } | null;
+  lastVerify: { email: string; token: string; type: string } | null;
+} {
   let session = start;
   const listeners: Array<(event: string, session: Session | null) => void> = [];
-  const api: AuthApi & { lastOtp: { email: string; options?: { shouldCreateUser?: boolean; emailRedirectTo?: string } } | null } = {
+  const api: AuthApi & {
+    lastOtp: { email: string; options?: { shouldCreateUser?: boolean; emailRedirectTo?: string } } | null;
+    lastVerify: { email: string; token: string; type: string } | null;
+  } = {
     lastOtp: null,
+    lastVerify: null,
     auth: {
       async getSession() {
         return { data: { session }, error: null };
@@ -34,7 +42,8 @@ function mockAuth(start: Session | null = null): AuthApi & { lastOtp: { email: s
         api.lastOtp = { email, options };
         return { error: null };
       },
-      async verifyOtp({ token, email }) {
+      async verifyOtp({ token, email, type }) {
+        api.lastVerify = { email, token, type };
         if (token !== "123456") return { error: { message: "Invalid login credentials" } };
         session = fakeSession(email);
         listeners.forEach((l) => l("SIGNED_IN", session));
@@ -82,9 +91,18 @@ describe("magic-link accounts", () => {
     });
   });
 
-  it("sign-in: a valid email code restores a session", async () => {
+  it("normalizes a 6-digit email OTP and rejects junk", () => {
+    expect(normalizeEmailOtp("123456")).toBe("123456");
+    expect(normalizeEmailOtp(" 123 456 ")).toBe("123456");
+    expect(normalizeEmailOtp("12345")).toBeNull();
+    expect(normalizeEmailOtp("abcdef")).toBeNull();
+    expect(normalizeEmailOtp("")).toBeNull();
+  });
+
+  it("sign-in: verifyOtp type email in this app creates the session", async () => {
     const api = mockAuth();
-    await verifyMagicCode("king@slide.test", "123456", api);
+    await verifyMagicCode("king@slide.test", "123 456", api);
+    expect(api.lastVerify).toEqual({ email: "king@slide.test", token: "123456", type: "email" });
     const user = await restoreSession(api);
     expect(user).toEqual({ id: "user-1", email: "king@slide.test" });
   });
@@ -93,6 +111,12 @@ describe("magic-link accounts", () => {
     const api = mockAuth();
     await expect(verifyMagicCode("king@slide.test", "000000", api)).rejects.toThrow(/invalid login credentials/i);
     expect(await restoreSession(api)).toBeNull();
+  });
+
+  it("rejects a code that is not 6 digits before calling the server", async () => {
+    const api = mockAuth();
+    await expect(verifyMagicCode("king@slide.test", "12", api)).rejects.toThrow(/6-digit/i);
+    expect(api.lastVerify).toBeNull();
   });
 
   it("restores the session after a reload (INITIAL_SESSION + getSession)", async () => {

@@ -22,7 +22,7 @@ import {
 } from "../lib/social";
 
 /**
- * The "Slide account" part of the Profile sheet: sign in with an emailed link (or code),
+ * The "Slide account" part of the Profile sheet: sign in with a 6-digit email code (or the link on desktop),
  * pick a @handle, then followers / following / friends and driver search.
  * Only the handle, name, car tag and (opt-in) car label are public.
  */
@@ -54,18 +54,18 @@ export function renderSocial(box: HTMLElement, local: DriverProfile, share: Shar
 
   const signedOut = () => {
     box.innerHTML = `<h3>Friends & followers</h3>
-      <p class="pf-note">Sign in to follow drivers and report on the radar. Anyone can create an account — enter your email and we'll send a link. Open the link on this phone, or type the code if the email shows one.</p>
+      <p class="pf-note">Sign in to follow drivers and report on the radar. Anyone can create an account — we'll email a 6-digit code. Type it in this app. On a computer you can tap the link instead.</p>
       ${pendingEmail
-        ? `<form class="pf-form sc-code"><p class="pf-note">We emailed ${esc(pendingEmail)}. Tap the link in that email to sign in here.</p><label>Or enter the code, if the email shows one<input name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="8" required /></label>
-            <div class="pf-actions"><button type="submit" class="pf-save">Sign in</button><button type="button" class="pf-link" data-restart>Use a different email</button></div></form>`
+        ? `<form class="pf-form sc-code"><p class="pf-note">We sent a 6-digit code to ${esc(pendingEmail)}. Type it here. The email also has a link for Safari or a computer.</p><label>6-digit code<input name="code" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code" maxlength="6" required /></label>
+            <div class="pf-actions"><button type="submit" class="pf-save">Sign in with code</button><button type="button" class="pf-link" data-restart>Use a different email</button></div></form>`
         : `<form class="pf-form sc-email"><label>Email<input name="email" type="email" autocomplete="email" required /></label>
-            <button type="submit" class="pf-save">Email me a sign-in link</button></form>`}
+            <button type="submit" class="pf-save">Email me a code</button></form>`}
       <p class="sc-msg pf-note" role="status">${esc(notice)}</p>`;
     notice = "";
     box.querySelector<HTMLFormElement>(".sc-email")?.addEventListener("submit", async (e) => {
       e.preventDefault();
       const email = String(new FormData(e.target as HTMLFormElement).get("email") ?? "");
-      try { await sendCode(email); pendingEmail = email; signedOut(); say("Check your email and tap the link. Open it on this phone, in this browser."); } catch (err) { fail(err); }
+      try { await sendCode(email); pendingEmail = email; signedOut(); say("Check your email and type the 6-digit code here."); } catch (err) { fail(err); }
     });
     box.querySelector<HTMLFormElement>(".sc-code")?.addEventListener("submit", async (e) => {
       e.preventDefault();

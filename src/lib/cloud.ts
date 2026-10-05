@@ -31,10 +31,10 @@ export function authReturn(hash: string, search: string): { kind: "session" } | 
 }
 
 /**
- * Where the emailed link should send the driver. Production always uses the
- * live Pages origin so the session cookie is written on the same host as the
- * Home Screen app. Previews keep their own origin (PKCE / cookies are
- * host-bound). Local http falls back to the live site URL for docs/tests.
+ * Where the emailed *link* should send the driver (Safari / desktop). The
+ * Home Screen app signs in with the 6-digit code instead — iOS does not share
+ * cookies or localStorage with Safari. Production uses the live Pages origin.
+ * Previews keep their own origin. Local http falls back to the live site URL.
  */
 export function authRedirectUrl(origin = "", pathname = "/"): string {
   try {
