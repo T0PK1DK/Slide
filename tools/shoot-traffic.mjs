@@ -41,6 +41,12 @@ const GARAGE = {
   showTraffic: true,
 };
 
+/** 1×1 transparent PNG so MapLibre flow requests can settle on Vite preview. */
+const CLEAR_PNG = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVQYV2NgAAIAAAUAAarVyFEAAAAASUVORK5CYII=",
+  "base64",
+);
+
 const INCIDENTS = {
   configured: true,
   items: [
@@ -100,6 +106,7 @@ function shouldMock(url) {
   if (url.includes("/api/incidents") && !url.includes("/api/traffic/")) return "incidents";
   if (url.includes("/api/traffic/route")) return "route";
   if (url.includes("/api/cameras") || url.includes("/api/transit")) return "empty";
+  if (url.includes("/api/traffic/flow/")) return "flow";
   return null;
 }
 
@@ -119,6 +126,9 @@ async function mockApi(page) {
       }
       if (kind === "empty") {
         return req.respond({ status: 200, contentType: "application/json", body: JSON.stringify({ items: [] }) });
+      }
+      if (kind === "flow") {
+        return req.respond({ status: 200, contentType: "image/png", body: CLEAR_PNG });
       }
       return req.continue();
     } catch (err) {
@@ -148,7 +158,7 @@ async function shot(page, name) {
   console.log("wrote", file);
 }
 
-/** Harness-only: city grid + congestion colours so the PR shot shows flow without shipping demo tiles. */
+/** Harness-only congestion strokes. Used when TomTom flow tiles are not on this preview. */
 async function paintFlowBackdrop(page) {
   await page.evaluate(() => {
     if (document.getElementById("shot-flow")) return;
@@ -157,21 +167,14 @@ async function paintFlowBackdrop(page) {
     el.setAttribute("aria-hidden", "true");
     el.style.cssText = "position:absolute;inset:0;z-index:1;pointer-events:none";
     el.innerHTML = `<svg viewBox="0 0 390 844" width="100%" height="100%" preserveAspectRatio="xMidYMid slice">
-      <rect width="390" height="844" fill="#12141a"/>
-      <path d="M0 210h390" stroke="#1c2430" stroke-width="28"/>
-      <path d="M0 390h390" stroke="#1c2430" stroke-width="22"/>
-      <path d="M0 560h390" stroke="#1c2430" stroke-width="18"/>
-      <path d="M70 0v844" stroke="#1c2430" stroke-width="16"/>
-      <path d="M210 0v844" stroke="#1c2430" stroke-width="34"/>
-      <path d="M320 0v844" stroke="#1c2430" stroke-width="14"/>
-      <path d="M210 0v360" stroke="#3dcc6e" stroke-width="7" stroke-linecap="round" opacity="0.92"/>
-      <path d="M210 360v150" stroke="#f5c14a" stroke-width="8" stroke-linecap="round" opacity="0.95"/>
-      <path d="M210 510v334" stroke="#e5484d" stroke-width="9" stroke-linecap="round" opacity="0.95"/>
-      <path d="M0 390h210" stroke="#3dcc6e" stroke-width="6" opacity="0.85"/>
-      <path d="M210 390h180" stroke="#f5c14a" stroke-width="6" opacity="0.9"/>
-      <path d="M70 210v350" stroke="#7a1224" stroke-width="6" opacity="0.88"/>
-      <path d="M320 0v560" stroke="#3dcc6e" stroke-width="5" opacity="0.8"/>
-      <path d="M0 560h320" stroke="#e5484d" stroke-width="6" opacity="0.88"/>
+      <path d="M210 0v360" stroke="#3dcc6e" stroke-width="7" stroke-linecap="round" opacity="0.88"/>
+      <path d="M210 360v150" stroke="#f5c14a" stroke-width="8" stroke-linecap="round" opacity="0.9"/>
+      <path d="M210 510v334" stroke="#e5484d" stroke-width="9" stroke-linecap="round" opacity="0.92"/>
+      <path d="M0 390h210" stroke="#3dcc6e" stroke-width="6" opacity="0.8"/>
+      <path d="M210 390h180" stroke="#f5c14a" stroke-width="6" opacity="0.85"/>
+      <path d="M70 210v350" stroke="#7a1224" stroke-width="6" opacity="0.82"/>
+      <path d="M320 0v560" stroke="#3dcc6e" stroke-width="5" opacity="0.75"/>
+      <path d="M0 560h320" stroke="#e5484d" stroke-width="6" opacity="0.82"/>
     </svg>`;
     const map = document.getElementById("map");
     map?.parentElement?.insertBefore(el, map.nextSibling);
@@ -224,7 +227,14 @@ async function openCard(page) {
 const browser = await puppeteer.launch({
   executablePath: process.env.CHROME || "/usr/bin/google-chrome-stable",
   headless: "new",
-  args: ["--no-sandbox", "--disable-gpu", "--hide-scrollbars"],
+  args: [
+    "--no-sandbox",
+    "--hide-scrollbars",
+    "--use-gl=angle",
+    "--use-angle=swiftshader",
+    "--enable-webgl",
+    "--ignore-gpu-blocklist",
+  ],
 });
 
 const page = await browser.newPage();
@@ -237,8 +247,8 @@ await mockApi(page);
 await page.goto(baseUrl, { waitUntil: "domcontentloaded", timeout: 45000 });
 await page.waitForSelector("#search-card, .login-card", { timeout: 25000 });
 await page.waitForFunction(() => !document.querySelector(".boot"), { timeout: 12000 }).catch(() => {});
-await page.waitForFunction(() => document.documentElement.dataset.map === "ready", { timeout: 20000 }).catch(() => {});
-await new Promise((r) => setTimeout(r, 2500));
+await page.waitForFunction(() => document.documentElement.dataset.map === "ready", { timeout: 25000 }).catch(() => {});
+await new Promise((r) => setTimeout(r, 1500));
 await page.evaluate(() => document.querySelector(".login")?.remove());
 await paintFlowBackdrop(page);
 
@@ -253,28 +263,34 @@ const diag = await page.evaluate(() => ({
 console.log("diag", JSON.stringify(diag));
 
 await page.evaluate(() => {
-  const box = document.getElementById("g-traffic");
-  const build = document.getElementById("g-build");
-  const ghosts = document.getElementById("g-ghosts");
-  const share = document.getElementById("g-share");
-  if (box) box.checked = true;
-  if (build) build.checked = true;
-  if (ghosts) ghosts.checked = true;
-  if (share) share.checked = true;
+  document.getElementById("search-card")?.classList.add("open");
+});
+await new Promise((r) => setTimeout(r, 200));
+await page.click("#tune").catch(() => {});
+await page.waitForFunction(() => document.getElementById("garage")?.classList.contains("open"), { timeout: 4000 }).catch(() => {});
+await page.evaluate(() => {
   const garage = document.getElementById("garage");
-  garage?.classList.add("open");
-  const live = garage?.querySelector("#g-traffic")?.closest(".toggle");
-  live?.scrollIntoView({ block: "center" });
+  if (!garage?.classList.contains("open")) garage?.classList.add("open");
+  garage?.querySelector("#g-traffic")?.closest(".toggle")?.scrollIntoView({ block: "center" });
 });
 await new Promise((r) => setTimeout(r, 300));
 await shot(page, "traffic-tune-toggle-phone");
 
-await page.evaluate(() => document.getElementById("garage")?.classList.remove("open"));
+await page.evaluate(() => {
+  document.getElementById("garage")?.classList.remove("open");
+  document.getElementById("search-card")?.classList.remove("open");
+});
 await ensurePins(page);
 await new Promise((r) => setTimeout(r, 250));
 await shot(page, "traffic-incident-icons-phone");
 
-await openCard(page);
+const realPin = await page.$(".maplibregl-marker .inc-pin, .inc-pin");
+if (realPin) await realPin.click().catch(() => {});
+const cardOpen = await page.evaluate(() => {
+  const card = document.getElementById("incident-card");
+  return Boolean(card && !card.hidden);
+});
+if (!cardOpen) await openCard(page);
 await new Promise((r) => setTimeout(r, 200));
 await shot(page, "traffic-incident-card-phone");
 
