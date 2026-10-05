@@ -70,8 +70,10 @@ export function weekBounds(weekId: string): WeekBucket | null {
   const week = Number(m[2]);
   if (week < 1 || week > 53) return null;
   const week1 = startOfMonday(new Date(year, 0, 4).getTime());
-  const monday = new Date(week1.getTime() + (week - 1) * 7 * DAY);
-  return { weekId, startsAt: monday.getTime(), endsAt: monday.getTime() + 7 * DAY };
+  // Calendar-day math (not fixed 7*DAY ms) so local Monday 00:00 survives DST.
+  const monday = new Date(week1.getFullYear(), week1.getMonth(), week1.getDate() + (week - 1) * 7, 0, 0, 0, 0);
+  const end = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 7, 0, 0, 0, 0);
+  return { weekId, startsAt: monday.getTime(), endsAt: end.getTime() };
 }
 
 export function emptyBoard(): LeaderboardState {
