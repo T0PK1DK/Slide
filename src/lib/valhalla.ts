@@ -1,8 +1,6 @@
 import { HttpError } from "../plan/failure";
 export const VALHALLA_URL =
   "https://valhalla1.openstreetmap.de";
-export const PHOTON_URL = "https://photon.komoot.io/api";
-
 export type LonLat = { lon: number; lat: number };
 
 export type SearchHit = {
@@ -12,6 +10,10 @@ export type SearchHit = {
   lon: number;
   lat: number;
   kind: string;
+  /** House number from the provider, when it sent one. */
+  housenumber?: string;
+  /** Which geocoder produced this hit. */
+  source?: "photon" | "nominatim" | "census" | "coords";
 };
 
 /**
@@ -203,38 +205,6 @@ async function fetchJson(url: string, init: RequestInit = {}, ms = 8000): Promis
     }
   }
   throw last;
-}
-
-export async function searchPlaces(query: string, bias?: LonLat): Promise<SearchHit[]> {
-  const q = query.trim();
-  if (q.length < 2) return [];
-  const url = new URL(PHOTON_URL);
-  url.searchParams.set("q", q);
-  url.searchParams.set("limit", "8");
-  url.searchParams.set("lang", "en");
-  url.searchParams.set("lon", String(bias?.lon ?? -80.13));
-  url.searchParams.set("lat", String(bias?.lat ?? 25.89));
-  const data = await fetchJson(url.toString());
-  const seen = new Set<string>();
-  const hits: SearchHit[] = [];
-  for (const f of data.features ?? []) {
-    const p = f.properties ?? {};
-    const [lon, lat] = f.geometry.coordinates;
-    const key = `${lon.toFixed(5)},${lat.toFixed(5)}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    const parts = [p.housenumber, p.name, p.street, p.city || p.county, p.state]
-      .filter(Boolean)
-      .filter((v: string, i: number, a: string[]) => a.indexOf(v) === i);
-    hits.push({
-      label: parts.join(", "),
-      name: typeof p.name === "string" ? p.name : undefined,
-      lon,
-      lat,
-      kind: p.osm_value || p.type || "place",
-    });
-  }
-  return hits;
 }
 
 export async function requestRoutes(

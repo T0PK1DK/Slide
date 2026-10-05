@@ -6,11 +6,11 @@ import {
   requestRouteVariant,
   type RouteResponse,
   requestTraceAttributes,
-  searchPlaces,
   tripShape,
   type LonLat,
   type SearchHit,
 } from "./lib/valhalla";
+import { geocode, searchPlaces } from "./lib/geocode";
 import {
   arrivalClock,
   formatDuration,
@@ -262,6 +262,11 @@ $("#compass-fab").addEventListener("click", () => {
   map.easeTo({ bearing: 0, pitch: window.innerWidth < 820 && hudMode === "plan" ? 8 : map.getPitch(), duration: 500 });
 });
 toInput.addEventListener("focus", () => $("#search-card").classList.add("open"));
+toInput.addEventListener("input", () => {
+  if (toInput.value.trim() !== destLabel) dest = null;
+  const msg = errorEl.textContent ?? "";
+  if (msg === "Set a destination." || msg.startsWith("No match")) showError("");
+});
 $("#go").addEventListener("click", plan);
 $("#tune").addEventListener("click", () => garageEl.classList.toggle("open"));
 $("#g-close").addEventListener("click", () => garageEl.classList.remove("open"));
@@ -999,11 +1004,31 @@ async function plan() {
   hidePlace();
   hideLocationProblem();
   hideFailure();
-  if (!dest) return showError("Set a destination.");
+  const typed = toInput.value.trim();
+  if (!typed) return showError("Set a destination.");
   planning = true;
   const goBtn = $("#go") as HTMLButtonElement;
   goBtn.disabled = true;
   try {
+    if (!dest) {
+      setStatus("Finding that place…");
+      let hit: SearchHit | null = null;
+      try {
+        hit = await geocode(typed, origin ?? MIAMI);
+      } catch (err) {
+        showFailure(err, "search", () => void plan());
+        setStatus("");
+        return;
+      }
+      if (!hit) {
+        showError("No match, try adding the city");
+        setStatus("");
+        return;
+      }
+      dest = { lon: hit.lon, lat: hit.lat };
+      destLabel = hit.label;
+      toInput.value = hit.label;
+    }
     const start = await resolveOrigin();
     if (!start) return;
     origin = start;

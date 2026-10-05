@@ -16,7 +16,7 @@ npm run dev
 Vite + TypeScript. No env file required: without env vars, accounts, radar feeds and transit simply stay off. See **Owner setup for accounts + radar** to turn them on.
 
 - Routing: `https://valhalla1.openstreetmap.de`
-- Geocode: `https://photon.komoot.io/api`
+- Geocode: `/api/geocode` → Photon, then Nominatim (Worker, 1 req/s), then US Census. Direct Photon if the Function is missing.
 - Tiles: `https://tiles.openfreemap.org/styles/dark`
 
 Units are **miles / mph**. First proving ground is **Miami**.
@@ -25,7 +25,7 @@ Units are **miles / mph**. First proving ground is **Miami**.
 
 Everything below is on `main` (PR #13, 2026-09-25): 0 TS errors, 54/54 unit tests, `npm run build` clean.
 
-- **Search + plan:** Photon search, GPS locate, a "you" marker, and up to 5 stops (drag to reorder).
+- **Search + plan:** typed addresses geocode on Enter / Drop the line (Photon → Nominatim → US Census). Autocomplete while typing. GPS locate, a "you" marker, and up to 5 stops (drag to reorder).
 - **Routes:** Valhalla `/route` + `/trace_attributes`. Three or more lines are drawn together; tap a line or its bubble to pick one.
   - Tags: **Slide pick** (smoothest within +10% of fastest), **Fastest**, **No tolls**.
   - Routes with tolls are flagged; there's no price yet.
@@ -57,13 +57,16 @@ src/styles/system.test.ts  design-system metrics (hex, radii, type, !important)
 src/lib/empty.ts       empty-state copy (never "—"); `.is-empty` helper; unsigned sign `--`
 src/lib/empty.test.ts  placeholder vs numeral + postedSignText
 src/lib/place.ts       Photon label → name + address
+src/lib/geocode.ts     address parse + Photon / Nominatim / Census chain (tested)
+src/lib/geocode.test.ts  King's street / shops / ZIP / intersection queries
+functions/api/geocode.ts  Pages Function: User-Agent + Nominatim throttle; Vite plugin mirrors it in `npm run dev`
 src/plan/review-cards.ts  swipeable review cards from real ranked routes
 src/hud/voice-mute.ts  `#drive-mute` toggle + `slide:voice-mute` event
 src/voice/             spoken turn-by-turn; listens for `slide:voice-mute`, mirrors `slide.voice.v1`
 src/hud/report-ui.ts   report glass icons + subtypes (submit still sends kind)
 src/node-fs.d.ts       types for the metrics test
 tools/shoot-screens.mjs  phone/desktop HUD screenshots (390 + 1440)
-src/lib/valhalla.ts    route / trace / search
+src/lib/valhalla.ts    route / trace
 src/lib/smooth.ts      Slide score + speed bands
 src/lib/polyline.ts    precision-6 decode
 src/lib/garage.ts      customization persist
@@ -97,6 +100,7 @@ src/hud/social.ts      Profile → Friends & followers (sign in, handle, lists, 
 functions/api/incidents.ts  Pages Function: FDOT DIVAS + Miami-Dade Police (keyless) + FL511 (if FL511_API_KEY) merged, per-source status
 functions/api/cameras.ts    Pages Function: OSM enforcement cameras via Overpass (24 h tile cache)
 functions/api/transit.ts    Pages Function: GTFS-realtime buses/trains from TRANSIT_FEEDS secret
+functions/api/geocode.ts    Pages Function: Photon → Nominatim → US Census for typed addresses
 src/lib/sources/gtfsrt.ts   dependency-free GTFS-realtime VehiclePositions decoder (tested)
 src/lib/sources/osmcameras.ts  Overpass query + camera mapping (tested)
 src/lib/sources/transit.ts  feed config + vehicle → radar item (tested)
@@ -305,6 +309,8 @@ Read `TASKS.md` top unchecked item. Do not rebase history. Do not rename the pro
 - 2026-10-04 Nard: **Lane strip on Grim's #35 drive layout.** Based on `grim/screen-pass-c69a`. `#lane-strip` unhides only with real Valhalla `lanes` within 0.75 mi. Child arrows use existing tokens (`--glow`, `--fill-07`, `--fs-xl`, `--radius-md`) in the one stylesheet — no override layer. Drive chrome stays #35: speedo bottom-left, Report bottom-right.
 - 2026-10-04 Nard: **Speech hooks Grim's #35 mute, does not own the button.** Based on `grim/screen-pass-c69a`. `listenVoiceMute` follows `slide:voice-mute` `{ muted }` and `html[data-voice]`, cancels speech when muted, and writes `slide.voice.v1` to match. No `mountMuteToggle`, no second button, no click handler on `#drive-mute`. `startVoice` on Go now re-reads the attribute.
 - 2026-10-04 Grim: **PR 3 — polish.** From `main` @ f16ac7d (`grim/polish-c69a`). Desktop drive: `#maneuver` sits in a reserved top row between `.cmd-seg` and `.cmd-clock` (`.cmd-wx` hides in drive); `.cmd-stack` lifts to `128px` so End is not covered. Empty HUD numbers use `.is-empty` (body-large / `--muted` / nowrap) via `setMaybeEmpty()` — `EMPTY` wording unchanged. Unsigned limit sign draws `--` (`postedSignText()`), never `EMPTY.posted` ("No sign"); sign is a fixed 56×72 with `clamp()` type. Turn instruction may wrap two lines (`-webkit-line-clamp: 2`); distance and empty `Next turn` stay one line. `#lane-strip` top is unchanged. Sand land/water/roads and `[data-look=sand]` surfaces are warmer and lighter; Ember untouched. Did not move `#lane-strip` or touch voice/lane/Leon slots.
+
+- 2026-10-05 Cursor: **Address search.** King typed `1020 NW 6th Ave, Fort Lauderdale, FL` and Drop the line still said "Set a destination." Two stacked bugs: (1) `plan()` only used a pin from a tapped suggestion, so raw text never became a map spot; (2) Photon is POI-first and returned the fire station on Northwest 6th Avenue, not house 1020. `src/lib/geocode.ts` now resolves typed text on Enter / Drop the line (Photon house-number match → Nominatim → US Census), shows suggestions while typing, and says "No match, try adding the city" instead of the red "Set a destination" once the box has text. `/api/geocode` proxies Nominatim with `Slide/1 (+https://kings-slide.pages.dev)` at 1 req/s. `SearchHit` gained optional `housenumber` / `source`. No scoring-contract change.
 
 ## Teammate slots (stable IDs — do not rename)
 

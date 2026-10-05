@@ -62,6 +62,7 @@ Work top-down. Check the box in the same PR.
 - [ ] Map under 3 s on a *cold* Slow-4G visit: needs fewer bytes (self-hosted/slimmer tiles, 1× sprite)
 - [ ] Faster alternative rarely exists on public Valhalla (same trip from both costings) — needs self-host or a real alternate strategy
 - [x] Offline / no-route sheet + one fetch retry
+- [x] Destination search geocodes typed street addresses (Photon → Nominatim → Census); Enter / Drop the line no longer require a tapped suggestion
 
 - [x] `npm run build` is clean (fix TS, unused, layer add-before-style-load)
 - [x] If Valhalla returns one trip, fire a second `/route` with higher `use_highways` / lower `maneuver_penalty` so Faster exists (preview)
