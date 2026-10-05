@@ -1,4 +1,7 @@
+import { currentCloudUser, signOutAccount } from "../lib/account";
+import { cloudConfigured } from "../lib/cloud";
 import { clearTrips, lifetime, loadTrips } from "../lib/history";
+import { stopPresence } from "../lib/presence";
 import { eraseDeviceData, FUELS, loadProfile, saveProfile, toCar, type DriverProfile } from "../lib/profile";
 import type { SavedPlace } from "../lib/garage";
 import { lockApp } from "./login";
@@ -58,7 +61,7 @@ export function mountProfile(h: ProfileHooks): { open(): void; close(): void } {
           <div class="pf-id">
             <h2 id="pf-name">${esc(p.name)}</h2>
             <span class="pf-tag">${esc(p.tag)}</span>
-            <span class="pf-since">Driving with Slide since ${since}</span>
+            <span class="pf-since">Driving with Slide since ${since}${currentCloudUser()?.email ? ` · ${esc(currentCloudUser()!.email!)}` : ""}</span>
           </div>
           <button type="button" class="pf-close" aria-label="Close profile">×</button>
         </header>
@@ -103,8 +106,9 @@ export function mountProfile(h: ProfileHooks): { open(): void; close(): void } {
 
         <section class="pf-section">
           <h3>Privacy</h3>
-          <p class="pf-note">Your drives, places and car are saved only on this phone.</p>
+          <p class="pf-note">Home, work, drives, ghosts and XP on this phone stay private to your account. Reports you file are tied to you on the server and never show your name.</p>
           <div class="pf-actions wrap">
+            ${cloudConfigured() && currentCloudUser() ? `<button type="button" class="pf-link" data-signout>Sign out</button>` : ""}
             <button type="button" class="pf-link" data-lock>Lock Slide</button>
             <button type="button" class="pf-danger" data-clear-history>Clear my drive history</button>
             <button type="button" class="pf-danger" data-erase>Erase everything on this phone</button>
@@ -145,6 +149,12 @@ export function mountProfile(h: ProfileHooks): { open(): void; close(): void } {
     el.querySelectorAll<HTMLButtonElement>("[data-clear]").forEach((b) =>
       b.addEventListener("click", () => { h.clearPlace(b.dataset.clear as "home" | "work"); render(); })
     );
+    el.querySelector("[data-signout]")?.addEventListener("click", async () => {
+      h.setSharing(false);
+      await stopPresence().catch(() => undefined);
+      await signOutAccount().catch(() => undefined);
+      location.reload();
+    });
     el.querySelector("[data-lock]")!.addEventListener("click", lockApp);
     el.querySelector("[data-clear-history]")!.addEventListener("click", () => {
       if (!confirm("Delete every recorded drive from this phone? This can't be undone.")) return;

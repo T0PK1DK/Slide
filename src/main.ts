@@ -51,8 +51,8 @@ import { driverReady, STYLE } from "./boot";
 import { warmedStyle } from "./map/warm";
 import { mountProfile } from "./hud/profile";
 import { setSocialNotice } from "./hud/social";
+import { peekAuthLinkResult, takeAuthLinkResult } from "./lib/account";
 import { cloudConfigured } from "./lib/cloud";
-import { finishEmailLink } from "./lib/social";
 import { mountRadar } from "./hud/radar";
 import { mountFriends } from "./map/friends";
 import { createYouMarker } from "./map/you";
@@ -383,6 +383,9 @@ refreshPlaceChips();
 renderRecents();
 setHudMode("plan");
 void driverReady.then((driver) => {
+  // Session restore may have switched the account owner after this module loaded.
+  garage = loadGarage();
+  applyTheme(garage);
   // A new driver's car tag seeds the garage; after that the garage tag is theirs to change.
   if (garage.tag === "SLIDE-01" && driver.tag !== "SLIDE-01") {
     garage.tag = driver.tag;
@@ -393,13 +396,13 @@ void driverReady.then((driver) => {
   command.refreshHistory();
   if (!garage.coachDismissed) showCoach(true);
   void autoLocate();
-  void finishLinkSignIn();
+  finishLinkSignIn();
 });
 
-/** Back from the emailed sign-in link: finish signing in, then show the account in Profile. */
-async function finishLinkSignIn() {
+/** Back from the emailed sign-in link: boot already restored the session; open Profile. */
+function finishLinkSignIn() {
   if (!cloudConfigured()) return;
-  const result = await finishEmailLink();
+  const result = takeAuthLinkResult() ?? peekAuthLinkResult();
   if (!result) return;
   if (!result.ok) setSocialNotice(result.message);
   showCoach(false);

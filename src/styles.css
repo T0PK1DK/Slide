@@ -903,6 +903,15 @@ button.ghost.on { color: var(--glow); }
 .login-go { min-height: 56px; border-radius: var(--radius-lg); font-size: var(--fs-lg); }
 .login-reset { min-height: var(--touch); border-radius: var(--radius-lg); font-size: var(--fs-md); }
 .login-hint { margin: 0; font-size: var(--fs-md); line-height: 1.4; color: var(--faint); }
+.login-switch { margin: 0; font-size: var(--fs-md); color: var(--muted); text-align: center; }
+.login-text {
+  border: 0;
+  background: none;
+  color: var(--glow);
+  font: inherit;
+  min-height: var(--touch);
+  padding: 0;
+}
 
 /* ---------- You-are-here ---------- */
 .you { position: relative; width: 0; height: 0; pointer-events: none; }

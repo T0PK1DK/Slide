@@ -1,3 +1,4 @@
+import { scopedKey } from "./account-store";
 import { LIVERIES, VEHICLE_IDS, type Livery, type VehicleId } from "./vehicles";
 
 export type CameraMode = "cinematic" | "chase" | "top";
@@ -139,28 +140,29 @@ export function migrateGarage(saved: unknown): GarageConfig {
 }
 
 export function loadGarage(): GarageConfig {
+  const key = scopedKey(KEY);
   let raw: string | null = null;
   try {
-    raw = localStorage.getItem(KEY);
+    raw = localStorage.getItem(key);
   } catch {
     return migrateGarage(null);
   }
   if (!raw) return migrateGarage(null);
   // One-time copy of the pre-migration value, so a field this build doesn't
   // understand yet is never lost for good.
-  try { if (!localStorage.getItem(`${KEY}.backup`)) localStorage.setItem(`${KEY}.backup`, raw); } catch { /* storage full */ }
+  try { if (!localStorage.getItem(`${key}.backup`)) localStorage.setItem(`${key}.backup`, raw); } catch { /* storage full */ }
   try {
     return migrateGarage(JSON.parse(raw));
   } catch {
     // Unreadable JSON: keep a copy so nothing is silently lost, then start clean.
-    try { localStorage.setItem(`${KEY}.corrupt`, raw); } catch { /* storage full */ }
+    try { localStorage.setItem(`${key}.corrupt`, raw); } catch { /* storage full */ }
     return migrateGarage(null);
   }
 }
 
 export function saveGarage(cfg: GarageConfig) {
   try {
-    localStorage.setItem(KEY, JSON.stringify(cfg));
+    localStorage.setItem(scopedKey(KEY), JSON.stringify(cfg));
   } catch {
     // Private mode or full storage: the garage still works for this session.
   }

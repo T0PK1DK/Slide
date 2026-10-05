@@ -54,7 +54,7 @@ export function renderSocial(box: HTMLElement, local: DriverProfile, share: Shar
 
   const signedOut = () => {
     box.innerHTML = `<h3>Friends & followers</h3>
-      <p class="pf-note">Sign in to follow drivers, have followers, and report police, crashes and hazards on the radar. No password: we email you a sign-in link. Tap the link in the email on this phone, or enter the code if the email shows one.</p>
+      <p class="pf-note">Sign in to follow drivers and report on the radar. Anyone can create an account — enter your email and we'll send a link. Open the link on this phone, or type the code if the email shows one.</p>
       ${pendingEmail
         ? `<form class="pf-form sc-code"><p class="pf-note">We emailed ${esc(pendingEmail)}. Tap the link in that email to sign in here.</p><label>Or enter the code, if the email shows one<input name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="8" required /></label>
             <div class="pf-actions"><button type="submit" class="pf-save">Sign in</button><button type="button" class="pf-link" data-restart>Use a different email</button></div></form>`
@@ -157,7 +157,7 @@ export function renderSocial(box: HTMLElement, local: DriverProfile, share: Shar
         if (!on) await stopPresence().catch(() => undefined);
         say(on ? "Friends can now see roughly where you are." : "Stopped sharing. Your position was removed.");
       });
-      box.querySelector("[data-signout]")!.addEventListener("click", async () => { try { share.setSharing(false); await stopPresence().catch(() => undefined); await signOut(); await load(); } catch (err) { fail(err); } });
+      box.querySelector("[data-signout]")!.addEventListener("click", async () => { try { share.setSharing(false); await stopPresence().catch(() => undefined); await signOut(); location.reload(); } catch (err) { fail(err); } });
       box.querySelector("[data-delete]")!.addEventListener("click", async () => {
         if (!confirm("Delete your Slide account? Your profile, follows and reports are removed from the server. Drives on this phone stay.")) return;
         try { await deleteAccount(); await load(); } catch (err) { fail(err); }

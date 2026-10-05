@@ -1,3 +1,4 @@
+import { sendMagicLink, signOutAccount, verifyMagicCode } from "./account";
 import { authReturn, cloud } from "./cloud";
 
 /**
@@ -43,26 +44,22 @@ export async function currentUserId(): Promise<string | null> {
 
 /**
  * Step 1 of sign-in: email a sign-in link (and a 6-digit code if the email template
- * includes {{ .Token }}). Creates the account on first use. The link returns to this
- * page; Supabase falls back to the Site URL if this address isn't in Auth → Redirect URLs.
+ * includes {{ .Token }}). Creates the account on first use. The link returns to
+ * https://kings-slide.pages.dev (or this preview's origin).
  */
 export async function sendCode(email: string): Promise<void> {
-  const sb = await cloud();
-  const back = /^https:/.test(location.origin) ? location.origin + location.pathname : undefined;
-  const { error } = await sb.auth.signInWithOtp({ email: email.trim(), options: { shouldCreateUser: true, emailRedirectTo: back } });
-  if (error) throw new Error(error.message);
+  await sendMagicLink(email);
 }
 
 /** Step 2: the code from the email. */
 export async function verifyCode(email: string, code: string): Promise<void> {
-  const sb = await cloud();
-  const { error } = await sb.auth.verifyOtp({ email: email.trim(), token: code.trim(), type: "email" });
-  if (error) throw new Error(error.message);
+  await verifyMagicCode(email, code);
 }
 
 /**
  * Finish sign-in when the driver tapped the emailed link and landed back here.
  * Returns null when this load isn't a link return. Always strips the tokens from the address bar.
+ * Prefer prepareAccount() on boot — this stays for the Profile return path.
  */
 export async function finishEmailLink(): Promise<{ ok: true } | { ok: false; message: string } | null> {
   const ret = authReturn(location.hash, location.search);
@@ -85,8 +82,7 @@ export async function finishEmailLink(): Promise<{ ok: true } | { ok: false; mes
 }
 
 export async function signOut(): Promise<void> {
-  const sb = await cloud();
-  await sb.auth.signOut();
+  await signOutAccount();
 }
 
 export async function myProfile(): Promise<PublicProfile | null> {
@@ -168,5 +164,5 @@ export async function deleteAccount(): Promise<void> {
   const sb = await cloud();
   const { error } = await sb.rpc("delete_my_account");
   if (error) throw new Error(error.message);
-  await sb.auth.signOut();
+  await signOutAccount();
 }

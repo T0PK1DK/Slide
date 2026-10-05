@@ -35,6 +35,7 @@ Work top-down. Check the box in the same PR.
 - [x] Production redeployed from `main` @ d6b83e8 (PRs #16–#18): accounts on, email-link sign-in, Try again sheet, faster load (2026-10-04)
 - [ ] **Nard:** FL511 key (optional now), redeploy (HANDOFF → Owner setup); Miami-Dade transit needs a Swiftly key from King
 - [x] Sign in by tapping the emailed link (template can't show `{{ .Token }}` without custom SMTP); code box kept as an option
+- [x] Persistent Slide accounts: magic-link sign-up/sign-in stays signed in across reload, Safari, and the Home Screen app (cookie + supabase-js persistSession / autoRefresh / detectSessionInUrl). No D1. No new SQL — Nard confirms Site URL + Redirect URLs, then redeploys.
 - [x] Official incidents without a key: FDOT DIVAS + Miami-Dade Police merged in `/api/incidents`, per-source status (FL511 optional)
 - [ ] Verify FL511 field names against the first real payload (only if a key is added)
 - [ ] Later: FDOT WZDx work zones

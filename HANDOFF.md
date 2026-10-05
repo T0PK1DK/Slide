@@ -38,7 +38,7 @@ Everything below is on `main` (PR #13, 2026-09-25): 0 TS errors, 54/54 unit test
   - Speed and red-light cameras from OpenStreetMap (no key needed).
   - Live buses and trains from GTFS-realtime.
   - A heads-up banner with vibration.
-- **Accounts** (Supabase): email-code sign-in, @handle, followers / following / friends, driver search, and opt-in rough location for friends on the map.
+- **Accounts** (Supabase): email magic-link sign-up / sign-in (anyone can join), session restored on load (cookie + localStorage), @handle, followers / following / friends, driver search, and opt-in rough location for friends on the map. Sign out from the gate and Profile.
 - **Installable PWA** on Cloudflare Pages: https://kings-slide.pages.dev
 - **Off until configured:** without the env vars, accounts, reports, FL511 and transit stay hidden and the rest of the app works.
 
@@ -72,8 +72,11 @@ src/lanes/             Valhalla turn-lane strip for Grim's `#lane-strip` slot
 src/lib/tracking.ts    live GPS watch + snap-to-route progress
 src/lib/maplook.ts     night basemap lift (per theme), route ribbon, HUD fit padding
 src/lib/vehicles.ts    rides: original top-down car designs (SVG), liveries, pack field for future collabs (tested)
-src/lib/profile.ts     on-device driver profile, session, PIN hash, persistent storage
-src/hud/login.ts       login gate: set up driver / welcome back / lock
+src/lib/profile.ts     on-device driver profile, session, PIN hash, persistent storage (keyed to the signed-in account)
+src/lib/auth-storage.ts  supabase-js storage: localStorage + 90-day SameSite=Lax cookie (Safari ↔ Home Screen)
+src/lib/account-store.ts  per-account local keys for home/work, history, ghosts, XP
+src/lib/account.ts     magic-link send/verify, session restore, onAuthStateChange, sign-out
+src/hud/login.ts       login gate: Sign in / Create account (magic link), then driver setup / welcome back / sign-out
 src/map/you.ts         "you are here" marker: glow dot, pulse, heading cone, accuracy halo
 src/hud/command.ts     Command view: SEKAI-style dashboard (wide) / Insights sheet (phone)
 src/lib/history.ts     on-device trip history + overview stats (live-GPS drives only)
@@ -83,8 +86,8 @@ src/plan/routes.test.ts  Vitest unit tests (`npm test`)
 src/lib/alerts.ts      desktop alert list + switch suggestion from real data only (pure, tested)
 src/lib/dashboard.test.ts  tests for alerts / week tiles
 src/hud/profile.ts     Profile sheet: driver, My car, all-time stats, places, privacy; friends section (not live)
-src/lib/cloud.ts       optional Supabase client (lazy; off when VITE_SUPABASE_* unset); authReturn() spots the email-link return
-src/lib/cloud.test.ts  tests for the email-link return parser
+src/lib/cloud.ts       optional Supabase client (persistSession, autoRefreshToken, detectSessionInUrl always on)
+src/lib/cloud.test.ts  tests for the email-link return parser + production redirect URL
 src/lib/social.ts      email-code sign-in, profiles, follow/unfollow, friends, search
 src/lib/reports.ts     radar items, heading-up geometry, alerts, report/vote RPCs
 src/lib/sources/fl511.ts  FL511 event → radar item (pure, tested)
@@ -304,6 +307,8 @@ Read `TASKS.md` top unchecked item. Do not rebase history. Do not rename the pro
 - 2026-10-04 Nard: **Lane strip on Grim's #35 drive layout.** Based on `grim/screen-pass-c69a`. `#lane-strip` unhides only with real Valhalla `lanes` within 0.75 mi. Child arrows use existing tokens (`--glow`, `--fill-07`, `--fs-xl`, `--radius-md`) in the one stylesheet — no override layer. Drive chrome stays #35: speedo bottom-left, Report bottom-right.
 - 2026-10-04 Nard: **Speech hooks Grim's #35 mute, does not own the button.** Based on `grim/screen-pass-c69a`. `listenVoiceMute` follows `slide:voice-mute` `{ muted }` and `html[data-voice]`, cancels speech when muted, and writes `slide.voice.v1` to match. No `mountMuteToggle`, no second button, no click handler on `#drive-mute`. `startVoice` on Go now re-reads the attribute.
 
+- 2026-10-05 Cursor: **Persistent accounts (Supabase magic link, not D1).** King was getting logged out. Root cause: the cloud session lived only in `localStorage` (`slide.auth.v1`), which iPhone Safari does not share with the Home Screen app, and the magic-link client was created *after* the on-device gate + MapLibre with `detectSessionInUrl` gated off. PKCE verifiers in Safari-only storage also broke the emailed `?code=` when the link opened a different webview. Fix: supabase-js `persistSession` + `autoRefreshToken` + `detectSessionInUrl: true` always, implicit flow for email links, dual storage (localStorage + 90-day `Secure; SameSite=Lax; Path=/` cookie so Safari and the PWA share the session), restore + `onAuthStateChange` on boot, Sign in / Create account screens (open signup via `shouldCreateUser`), Sign out on the gate and in Profile. Home/work/history/ghosts/XP keys are scoped to `auth.uid()`. **No D1. No new SQL.** Nard: confirm Site URL + Redirect URLs in the Auth setup section, then redeploy Pages. Verify on https://kings-slide.pages.dev (email a link, reload, open from Home Screen, sign out).
+
 ## Teammate slots (stable IDs — do not rename)
 
 | Who | Slot | Selector | Where |
@@ -352,11 +357,16 @@ grant execute on function public.delete_my_account() to authenticated;
 
 ### Nard: the rest of setup
 
-1. **Supabase Auth** (Dashboard → Authentication):
-   - **URL Configuration:** Site URL `https://kings-slide.pages.dev`.
-   - **Email Templates → Magic Link:** adding `{{ .Token }}` needs custom SMTP first. Until then the app signs in from the link itself.
-   - **Redirect URLs:** add `https://*.kings-slide.pages.dev/**` so preview deploys get their own sign-in links back (production works without it).
+1. **Supabase Auth** (Dashboard → Authentication) — Nard must confirm these when deploying the persistent-accounts PR. **No new SQL migration.** The existing `supabase/migrations/` files already cover profiles, follows, reports and presence.
+   - **URL Configuration → Site URL:** `https://kings-slide.pages.dev` (no trailing path). This is the only origin the live Home Screen app uses.
+   - **Redirect URLs** (exact + wildcard; Save after each):
+     - `https://kings-slide.pages.dev`
+     - `https://kings-slide.pages.dev/**`
+     - `https://*.kings-slide.pages.dev/**` (preview deploys)
+   - **Auth providers:** Email enabled. Magic link / OTP on. "Confirm email" can stay on — the link is the confirmation.
+   - **Email Templates → Magic Link:** adding `{{ .Token }}` needs custom SMTP first. Until then the app signs in from the link itself; the code box stays as a fallback.
    - **Email sending:** the built-in sender allows only a few emails per hour, which is fine for testing. For friends at scale, add SMTP (e.g. Resend, which has a free tier).
+   - Do **not** switch this project to D1 or password-only auth. Sessions are supabase-js `persistSession` + a first-party cookie on pages.dev.
 2. **Cloudflare Pages `kings-slide`** (account `f52402ec…`). It is a **Direct Upload** project (no Git connection), so Cloudflare never builds the app: `VITE_` values are baked in on the machine that runs `npm run build`, and dashboard env vars never reach the bundle. Server keys are Pages **secrets** read by the Functions at runtime.
    - `VITE_SUPABASE_URL` is in the committed `.env.production` (public value).
    - `VITE_SUPABASE_ANON_KEY` (public by design, `role: anon`) is in `.env.production` too (2026-10-04). The same two values are also stored as Pages secrets for the record, but the bundle only gets them from `.env.production`.
