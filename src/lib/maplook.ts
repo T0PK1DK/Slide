@@ -26,9 +26,9 @@ const PALETTES: Record<Look, Palette> = {
     residential: "#160f0c", label: "#f0d8c8", halo: "#070405",
   },
   sand: {
-    land: "#15130f", water: "#07090b", road: "#a08b66", roadCase: "#1f1b14", motorway: "#dcc59a",
-    minor: "#463e30", park: "#141811", building: "#211d16", buildingEdge: "#363024", path: "#383125",
-    residential: "#19160f", label: "#ece2cc", halo: "#07070a",
+    land: "#241c12", water: "#120e0a", road: "#d2ae6e", roadCase: "#2e2418", motorway: "#edd49a",
+    minor: "#6a5636", park: "#24301c", building: "#32281c", buildingEdge: "#4e4030", path: "#5a4a32",
+    residential: "#221a12", label: "#f4ead6", halo: "#120e0a",
   },
 };
 function paint(map: MapLibreMap, id: string, prop: string, value: unknown): void {
@@ -48,7 +48,7 @@ export function liftNightBasemap(map: MapLibreMap, look: Look = "night"): void {
   paint(map, "water", "fill-color", WATER);
   paint(map, "waterway", "line-color", WATER);
   paint(map, "landcover_ice_shelf", "fill-color", LAND);
-  paint(map, "landcover_glacier", "fill-color", "#151a20");
+  paint(map, "landcover_glacier", "fill-color", LAND);
   paint(map, "landuse_residential", "fill-color", residential);
   paint(map, "landcover_wood", "fill-color", PARK);
   paint(map, "landuse_park", "fill-color", PARK);
@@ -73,7 +73,7 @@ export function liftNightBasemap(map: MapLibreMap, look: Look = "night"): void {
   paint(map, "aeroway-taxiway", "line-color", ROAD);
   paint(map, "aeroway-runway-casing", "line-color", ROAD_CASE);
   paint(map, "aeroway-runway", "line-color", ROAD);
-  paint(map, "aeroway-area", "fill-color", "#15181d");
+  paint(map, "aeroway-area", "fill-color", residential);
   paint(map, "road_area_pier", "fill-color", LAND);
   paint(map, "road_pier", "line-color", ROAD);
 

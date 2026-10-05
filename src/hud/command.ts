@@ -9,8 +9,8 @@ import { LOOKS, type Look } from "../lib/garage";
  * Command view — Slide's take on the owner's "SEKAI" network dashboard
  * (docs/DESIGN.md). Wide screens get the full three-column layout around the
  * map; phones get the same panels as an Insights sheet. Every figure is drawn
- * from on-device drive history or the route currently planned — nothing is
- * predicted, invented, or shown as traffic.
+ * from on-device drive history, the planned line, or live traffic when a feed
+ * is actually answering — nothing is predicted or invented.
  */
 export type CommandHooks = {
   map: maplibregl.Map;
@@ -33,6 +33,8 @@ export type CommandView = {
   openSheet(on: boolean): void;
   /** Re-mark the theme switch after the Garage changes it. */
   syncLook(): void;
+  /** Live traffic line + official incident alerts. Real data only. */
+  setTraffic(input: { line: string | null; live: boolean; incidents: Alert[] }): void;
 };
 
 const esc = (s: string) =>
@@ -134,7 +136,7 @@ function tileHtml(label: string, t: Tile, fmt: (n: number) => string, unit: stri
   const trend = d === null || Math.abs(d) < 0.05
     ? `<span class="cmd-tile-d flat">${d === null ? "no prior week" : "same as last week"}</span>`
     : `<span class="cmd-tile-d ${good ? "up" : "down"}">${d > 0 ? "+" : "−"}${fmt(Math.abs(d))} vs last week</span>`;
-  return `<div class="cmd-tile"><span class="cmd-tile-l">${label}</span><b>${t.value === null ? "Soon" : fmt(t.value)}<small>${t.value === null ? "" : unit}</small></b>${t.value === null ? `<span class="cmd-tile-d flat">Appears after your first week of drives</span>` : trend}</div>`;
+  return `<div class="cmd-tile"><span class="cmd-tile-l">${label}</span><b${t.value === null ? ` class="is-empty"` : ""}>${t.value === null ? "Soon" : fmt(t.value)}<small>${t.value === null ? "" : unit}</small></b>${t.value === null ? `<span class="cmd-tile-d flat">Appears after your first week of drives</span>` : trend}</div>`;
 }
 
 /** Seven-day sparkline (minutes driven per day), today last. */
@@ -162,6 +164,9 @@ export function mountCommand(h: CommandHooks): CommandView {
   let alerts: Alert[] = [];
   let routes: SlideRoute[] = [];
   let selectedId = "";
+  let trafficLine: string | null = null;
+  let trafficLive = false;
+  let trafficIncidents: Alert[] = [];
 
   const top = document.createElement("header");
   top.className = "cmd-top";
@@ -190,14 +195,17 @@ export function mountCommand(h: CommandHooks): CommandView {
   const overlay = document.createElement("div");
   overlay.className = "cmd-overlay";
   overlay.innerHTML = `
-    <div class="cmd-seg" role="tablist" aria-label="Map view">
-      <button type="button" class="on" data-view="map" role="tab" aria-selected="true">Map</button>
-      <button type="button" data-view="3d" role="tab" aria-selected="false">3D</button>
-      <button type="button" data-view="sat" role="tab" aria-selected="false" aria-disabled="true" title="Satellite needs a licensed imagery source">Satellite</button>
-    </div>
-    <div class="cmd-clock">
-      <span class="cmd-wx" hidden><span class="cmd-wx-ico"></span><span><b class="cmd-temp"></b><small class="cmd-cond"></small></span></span>
-      <span><b class="cmd-time"></b><small class="cmd-date"></small></span>
+    <div class="cmd-toprow">
+      <div class="cmd-seg" role="tablist" aria-label="Map view">
+        <button type="button" class="on" data-view="map" role="tab" aria-selected="true">Map</button>
+        <button type="button" data-view="3d" role="tab" aria-selected="false">3D</button>
+        <button type="button" data-view="sat" role="tab" aria-selected="false" aria-disabled="true" title="Satellite needs a licensed imagery source">Satellite</button>
+      </div>
+      <div class="cmd-banner-slot"></div>
+      <div class="cmd-clock">
+        <span class="cmd-wx" hidden><span class="cmd-wx-ico"></span><span><b class="cmd-temp"></b><small class="cmd-cond"></small></span></span>
+        <span><b class="cmd-time"></b><small class="cmd-date"></small></span>
+      </div>
     </div>
     <div class="cmd-route-card" hidden></div>
     <div class="cmd-stack">
@@ -264,6 +272,23 @@ export function mountCommand(h: CommandHooks): CommandView {
   overlay.querySelector('[data-ctl="locate"]')!.addEventListener("click", h.onLocate);
   overlay.querySelector('[data-ctl="layers"]')!.addEventListener("click", h.onGarage);
 
+  const bannerSlot = overlay.querySelector<HTMLElement>(".cmd-banner-slot")!;
+  const parkDriveBanner = () => {
+    const el = document.getElementById("maneuver");
+    const home = document.getElementById("lane-strip");
+    if (!el) return;
+    const wide = window.matchMedia("(min-width: 1100px)").matches;
+    const drive = document.body.dataset.mode === "drive";
+    if (drive && wide) {
+      if (el.parentElement !== bannerSlot) bannerSlot.append(el);
+      return;
+    }
+    if (home && el.parentElement !== home.parentElement) home.before(el);
+  };
+  new MutationObserver(parkDriveBanner).observe(document.body, { attributes: true, attributeFilter: ["data-mode"] });
+  window.addEventListener("resize", parkDriveBanner);
+  parkDriveBanner();
+
   // --- clock + weather
   const tick = () => {
     const now = new Date();
@@ -322,7 +347,7 @@ export function mountCommand(h: CommandHooks): CommandView {
       </section>
       <section class="cmd-card">
         <header><h2 class="cmd-sub">Smooth score</h2>${delta !== null ? `<span class="cmd-delta ${delta >= 0 ? "up" : "down"}">${delta >= 0 ? "↑" : "↓"} ${Math.abs(delta).toFixed(1)}</span>` : ""}</header>
-        <div class="cmd-big">${o.smoothAvg !== null ? `${o.smoothAvg.toFixed(1)}<small>%</small>` : `After a drive`}</div>
+        <div class="cmd-big${o.smoothAvg !== null ? "" : " is-empty"}">${o.smoothAvg !== null ? `${o.smoothAvg.toFixed(1)}<small>%</small>` : `After a drive`}</div>
         ${trendSvg(o.trend)}
       </section>
       <section class="cmd-trips">
@@ -341,7 +366,14 @@ export function mountCommand(h: CommandHooks): CommandView {
   const drop = top.querySelector<HTMLElement>("#cmd-alerts-drop")!;
   const bell = top.querySelector<HTMLButtonElement>(".cmd-bell")!;
   const renderAlerts = () => {
-    alerts = buildAlerts({ route: routes.find((r) => r.id === selectedId), avoidTolls: h.avoidTolls(), trips: loadTrips(), weather: wxLabel });
+    alerts = buildAlerts({
+      route: routes.find((r) => r.id === selectedId),
+      avoidTolls: h.avoidTolls(),
+      trips: loadTrips(),
+      weather: wxLabel,
+      incidentFeed: trafficLive || trafficIncidents.length > 0,
+      incidents: trafficIncidents,
+    });
     const live = alerts.filter((a) => a.level === "red" || a.level === "orange");
     bell.querySelector<HTMLElement>("i")!.hidden = live.length === 0;
     bell.setAttribute("aria-label", live.length ? `Alerts, ${live.length} active` : "Alerts");
@@ -390,11 +422,13 @@ export function mountCommand(h: CommandHooks): CommandView {
     const sug = suggestSwitch(routes, selectedId);
     const wideIntel = `
       <section class="cmd-card cmd-wide cmd-nav-intel">
-        <header><div><h2>Navigation intelligence</h2><p class="cmd-dim">From your planned lines · typical times, no live traffic yet</p></div></header>
+        <header><div><h2>Navigation intelligence</h2><p class="cmd-dim">From your planned lines${trafficLive ? " · live traffic" : " · typical times"}</p></div></header>
         ${sel ? `<div class="cmd-sel"><span class="cmd-dim">${esc(sel.tags.join(" · ") || sel.label)}</span><b>${formatDuration(sel.durationSec)}</b><span>${sel.distanceMi.toFixed(1)} mi · ${sel.lefts} left${sel.lefts === 1 ? "" : "s"} · ${sel.signals} signals${sel.hasToll === true ? " · tolls" : sel.hasToll === false ? " · no tolls" : ""}</span></div>` : `<p class="cmd-empty">Plan a trip to compare lines here.</p>`}
         ${sug ? `<div class="cmd-sug ${sug.savesMin > 0 ? "faster" : "smoother"}"><div><em>${esc(sug.title)}</em><p>${esc(sug.detail)}</p></div><button type="button" class="cmd-switch" data-route="${sug.targetId}">Switch</button></div>`
           : sel && routes.length > 1 ? `<p class="cmd-best"><i class="dot ok"></i>You're on the best line: nothing quicker, nothing smoother within 10%.</p>` : ""}
-        <p class="cmd-congestion"><i class="dot"></i>Predicted congestion needs a live traffic provider (not connected).</p>
+        <p class="cmd-congestion"><i class="dot${trafficLive || trafficIncidents.length ? " ok" : ""}"></i>${
+          trafficLine ? esc(trafficLine) : trafficLive ? "Live traffic on the map." : trafficIncidents.length ? `${trafficIncidents.length} official incident${trafficIncidents.length === 1 ? "" : "s"} on the map.` : "Typical times · live speeds need a TomTom key."
+        }</p>
       </section>
       <section class="cmd-card cmd-wide">
         <header><h2>Alerts</h2><span class="cmd-dim">route, weather, your drives</span></header>
@@ -402,10 +436,10 @@ export function mountCommand(h: CommandHooks): CommandView {
       </section>`;
     right.innerHTML = `${wideIntel}
       <section class="cmd-intel">
-        <header class="cmd-narrow"><div><h2>Route intelligence</h2><p class="cmd-dim">Scored from Valhalla routes and posted limits. No live traffic yet.</p></div></header>
+        <header class="cmd-narrow"><div><h2>Route intelligence</h2><p class="cmd-dim">Scored from Valhalla routes and posted limits.${trafficLive ? " Live traffic on the selected line." : ""}</p></div></header>
         <div class="cmd-narrow cmd-intel">${verdict}${alt}</div>
         <article class="cmd-intel-card"><span class="cmd-ico">${ICON.bars}</span><div>
-          <em>Arrival accuracy</em><b>${onTime === null ? "After saved drives" : `${Math.round(onTime * 100)}%`}</b>
+          <em>Arrival accuracy</em><b${onTime === null ? ` class="is-empty"` : ""}>${onTime === null ? "After saved drives" : `${Math.round(onTime * 100)}%`}</b>
           <p>${onTime === null ? "Shows how close Slide's ETA is to your real arrival after you save drives." : "Drives that arrived within 2 min of the ETA."}</p>
           <div class="cmd-segbar" aria-hidden="true">${Array.from({ length: segs }, (_, i) => `<i${i < lit ? ' class="on"' : ""}></i>`).join("")}</div>
         </div></article>
@@ -457,6 +491,12 @@ export function mountCommand(h: CommandHooks): CommandView {
       selectedId = id;
       renderRight();
       renderRouteCard();
+    },
+    setTraffic(input) {
+      trafficLine = input.line;
+      trafficLive = input.live;
+      trafficIncidents = input.incidents;
+      renderRight();
     },
     refreshHistory() {
       paintAvatar();

@@ -9,13 +9,14 @@ Work top-down. Check the box in the same PR.
 - [x] Phase 0–1: `docs/STRATEGY.md` (Magi pass + design recon)
 - [x] **Grim PR 1:** design system rebuild — one token file (`src/styles/tokens.css`), Night/Ember/Sand via `[data-look]`, stacked CSS layers deleted, teammate slots documented
 - [x] **Grim PR 2:** screen pass — review carousel, drive Report/speedo, report grid + subtypes, place card, fail sheets, arrival trip card, empty states
+- [x] **Grim PR 3:** polish — desktop drive top row + End vs map stack, `.is-empty` placeholders, Sand map/surfaces, unsigned `--` speed-limit sign
 - [ ] Phase 4/5: 3D living map — garage car on Explore, "Miami driven %" (on-device), Effort icons on the route
 - [ ] Presence design (friends' cars, opt-in) before any backend
 - [ ] Phase 3: `rankRoutes()` = least Effort within +10% of fastest (today it has no time bound)
 
 ## Phase 1 — Better routes (owner prompt, 2026-09-25)
 
-- [ ] **Traffic-aware ETAs** — blocked on the owner approving a provider (HANDOFF → Traffic provider decision; HERE recommended)
+- [x] **Traffic-aware ETAs** — TomTom flow + along-route delay via Pages Function (`TOMTOM_API_KEY`). Typical time kept when the key is missing. HERE still the pick if we want toll prices.
 - [x] 3+ routes drawn together (Slide / Fastest / No-tolls costings + `alternates`), tap line or bubble to select
 - [x] Tags: Slide pick, Fastest, No tolls (Your usual comes with Phase 2 learning)
 - [x] Tolls flagged per route from Valhalla `has_toll`; "Has tolls" with no price until a price source exists
@@ -24,7 +25,7 @@ Work top-down. Check the box in the same PR.
 - [ ] Verify on the live site: real Valhalla returns `alternates` and `has_toll` for Fort Lauderdale → 9601 Collins Ave
 
 - [x] Desktop Command view: SEKAI Live Network pass (tiles + trends, week sparkline, alert list, navigation intelligence + Switch) — phones unchanged
-- [ ] Live incidents in the alert list — needs the traffic provider
+- [x] Live incidents in the alert list — FDOT / Miami-Dade / driver reports on the map + Command; TomTom when keyed
 
 - [x] Remove bot data: seeded ghost drivers and the old demo preview page
 - [x] Profile: driver, My car, all-time stats, places, privacy (on-device)
@@ -62,6 +63,7 @@ Work top-down. Check the box in the same PR.
 - [ ] Map under 3 s on a *cold* Slow-4G visit: needs fewer bytes (self-hosted/slimmer tiles, 1× sprite)
 - [ ] Faster alternative rarely exists on public Valhalla (same trip from both costings) — needs self-host or a real alternate strategy
 - [x] Offline / no-route sheet + one fetch retry
+- [x] Destination search geocodes typed street addresses (Photon → Nominatim → Census); Enter / Drop the line no longer require a tapped suggestion
 
 - [x] `npm run build` is clean (fix TS, unused, layer add-before-style-load)
 - [x] If Valhalla returns one trip, fire a second `/route` with higher `use_highways` / lower `maneuver_penalty` so Faster exists (preview)
@@ -96,7 +98,7 @@ Work top-down. Check the box in the same PR.
 ## P4 — Miami-quality data
 
 - [ ] Document how to self-host Valhalla for Florida extract
-- [ ] Hook for FDOT / 511 speeds into `expectedMph` (`min(posted, live)`)
+- [x] Hook for FDOT / 511 speeds into `expectedMph` (`min(posted, live)`) — live delay from TomTom Flow Segment Data on the selected line (posted still the sign; never a target)
 - [ ] School-zone time window penalty in `smooth.ts`
 
 ## Out of scope until asked

@@ -69,7 +69,7 @@ export function mountProfile(h: ProfileHooks): { open(): void; close(): void } {
         <section class="pf-stats" aria-label="Your driving, all time">
           <div><b>${life.drives}</b><span>Drives</span></div>
           <div><b>${life.miles.toFixed(0)}</b><span>Miles</span></div>
-          <div><b>${life.smoothAvg === null ? "After a drive" : life.smoothAvg.toFixed(0)}</b><span>Avg smooth</span></div>
+          <div><b${life.smoothAvg === null ? ` class="is-empty"` : ""}>${life.smoothAvg === null ? "After a drive" : life.smoothAvg.toFixed(0)}</b><span>Avg smooth</span></div>
         </section>
 
         <form class="pf-section pf-form" id="pf-driver">

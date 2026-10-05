@@ -6,11 +6,11 @@ import {
   requestRouteVariant,
   type RouteResponse,
   requestTraceAttributes,
-  searchPlaces,
   tripShape,
   type LonLat,
   type SearchHit,
 } from "./lib/valhalla";
+import { geocode, searchPlaces } from "./lib/geocode";
 import {
   arrivalClock,
   formatDuration,
@@ -26,7 +26,7 @@ import { bubbleCandidates, mergeVariantTrips, pickFree, tollLabel, variantsFor }
 import { dropIndex, MAX_STOPS, moveItem, stopsReached } from "./plan/stops";
 import { classifyFailure, type FailWhat } from "./plan/failure";
 import { cardAriaLabel, routeCards } from "./plan/review-cards";
-import { EMPTY } from "./lib/empty";
+import { EMPTY, postedSignText, setMaybeEmpty } from "./lib/empty";
 import { splitPlaceLabel } from "./lib/place";
 import { mountVoiceMute } from "./hud/voice-mute";
 import { resetVoice, startVoice, stopVoice, tickVoice } from "./voice";
@@ -53,8 +53,12 @@ import { mountProfile } from "./hud/profile";
 import { setSocialNotice } from "./hud/social";
 import { peekAuthLinkResult, takeAuthLinkResult } from "./lib/account";
 import { cloudConfigured } from "./lib/cloud";
+import { ago, type RadarItem } from "./lib/reports";
 import { mountRadar } from "./hud/radar";
 import { mountFriends } from "./map/friends";
+import { mountTraffic } from "./map/traffic";
+import type { Alert } from "./lib/alerts";
+import type { TrafficSummary } from "./lib/traffic";
 import { createYouMarker } from "./map/you";
 import { mountCommand } from "./hud/command";
 import { recordTrip } from "./lib/history";
@@ -140,6 +144,7 @@ const fixWaiters: Array<{ resolve: (f: Fix) => void; reject: (p: LocationProblem
 const ARRIVE_M = 40;
 const OFF_ROUTE_M = 60;
 const REROUTE_AFTER_MS = 8000;
+let lastTraffic: TrafficSummary = { line: null, etaNote: "Typical time · no live traffic yet", delaySec: 0, live: false };
 
 const fromInput = $("#from") as HTMLInputElement;
 const toInput = $("#to") as HTMLInputElement;
@@ -262,6 +267,11 @@ $("#compass-fab").addEventListener("click", () => {
   map.easeTo({ bearing: 0, pitch: window.innerWidth < 820 && hudMode === "plan" ? 8 : map.getPitch(), duration: 500 });
 });
 toInput.addEventListener("focus", () => $("#search-card").classList.add("open"));
+toInput.addEventListener("input", () => {
+  if (toInput.value.trim() !== destLabel) dest = null;
+  const msg = errorEl.textContent ?? "";
+  if (msg === "Set a destination." || msg.startsWith("No match")) showError("");
+});
 $("#go").addEventListener("click", plan);
 $("#tune").addEventListener("click", () => garageEl.classList.toggle("open"));
 $("#g-close").addEventListener("click", () => garageEl.classList.remove("open"));
@@ -303,7 +313,11 @@ const profileSheet = mountProfile({
   setSharing: (on) => { garage.shareWithFriends = on; persist(); friends.refresh(); },
 });
 // Real GPS only.
-const radar = mountRadar({ getFix: () => liveFix, openProfile: () => profileSheet.open() });
+const radar = mountRadar({
+  getFix: () => liveFix,
+  getCenter: () => ({ lat: map.getCenter().lat, lon: map.getCenter().lng }),
+  openProfile: () => profileSheet.open(),
+});
 $("#drive-report").addEventListener("click", () => radar.openReport());
 const friends = mountFriends({
   map,
@@ -328,6 +342,48 @@ const command = mountCommand({
   setLook: (look) => setLook(look),
 });
 $("#ov-insights").addEventListener("click", () => { overflowEl.classList.remove("open"); command.openSheet(true); });
+const traffic = mountTraffic({
+  map,
+  look: () => garage.look,
+  enabled: () => garage.showTraffic,
+  getCenter: () => ({ lat: map.getCenter().lat, lon: map.getCenter().lng }),
+  getBounds: () => {
+    if (!styleReady) return null;
+    const b = map.getBounds();
+    return { west: b.getWest(), south: b.getSouth(), east: b.getEast(), north: b.getNorth() };
+  },
+  getRoute: () => {
+    const r = routes.find((x) => x.id === selectedId);
+    if (!r || !selectedCoords.length) return null;
+    return { id: r.id, coords: selectedCoords, durationSec: r.durationSec, distanceMi: r.distanceMi };
+  },
+  alongMi: () => progressMi,
+  onSummary: applyTrafficHud,
+});
+function applyTrafficHud(s: TrafficSummary) {
+  lastTraffic = s;
+  const note = $("#review-eta-note");
+  if (note) note.textContent = s.etaNote;
+  const chip = $("#drive-traffic");
+  if (chip) {
+    chip.hidden = !s.line || hudMode !== "drive";
+    chip.textContent = s.line ?? "";
+  }
+  const sel = routes.find((r) => r.id === selectedId);
+  command.setTraffic({
+    line: s.line,
+    live: s.live || traffic.items().length > 0,
+    incidents: traffic.items().slice(0, 4).map(incidentAlert),
+  });
+  if (sel && hudMode === "review") {
+    $("#review-eta").textContent = formatDuration(sel.durationSec + (s.live ? s.delaySec : 0));
+  }
+  if (hudMode === "drive" && sel) updateDriveMeta(sel, progressMi);
+}
+function incidentAlert(it: RadarItem): Alert {
+  const level = it.kind === "crash" || it.kind === "closure" ? "red" : it.kind === "jam" || it.kind === "roadwork" || it.kind === "hazard" ? "orange" : "info";
+  return { level, title: it.title, detail: `${it.detail} · ${ago(it.createdAt)}` };
+}
 $("#chip-home").addEventListener("click", () => useOrSavePlace("home"));
 $("#chip-work").addEventListener("click", () => useOrSavePlace("work"));
 $("#chip-saved").addEventListener("click", () => {
@@ -444,6 +500,7 @@ function setLook(look: Look) {
   const sel = document.querySelector<HTMLSelectElement>("#g-look");
   if (sel) sel.value = look;
   command.syncLook();
+  traffic?.restyle();
 }
 function persist() {
   saveGarage(garage);
@@ -632,10 +689,11 @@ function wireGarage() {
   look.addEventListener("change", () => setLook(look.value as Look));
   const cam = $("#g-cam") as HTMLSelectElement;
   const build = $("#g-build") as HTMLInputElement;
+  const trafficBox = $("#g-traffic") as HTMLInputElement;
   const ghostsBox = $("#g-ghosts") as HTMLInputElement;
   const share = $("#g-share") as HTMLInputElement;
   tag.value = garage.tag; trail.value = garage.trail; cam.value = garage.camera;
-  build.checked = garage.showBuildings; ghostsBox.checked = garage.showGhosts; share.checked = garage.shareGhost;
+  build.checked = garage.showBuildings; trafficBox.checked = garage.showTraffic; ghostsBox.checked = garage.showGhosts; share.checked = garage.shareGhost;
   paintSwatches($("#g-body"), PAINTS, garage.carColor, (c) => { garage.carColor = c; persist(); restylePlayer(); });
   paintSwatches($("#g-glow"), ["#f0a04b","#78e0c8","#b388ff","#8fd3ff","#d6ff3c","#ff4d6d"], garage.glow, (c) => { garage.glow = c; persist(); restylePlayer(); });
   paintShowroom();
@@ -643,6 +701,7 @@ function wireGarage() {
   trail.addEventListener("change", () => { garage.trail = trail.value as GarageConfig["trail"]; persist(); paintRoutes(); });
   cam.addEventListener("change", () => { garage.camera = cam.value as GarageConfig["camera"]; persist(); applyCamera(garage.camera); });
   build.addEventListener("change", () => { garage.showBuildings = build.checked; persist(); toggleBuildings(build.checked); });
+  trafficBox.addEventListener("change", () => { garage.showTraffic = trafficBox.checked; persist(); traffic.setEnabled(trafficBox.checked); });
   ghostsBox.addEventListener("change", () => { garage.showGhosts = ghostsBox.checked; persist(); setGhostVisibility(garage.showGhosts); });
   share.addEventListener("change", () => { garage.shareGhost = share.checked; persist(); });
 }
@@ -751,9 +810,9 @@ function arrive() {
   $("#arr-kicker").textContent = `ARRIVED · ${now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`;
   const destName = destLabel ? splitPlaceLabel(destLabel).name : EMPTY.dest;
   $("#arr-dest").textContent = destName;
-  $("#arr-time").textContent = startedAt ? formatDuration((now.getTime() - startedAt) / 1000) : EMPTY.driveTime;
-  $("#arr-dist").textContent = formatMiles(drivenMi);
-  $("#arr-line").textContent = route?.tags[0] ?? route?.label ?? EMPTY.line;
+  setMaybeEmpty($("#arr-time"), startedAt ? formatDuration((now.getTime() - startedAt) / 1000) : EMPTY.driveTime);
+  setMaybeEmpty($("#arr-dist"), formatMiles(drivenMi));
+  setMaybeEmpty($("#arr-line"), route?.tags[0] ?? route?.label ?? EMPTY.line);
   $("#arr-note").textContent = drivenMi >= 0.2 ? "Saved to Your trips on this phone." : "Short drive — not saved to Your trips.";
   $("#arr-ride").innerHTML = carSvg(garage.carColor, garage.glow);
   setHudMode("arrive");
@@ -1002,11 +1061,31 @@ async function plan() {
   hidePlace();
   hideLocationProblem();
   hideFailure();
-  if (!dest) return showError("Set a destination.");
+  const typed = toInput.value.trim();
+  if (!typed) return showError("Set a destination.");
   planning = true;
   const goBtn = $("#go") as HTMLButtonElement;
   goBtn.disabled = true;
   try {
+    if (!dest) {
+      setStatus("Finding that place…");
+      let hit: SearchHit | null = null;
+      try {
+        hit = await geocode(typed, origin ?? MIAMI);
+      } catch (err) {
+        showFailure(err, "search", () => void plan());
+        setStatus("");
+        return;
+      }
+      if (!hit) {
+        showError("No match, try adding the city");
+        setStatus("");
+        return;
+      }
+      dest = { lon: hit.lon, lat: hit.lat };
+      destLabel = hit.label;
+      toInput.value = hit.label;
+    }
     const start = await resolveOrigin();
     if (!start) return;
     origin = start;
@@ -1105,6 +1184,7 @@ function paintRoutes() {
     if (map.getLayer("route-core")) map.setPaintProperty("route-core", "line-color", next.core["line-color"] as never);
   });
   paintRouteChips();
+  traffic.refresh();
 }
 /** Tappable time chips sitting on each line, the way every map app labels alternatives. */
 function paintRouteChips() {
@@ -1125,8 +1205,9 @@ function paintRouteChips() {
     const toll = tollLabel(r.hasToll);
     const tag = r.tags[0] ?? "";
     const showToll = toll && tag !== "No tolls";
-    el.innerHTML = `<b>${formatDuration(r.durationSec)}</b>${tag ? `<span>${tag}</span>` : ""}${showToll ? `<em class="${r.hasToll ? "toll" : "free"}">${toll}</em>` : ""}`;
-    el.setAttribute("aria-label", [...new Set([formatDuration(r.durationSec), ...r.tags, toll].filter(Boolean))].join(", "));
+    const chipSec = r.durationSec + (r.id === selectedId && lastTraffic.live ? lastTraffic.delaySec : 0);
+    el.innerHTML = `<b>${formatDuration(chipSec)}</b>${tag ? `<span>${tag}</span>` : ""}${showToll ? `<em class="${r.hasToll ? "toll" : "free"}">${toll}</em>` : ""}`;
+    el.setAttribute("aria-label", [...new Set([formatDuration(chipSec), ...r.tags, toll].filter(Boolean))].join(", "));
     el.onclick = (ev) => { ev.stopPropagation(); selectRoute(r.id); };
     const others = routes.filter((o) => o.id !== r.id).map((o) => decodePolyline6(tripShape(o.trip)));
     const cands = bubbleCandidates(coords, others);
@@ -1169,7 +1250,8 @@ function renderReview() {
   if (active && !track.dataset.swiping) {
     active.scrollIntoView({ inline: "center", block: "nearest", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
   }
-  $("#review-eta").textContent = formatDuration(sel.durationSec);
+  const liveSec = sel.durationSec + (lastTraffic.live ? lastTraffic.delaySec : 0);
+  setMaybeEmpty($("#review-eta"), formatDuration(liveSec));
   $("#review-dist").textContent = formatMiles(sel.distanceMi);
   $("#review-via").textContent = viaLine(sel.maneuvers);
   const shortWhy = sel.why.split(" · ")[0] || sel.label;
@@ -1178,6 +1260,7 @@ function renderReview() {
     ? "Slide pick · Fastest is also the smoothest line we found"
     : [sel.tags.join(" · ") || sel.label, shortWhy].filter(Boolean).join(" · ");
   $("#review-tag").textContent = toll && !sel.tags.includes("No tolls") ? `${head} · ${toll}` : head;
+  $("#review-eta-note").textContent = lastTraffic.etaNote;
   renderStops();
 }
 
@@ -1242,7 +1325,11 @@ function renderStops() {
 function renderDash() {
   dashEl.removeAttribute("hidden");
   const sel = routes.find((r) => r.id === selectedId);
-  if (sel) { $("#stat-score").textContent = String(sel.slideScore); $("#stat-eta").textContent = arrivalClock(sel.durationSec); }
+  if (sel) {
+    const liveSec = sel.durationSec + (lastTraffic.live ? lastTraffic.delaySec : 0);
+    setMaybeEmpty($("#stat-score"), String(sel.slideScore));
+    setMaybeEmpty($("#stat-eta"), arrivalClock(liveSec));
+  }
   routesEl.innerHTML = routes.map((r) => {
     const on = r.id === selectedId ? " selected" : "";
     return `<button class="route-option${on}" data-id="${r.id}"><div class="row"><span class="tag">${r.label} · ${r.slideScore}</span><b>${formatDuration(r.durationSec)}</b></div><div class="why">${formatMiles(r.distanceMi)} · ${r.turns} turn${r.turns === 1 ? "" : "s"} · ${r.why}</div></button>`;
@@ -1444,8 +1531,14 @@ function updateDriveMeta(route: SlideRoute | undefined, mi: number) {
   if (hudMode !== "drive" || !route) return;
   const remainMi = Math.max(0, route.distanceMi - mi);
   const remainSec = route.durationSec * (remainMi / Math.max(route.distanceMi, 0.01));
-  $("#drive-eta").textContent = formatDuration(remainSec);
-  $("#drive-remain").textContent = `${formatMiles(remainMi)} · ${arrivalClock(remainSec)}`;
+  const liveRemain = remainSec + (lastTraffic.live ? lastTraffic.delaySec * (remainMi / Math.max(route.distanceMi, 0.01)) : 0);
+  setMaybeEmpty($("#drive-eta"), formatDuration(liveRemain));
+  $("#drive-remain").textContent = `${formatMiles(remainMi)} · ${arrivalClock(liveRemain)}`;
+  const chip = $("#drive-traffic");
+  if (chip) {
+    chip.hidden = !lastTraffic.line;
+    chip.textContent = lastTraffic.line ?? "";
+  }
 }
 function setOffRoute(off: boolean) {
   maneuverEl.classList.toggle("off-route", off);
@@ -1458,6 +1551,7 @@ function renderGuidance(mi: number, mph: number) {
   if (!route || !steps.length) {
     maneuverEl.setAttribute("hidden", "");
     postedEl.setAttribute("hidden", "");
+    paintLimit(null, mph);
     renderLaneStrip(null);
     return;
   }
@@ -1465,7 +1559,7 @@ function renderGuidance(mi: number, mph: number) {
   if (move) {
     maneuverEl.removeAttribute("hidden");
     $("#man-arrow").setAttribute("d", maneuverArrow(move.type));
-    $("#man-dist").textContent = formatShortDistance(move.distanceMi);
+    setMaybeEmpty($("#man-dist"), formatShortDistance(move.distanceMi));
     $("#man-instr").textContent = move.instruction;
     $("#man-fill").style.width = `${Math.round(move.proximity * 100)}%`;
     maneuverEl.classList.toggle("imminent", move.distanceMi < 0.08);
@@ -1477,15 +1571,7 @@ function renderGuidance(mi: number, mph: number) {
   }
 
   const outlook = postedOutlook(route.bands, mi);
-  const limitEl = $("#limit");
-  if (outlook?.currentMph) {
-    limitEl.removeAttribute("hidden");
-    $("#limit-n").textContent = String(outlook.currentMph);
-    // Flag the driver only against the sign, never nudge them toward it.
-    limitEl.classList.toggle("over", mph > outlook.currentMph + 2);
-  } else {
-    limitEl.setAttribute("hidden", "");
-  }
+  paintLimit(outlook?.currentMph, mph);
 
   if (outlook && outlook.nextMph && outlook.changeInMi != null && outlook.changeInMi < 1.2) {
     postedEl.removeAttribute("hidden");
@@ -1495,6 +1581,22 @@ function renderGuidance(mi: number, mph: number) {
       : `${outlook.nextMph} in ${formatShortDistance(outlook.changeInMi)}`;
   } else {
     postedEl.setAttribute("hidden", "");
+  }
+}
+function paintLimit(postedMph: number | null | undefined, liveMph: number) {
+  const limitEl = $("#limit");
+  const n = $("#limit-n");
+  limitEl.removeAttribute("hidden");
+  n.textContent = postedSignText(postedMph);
+  if (postedMph) {
+    limitEl.classList.remove("unsigned");
+    // Flag the driver only against the sign, never nudge them toward it.
+    limitEl.classList.toggle("over", liveMph > postedMph + 2);
+    limitEl.setAttribute("aria-label", `Speed limit ${postedMph}`);
+  } else {
+    limitEl.classList.add("unsigned");
+    limitEl.classList.remove("over");
+    limitEl.setAttribute("aria-label", "No posted limit");
   }
 }
 function setStatus(text: string) { statusEl.textContent = text; statusEl.classList.toggle("show", Boolean(text)); }
