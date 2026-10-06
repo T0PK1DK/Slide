@@ -16,7 +16,10 @@ Work top-down. Check the box in the same PR.
 
 ## Phase 1 — Better routes (owner prompt, 2026-09-25)
 
-- [x] **Traffic-aware ETAs** — TomTom flow + along-route delay via Pages Function (`TOMTOM_API_KEY`). Typical time kept when the key is missing. HERE still the pick if we want toll prices.
+- [x] **Traffic-aware ETAs** — TomTom Routing `traffic=true` via `/api/traffic/route` (Leon can call `fetchTrafficRoute`); flow-segment along-route is the fallback. Typical time kept when the key is missing. HERE still the pick if we want toll prices.
+- [x] **TomTom search first** — Fuzzy + typeahead suggest in `/api/geocode` + `/api/suggest`, daily ~1,500 search / 2,500 total budget, Photon/Nominatim/Census fallback
+- [x] **TomTom speed limits** — Routing `speedLimit` sections overlay `#limit` when the free tier sends them
+- [x] **TomTom incident details** — merged into `/api/incidents`, deduped with FDOT/Miami-Dade, type + delay + description
 - [x] 3+ routes drawn together (Slide / Fastest / No-tolls costings + `alternates`), tap line or bubble to select
 - [x] Tags: Slide pick, Fastest, No tolls (Your usual comes with Phase 2 learning)
 - [x] Tolls flagged per route from Valhalla `has_toll`; "Has tolls" with no price until a price source exists
@@ -63,7 +66,7 @@ Work top-down. Check the box in the same PR.
 - [ ] Map under 3 s on a *cold* Slow-4G visit: needs fewer bytes (self-hosted/slimmer tiles, 1× sprite)
 - [ ] Faster alternative rarely exists on public Valhalla (same trip from both costings) — needs self-host or a real alternate strategy
 - [x] Offline / no-route sheet + one fetch retry
-- [x] Destination search geocodes typed street addresses (Photon → Nominatim → Census); Enter / Drop the line no longer require a tapped suggestion
+- [x] Destination search geocodes typed street addresses (TomTom Fuzzy → Photon → Nominatim → Census); Enter / Drop the line no longer require a tapped suggestion
 
 - [x] `npm run build` is clean (fix TS, unused, layer add-before-style-load)
 - [x] If Valhalla returns one trip, fire a second `/route` with higher `use_highways` / lower `maneuver_penalty` so Faster exists (preview)

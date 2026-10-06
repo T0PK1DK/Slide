@@ -4,6 +4,7 @@
  *   - fdot:  FDOT DIVAS events (crashes, disabled vehicles, congestion, roadwork), no key
  *   - mdpd:  Miami-Dade Police dispatched traffic calls, no key (no CORS → server side only)
  *   - fl511: Florida 511 events, only when the FL511_API_KEY secret is set
+ *   - tomtom: Traffic Incident Details when TOMTOM_API_KEY is set (deduped vs FDOT/MDPD)
  * Each source is fetched with a short timeout and cached ~60 s at the edge, so
  * every driver shares one upstream call per minute. A source that fails is
  * reported in `sources` and simply left out; the others still answer.
@@ -11,9 +12,12 @@
 import { fromFl511, withinKm } from "../../src/lib/sources/fl511";
 import { divasUrl, fromDivas } from "../../src/lib/sources/fdot";
 import { fromMdpd, MDPD_URL } from "../../src/lib/sources/mdpd";
+import { bboxAround, fromTomTom, TOMTOM_INCIDENTS } from "../../src/lib/sources/tomtom";
+import { foldTomTomIntoOfficial } from "../../src/lib/incidents-merge";
+import { INCIDENT_TTL_SEC, cacheBudgetStore, edgeCache, reserve } from "../../src/lib/tomtom-budget";
 import type { RadarItem } from "../../src/lib/reports";
 
-type Env = { FL511_API_KEY?: string };
+type Env = { FL511_API_KEY?: string; TOMTOM_API_KEY?: string };
 type Ctx = { request: Request; env: Env; waitUntil(p: Promise<unknown>): void };
 type SourceStatus = { source: string; ok: boolean; count: number; error?: string };
 
@@ -82,11 +86,31 @@ export async function onRequestGet({ request, env, waitUntil }: Ctx): Promise<Re
       return (Array.isArray(d) ? d : []).map((e) => fromFl511(e as Record<string, unknown>)).filter(notNull);
     }));
   }
+  const tomtomKey = env.TOMTOM_API_KEY?.trim();
+  if (tomtomKey) {
+    jobs.push(source("tomtom", async () => {
+      const cache = edgeCache();
+      if (cache && !(await reserve(cacheBudgetStore(cache, waitUntil), "incidents"))) {
+        throw new Error("budget");
+      }
+      const bbox = bboxAround(lat, lon, km);
+      const d = (await cachedJson(`tomtom-inc-${bbox}`, TOMTOM_INCIDENTS(bbox, tomtomKey), waitUntil, INCIDENT_TTL_SEC)) as {
+        incidents?: unknown[];
+      };
+      return (d.incidents ?? []).map((e) => fromTomTom(e as Parameters<typeof fromTomTom>[0])).filter(notNull);
+    }));
+  }
   const results = await Promise.all(jobs);
   const sources = results.map((r) => r.status);
   if (!env.FL511_API_KEY) sources.push({ source: "fl511", ok: false, count: 0, error: "no key (optional)" });
-  const items = results
-    .flatMap((r) => withinKm(r.items, lat, lon, km))
+  if (!tomtomKey) sources.push({ source: "tomtom", ok: false, count: 0, error: "no key (optional)" });
+  const official = results
+    .filter((r) => r.status.source !== "tomtom")
+    .flatMap((r) => withinKm(r.items, lat, lon, km));
+  const tomtom = results
+    .filter((r) => r.status.source === "tomtom")
+    .flatMap((r) => withinKm(r.items, lat, lon, km));
+  const items = foldTomTomIntoOfficial(official, tomtom)
     .sort((a, b) => b.createdAt - a.createdAt)
     .slice(0, 150);
   return json({ configured: true, sources, items });

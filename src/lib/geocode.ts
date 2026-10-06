@@ -1,12 +1,15 @@
 /**
- * Place search + geocode. Photon is still the first look (POIs, names, ZIP
- * centroids). Street addresses and US intersections often miss there, so a
- * typed query that wasn't tapped from the list is resolved through Nominatim
- * then the US Census geocoder. Bias is a hint, never a fence.
+ * Place search + geocode. TomTom Fuzzy (typeahead for suggest) is first when
+ * the Pages secret is set and the daily search budget still has room. Miss,
+ * error, or a near-1,500 search cap falls through to Photon → Nominatim →
+ * US Census. Bias is a hint, never a fence. The key never ships to the client.
  */
 import type { LonLat, SearchHit } from "./valhalla";
 import { haversineMeters } from "./polyline";
 import { HttpError } from "../plan/failure";
+import { TOMTOM_ATTRIBUTION } from "./tomtom-budget";
+import { hitsFromTomTom } from "./tomtom-search";
+import { TOMTOM_FUZZY } from "./sources/tomtom";
 
 export const PHOTON_URL = "https://photon.komoot.io/api";
 export const NOMINATIM_URL = "https://nominatim.openstreetmap.org/search";
@@ -25,7 +28,19 @@ export type GeocodeOpts = {
   nominatim?: boolean;
   nominatimMinMs?: number;
   fetch?: typeof fetch;
+  /** Pages secret. Absent / empty → skip TomTom (tests and Vite without the key). */
+  tomtomKey?: string;
+  /** False when the daily search budget is spent. */
+  tomtom?: boolean;
 };
+
+export type GeocodeRuntime = {
+  fetch?: typeof fetch;
+  tomtomKey?: string;
+  tomtom?: boolean;
+};
+
+export type GeocodeResult = { hits: SearchHit[]; error?: string; attribution?: string };
 
 const STREET_WORD =
   /\b(ave|avenue|av|blvd|boulevard|st|street|dr|drive|rd|road|ct|court|ln|lane|way|pkwy|parkway|hwy|highway|cir|circle|ter|terrace|pl|place|trl|trail|loop|pass|pike|run|row|sq|square|xing|crossing|expy|expressway|fwy|freeway)\b/i;
@@ -343,6 +358,18 @@ async function censusSearch(q: string, fetchImpl: typeof fetch): Promise<SearchH
   return hitsFromCensus(await fetchJson(url.toString(), { headers: { accept: "application/json" } }, 10000, fetchImpl));
 }
 
+async function tomtomSearch(
+  q: string,
+  bias: LonLat,
+  limit: number,
+  typeahead: boolean,
+  key: string,
+  fetchImpl: typeof fetch,
+): Promise<SearchHit[]> {
+  const url = TOMTOM_FUZZY(q, key, { lat: bias.lat, lon: bias.lon, limit, typeahead });
+  return hitsFromTomTom(await fetchJson(url, { headers: { accept: "application/json", "user-agent": SLIDE_UA } }, 7000, fetchImpl));
+}
+
 function allowNominatim(opts: GeocodeOpts): boolean {
   if (opts.nominatim === false) return false;
   if (opts.nominatim === true) return true;
@@ -378,6 +405,24 @@ export async function runGeocode(query: string, opts: GeocodeOpts = {}): Promise
       return undefined;
     }
   };
+
+  const key = (opts.tomtomKey ?? "").trim();
+  if (key && opts.tomtom !== false) {
+    const tomtom = await tryCall(() => tomtomSearch(q, bias, limit, mode === "suggest", key, fetchImpl));
+    if (tomtom) {
+      const picked = pickResolved(q, tomtom, bias);
+      if (mode === "suggest") {
+        const ranked = kind === "zip" ? preferNearBias(tomtom, bias) : tomtom;
+        const out = dedupe([...picked, ...ranked]).slice(0, limit);
+        if (out.length) return out;
+      } else if (picked.length) {
+        return picked.slice(0, 1);
+      } else if (kind === "place" || kind === "zip") {
+        const ranked = preferNearBias(tomtom, bias);
+        if (ranked.length) return ranked.slice(0, 1);
+      }
+    }
+  }
 
   const photon = await tryCall(() => photonSearch(q, bias, limit, fetchImpl));
   const expanded = expandStreetAbbreviations(q);
@@ -432,12 +477,23 @@ export async function runGeocode(query: string, opts: GeocodeOpts = {}): Promise
   return [];
 }
 
-export async function handleGeocodeRequest(requestUrl: string, fetchImpl?: typeof fetch): Promise<{ hits: SearchHit[]; error?: string }> {
+function runtimeOf(arg?: typeof fetch | GeocodeRuntime): GeocodeRuntime {
+  if (typeof arg === "function") return { fetch: arg };
+  return arg ?? {};
+}
+
+export async function handleGeocodeRequest(
+  requestUrl: string,
+  fetchOrRuntime?: typeof fetch | GeocodeRuntime,
+): Promise<GeocodeResult> {
+  const runtime = runtimeOf(fetchOrRuntime);
   const url = new URL(requestUrl, "https://kings-slide.pages.dev");
+  const path = url.pathname.replace(/\/+$/, "");
   const q = url.searchParams.get("q") ?? "";
   const lat = Number(url.searchParams.get("lat"));
   const lon = Number(url.searchParams.get("lon"));
-  const mode: GeocodeMode = url.searchParams.get("mode") === "suggest" ? "suggest" : "resolve";
+  const suggestPath = path.endsWith("/suggest");
+  const mode: GeocodeMode = suggestPath || url.searchParams.get("mode") === "suggest" ? "suggest" : "resolve";
   const limit = Number(url.searchParams.get("limit"));
   const bias = Number.isFinite(lat) && Number.isFinite(lon) ? { lat, lon } : undefined;
   try {
@@ -446,49 +502,61 @@ export async function handleGeocodeRequest(requestUrl: string, fetchImpl?: typeo
       limit: Number.isFinite(limit) ? limit : undefined,
       bias,
       nominatim: true,
-      fetch: fetchImpl,
+      fetch: runtime.fetch,
+      tomtomKey: runtime.tomtomKey,
+      tomtom: runtime.tomtom,
     });
-    return { hits };
+    const attribution = hits.some((h) => h.source === "tomtom") ? TOMTOM_ATTRIBUTION : undefined;
+    return { hits, ...(attribution ? { attribution } : {}) };
   } catch (err) {
     return { hits: [], error: err instanceof Error ? err.message : "search failed" };
   }
 }
 
-async function viaApi(query: string, bias: LonLat | undefined, mode: GeocodeMode): Promise<SearchHit[] | null> {
+async function viaApi(
+  query: string,
+  bias: LonLat | undefined,
+  mode: GeocodeMode,
+  signal?: AbortSignal,
+): Promise<SearchHit[] | null> {
   if (typeof window === "undefined") return null;
-  const url = new URL("/api/geocode", window.location.origin);
+  const path = mode === "suggest" ? "/api/suggest" : "/api/geocode";
+  const url = new URL(path, window.location.origin);
   url.searchParams.set("q", query);
   url.searchParams.set("mode", mode);
   if (bias) {
     url.searchParams.set("lat", String(bias.lat));
     url.searchParams.set("lon", String(bias.lon));
   }
-  const res = await fetch(url.toString(), { headers: { accept: "application/json" } });
+  const res = await fetch(url.toString(), { headers: { accept: "application/json" }, signal });
   const ct = res.headers.get("content-type") ?? "";
   if (!res.ok || !ct.includes("json")) return null;
   const data = (await res.json()) as { hits?: SearchHit[] };
   return Array.isArray(data.hits) ? data.hits : null;
 }
 
-/** Autocomplete while typing. Debounced by the HUD, not here. */
-export async function searchPlaces(query: string, bias?: LonLat): Promise<SearchHit[]> {
+export type PlaceSearchOpts = { signal?: AbortSignal };
+
+/** Autocomplete while typing. HUD debounces (~350 ms) and cancels stale fetches. */
+export async function searchPlaces(query: string, bias?: LonLat, opts?: PlaceSearchOpts): Promise<SearchHit[]> {
   const q = query.trim();
-  if (q.length < 2 && !parseLatLng(q)) return [];
+  if (q.length < 3 && !parseLatLng(q)) return [];
   try {
-    const api = await viaApi(q, bias, "suggest");
+    const api = await viaApi(q, bias, "suggest", opts?.signal);
     if (api) return api;
-  } catch {
+  } catch (err) {
+    if (opts?.signal?.aborted) throw err;
     /* Pages Function missing (plain Vite without the plugin) — fall through. */
   }
   return runGeocode(q, { mode: "suggest", bias, nominatim: false });
 }
 
 /** First good pin for the raw typed text. Null means nothing matched. */
-export async function geocode(query: string, bias?: LonLat): Promise<SearchHit | null> {
+export async function geocode(query: string, bias?: LonLat, opts?: PlaceSearchOpts): Promise<SearchHit | null> {
   const q = query.trim();
   if (!q) return null;
   try {
-    const api = await viaApi(q, bias, "resolve");
+    const api = await viaApi(q, bias, "resolve", opts?.signal);
     if (api) return api[0] ?? null;
   } catch {
     /* fall through */

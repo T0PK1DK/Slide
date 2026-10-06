@@ -11,9 +11,10 @@ import {
   localIncidents,
   logTomTomMissing,
   mergeMapIncidents,
+  fetchTrafficRoute,
   routeTraffic,
+  routeTrafficFromRouting,
   sampleRoute,
-  tomtomIncidents,
   trafficAlong,
   trafficStatus,
   trafficSummary,
@@ -270,6 +271,7 @@ export function mountTraffic(h: TrafficHooks): TrafficView {
       aheadMi: hit?.mi ?? null,
       tomtom: configured,
       on: h.enabled(),
+      alongMi: h.alongMi(),
     });
     h.onSummary(sum);
     h.onRouteTraffic?.(h.enabled() ? lastRouteTraffic : null);
@@ -296,20 +298,20 @@ export function mountTraffic(h: TrafficHooks): TrafficView {
         if (!configured) logTomTomMissing();
         addLayers();
       }
-      const b = h.getBounds();
       const km = 18;
-      const jobs: Array<Promise<RadarItem[]>> = [localIncidents(c.lat, c.lon, km)];
-      if (configured && h.enabled() && b) {
-        jobs.push(tomtomIncidents([b.west, b.south, b.east, b.north]));
-      }
-      const lists = await Promise.all(jobs);
+      const lists = await Promise.all([localIncidents(c.lat, c.lon, km)]);
       items = mergeMapIncidents(...lists);
       drawMarkers();
 
       if (configured && h.enabled() && route && route.coords.length > 1) {
-        const pts = sampleRoute(route.coords);
-        const samples = await trafficAlong(pts);
-        lastRouteTraffic = routeTraffic(route.durationSec, route.distanceMi, samples);
+        const pts = sampleRoute(route.coords, 1.8, 12);
+        const routed = await fetchTrafficRoute({ points: pts });
+        if (routed) {
+          lastRouteTraffic = routeTrafficFromRouting(routed);
+        } else {
+          const samples = await trafficAlong(sampleRoute(route.coords));
+          lastRouteTraffic = routeTraffic(route.durationSec, route.distanceMi, samples);
+        }
         setRouteData(route.coords);
       } else {
         lastRouteTraffic = null;

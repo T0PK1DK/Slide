@@ -1,17 +1,34 @@
 /**
- * GET /api/traffic/* — TomTom Traffic proxy for the Cloudflare Pages project.
+ * GET/POST /api/traffic/* — TomTom Traffic + Routing proxy.
  * The key is the Pages secret TOMTOM_API_KEY (never a VITE_ var).
  *
- *   /api/traffic/status              { configured }
+ *   /api/traffic/status              { configured, budget }
  *   /api/traffic/flow/:z/:x/:y       relative vector flow tile (PBF)
  *   /api/traffic/incidents?bbox=     Incident Details → radar items
  *   /api/traffic/along?points=       Flow Segment Data for sampled points
+ *   /api/traffic/route               Routing traffic=true + speedLimit sections
+ *                                   GET ?points=lat,lon|…  or POST { points }
  *
  * Missing key: status says configured:false, tiles 204, lists empty.
- * Never invents flow or incidents. Edge-cached ~2 min to stay inside the
- * TomTom free-tier daily cap (one upstream call per tile/bbox/point set).
+ * Never invents flow, incidents, or ETAs. Search/incident cache is minutes;
+ * routing is ~15 s (TomTom terms: honor Cache-Control, no result database).
+ * Leon may extend /route — keep the JSON shape stable.
  */
-import { fromTomTom, TOMTOM_FLOW_SEGMENT, TOMTOM_FLOW_TILE, TOMTOM_INCIDENTS } from "../../../src/lib/sources/tomtom";
+import { fromTomTom, TOMTOM_FLOW_SEGMENT, TOMTOM_FLOW_TILE, TOMTOM_INCIDENTS, TOMTOM_ROUTE } from "../../../src/lib/sources/tomtom";
+import { trafficRouteOf, supportingPointsOf, type RoutePoint } from "../../../src/lib/tomtom-route";
+import {
+  INCIDENT_TTL_SEC,
+  ROUTE_TTL_SEC,
+  TOMTOM_ATTRIBUTION,
+  cacheBudgetStore,
+  edgeCache,
+  emptyBudget,
+  remaining,
+  reserve,
+  utcDay,
+  type TomTomBudget,
+  type TomTomSpend,
+} from "../../../src/lib/tomtom-budget";
 import type { RadarItem } from "../../../src/lib/reports";
 
 type Env = { TOMTOM_API_KEY?: string };
@@ -83,17 +100,32 @@ function parsePoints(raw: string | null): Array<{ lat: number; lon: number }> {
   return out;
 }
 
+async function readBudget(waitUntil: Ctx["waitUntil"]): Promise<TomTomBudget> {
+  const cache = edgeCache();
+  if (!cache) return emptyBudget(utcDay());
+  return (await cacheBudgetStore(cache, waitUntil).get()) ?? emptyBudget(utcDay());
+}
+
+async function spendIfAble(kind: TomTomSpend, waitUntil: Ctx["waitUntil"]): Promise<boolean> {
+  const cache = edgeCache();
+  if (!cache) return true;
+  return (await reserve(cacheBudgetStore(cache, waitUntil), kind)) !== null;
+}
+
 export async function onRequestGet({ request, env, waitUntil, params }: Ctx): Promise<Response> {
   const url = new URL(request.url);
   const parts = rest(request, params);
   const key = env.TOMTOM_API_KEY?.trim();
 
   if (parts[0] === "status" || parts.length === 0) {
-    return json({ configured: Boolean(key) }, 60);
+    const b = await readBudget(waitUntil);
+    const left = remaining(b.day === utcDay() ? b : emptyBudget(utcDay()));
+    return json({ configured: Boolean(key), attribution: TOMTOM_ATTRIBUTION, budget: { ...left, used: b } }, 15);
   }
 
   if (!key) {
     if (parts[0] === "flow") return new Response(null, { status: 204, headers: { "cache-control": "public, max-age=60" } });
+    if (parts[0] === "route") return json({ configured: false, travelTimeSec: null, trafficDelaySec: null, speedLimits: [] }, 60);
     return json({ configured: false, items: [], samples: [] }, 60);
   }
 
@@ -114,7 +146,8 @@ export async function onRequestGet({ request, env, waitUntil, params }: Ctx): Pr
     if (parts[0] === "incidents") {
       const bbox = parseBbox(url.searchParams.get("bbox"));
       if (!bbox) return json({ error: "bbox=minLon,minLat,maxLon,maxLat required" }, 0, 400);
-      const d = (await cachedJson(`inc-${bbox}`, TOMTOM_INCIDENTS(bbox, key), waitUntil)) as { incidents?: unknown[] };
+      if (!(await spendIfAble("incidents", waitUntil))) return json({ configured: true, items: [], error: "budget" }, 15);
+      const d = (await cachedJson(`inc-${bbox}`, TOMTOM_INCIDENTS(bbox, key), waitUntil, INCIDENT_TTL_SEC)) as { incidents?: unknown[] };
       const items = (d.incidents ?? [])
         .map((e) => fromTomTom(e as Parameters<typeof fromTomTom>[0]))
         .filter((x): x is RadarItem => x !== null)
@@ -130,6 +163,7 @@ export async function onRequestGet({ request, env, waitUntil, params }: Ctx): Pr
       const ck = new Request(`https://slide-cache.invalid/traffic/${cacheName}`);
       const hit = await cache.match(ck);
       if (hit) return hit;
+      if (!(await spendIfAble("other", waitUntil))) return json({ configured: true, samples: [], error: "budget" }, 15);
       const samples = await Promise.all(pts.map(async (p) => {
         try {
           const d = (await cachedJson(
@@ -159,10 +193,84 @@ export async function onRequestGet({ request, env, waitUntil, params }: Ctx): Pr
       waitUntil(cache.put(ck, body.clone()));
       return body;
     }
+
+    if (parts[0] === "route") {
+      return routeResponse(url.searchParams.get("points"), null, key, waitUntil);
+    }
   } catch (e) {
     const msg = e instanceof Error && e.name === "AbortError" ? "timeout" : e instanceof Error ? e.message : "failed";
     return json({ configured: true, error: msg, items: [], samples: [] }, 15, 502);
   }
 
   return json({ error: "unknown traffic path" }, 0, 404);
+}
+
+async function routeResponse(
+  pointsRaw: string | null,
+  bodyPoints: RoutePoint[] | null,
+  key: string,
+  waitUntil: Ctx["waitUntil"],
+): Promise<Response> {
+  const pts = bodyPoints?.length ? bodyPoints.filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lon)).slice(0, 40) : parsePoints(pointsRaw);
+  if (pts.length < 2) return json({ error: "points=lat,lon|lat,lon required" }, 0, 400);
+  const origin = pts[0];
+  const dest = pts[pts.length - 1];
+  const support = supportingPointsOf(pts);
+  const url = TOMTOM_ROUTE(origin, dest, key);
+  const cache = (caches as unknown as { default: Cache }).default;
+  const cacheName = `route-${pts.map((p) => `${p.lat.toFixed(3)},${p.lon.toFixed(3)}`).join("_")}`;
+  const ck = new Request(`https://slide-cache.invalid/traffic/${cacheName}`);
+  const hit = await cache.match(ck);
+  if (hit) return hit;
+  if (!(await spendIfAble("route", waitUntil))) {
+    return json({ configured: true, error: "budget", travelTimeSec: null, trafficDelaySec: null, speedLimits: [] }, 5);
+  }
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 8000);
+  try {
+    const up = await fetch(url, {
+      method: support.length ? "POST" : "GET",
+      headers: {
+        accept: "application/json",
+        "user-agent": UA,
+        ...(support.length ? { "content-type": "application/json" } : {}),
+      },
+      body: support.length ? JSON.stringify({ supportingPoints: support.map((p) => ({ latitude: p.lat, longitude: p.lon })) }) : undefined,
+      signal: ctrl.signal,
+    });
+    if (!up.ok) throw new Error(`HTTP ${up.status}`);
+    const parsed = trafficRouteOf(await up.json());
+    if (!parsed) return json({ configured: true, error: "no route", travelTimeSec: null, trafficDelaySec: null, speedLimits: [] }, 5);
+    const body = json(
+      {
+        configured: true,
+        travelTimeSec: parsed.travelTimeSec,
+        trafficDelaySec: parsed.trafficDelaySec,
+        noTrafficSec: parsed.noTrafficSec,
+        lengthMeters: parsed.lengthMeters,
+        speedLimits: parsed.speedLimits,
+        attribution: TOMTOM_ATTRIBUTION,
+      },
+      ROUTE_TTL_SEC,
+    );
+    waitUntil(cache.put(ck, body.clone()));
+    return body;
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+export async function onRequestPost({ request, env, waitUntil, params }: Ctx): Promise<Response> {
+  const parts = rest(request, params);
+  const key = env.TOMTOM_API_KEY?.trim();
+  if (parts[0] !== "route") return json({ error: "unknown traffic path" }, 0, 404);
+  if (!key) return json({ configured: false, travelTimeSec: null, trafficDelaySec: null, speedLimits: [] }, 60);
+  try {
+    const body = (await request.json()) as { points?: RoutePoint[] };
+    const pts = Array.isArray(body.points) ? body.points : [];
+    return await routeResponse(null, pts, key, waitUntil);
+  } catch (e) {
+    const msg = e instanceof Error && e.name === "AbortError" ? "timeout" : e instanceof Error ? e.message : "failed";
+    return json({ configured: true, error: msg, travelTimeSec: null, trafficDelaySec: null, speedLimits: [] }, 5, 502);
+  }
 }

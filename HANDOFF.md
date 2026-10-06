@@ -16,7 +16,7 @@ npm run dev
 Vite + TypeScript. No env file required: without env vars, accounts, radar feeds and transit simply stay off. See **Owner setup for accounts + radar** to turn them on.
 
 - Routing: `https://valhalla1.openstreetmap.de`
-- Geocode: `/api/geocode` → Photon, then Nominatim (Worker, 1 req/s), then US Census. Direct Photon if the Function is missing.
+- Geocode: `/api/geocode` + `/api/suggest` → TomTom Fuzzy first (when `TOMTOM_API_KEY` is set and the daily search budget has room), then Photon → Nominatim (Worker, 1 req/s) → US Census. Direct Photon if the Function is missing.
 - Tiles: `https://tiles.openfreemap.org/styles/dark`
 
 Units are **miles / mph**. First proving ground is **Miami**.
@@ -25,7 +25,7 @@ Units are **miles / mph**. First proving ground is **Miami**.
 
 Everything below is on `main` (PR #13, 2026-09-25): 0 TS errors, 54/54 unit tests, `npm run build` clean.
 
-- **Search + plan:** typed addresses geocode on Enter / Drop the line (Photon → Nominatim → US Census). Autocomplete while typing. GPS locate, a "you" marker, and up to 5 stops (drag to reorder).
+- **Search + plan:** typed addresses geocode on Enter / Drop the line (TomTom Fuzzy → Photon → Nominatim → US Census). Autocomplete while typing (350 ms debounce, 3 chars, stale requests cancelled). GPS locate, a "you" marker, and up to 5 stops (drag to reorder).
 - **Routes:** Valhalla `/route` + `/trace_attributes`. Three or more lines are drawn together; tap a line or its bubble to pick one.
   - Tags: **Slide pick** (smoothest within +10% of fastest), **Fastest**, **No tolls**.
   - Routes with tolls are flagged; there's no price yet.
@@ -57,9 +57,14 @@ src/styles/system.test.ts  design-system metrics (hex, radii, type, !important)
 src/lib/empty.ts       empty-state copy (never "—"); `.is-empty` helper; unsigned sign `--`
 src/lib/empty.test.ts  placeholder vs numeral + postedSignText
 src/lib/place.ts       Photon label → name + address
-src/lib/geocode.ts     address parse + Photon / Nominatim / Census chain (tested)
-src/lib/geocode.test.ts  King's street / shops / ZIP / intersection queries
-functions/api/geocode.ts  Pages Function: User-Agent + Nominatim throttle; Vite plugin mirrors it in `npm run dev`
+src/lib/geocode.ts     address parse + TomTom-first / Photon / Nominatim / Census chain (tested)
+src/lib/geocode.test.ts  King's street / shops / ZIP / intersection queries + TomTom first
+src/lib/tomtom-search.ts  Fuzzy Search → SearchHit (pure)
+src/lib/tomtom-route.ts  Routing traffic ETA + speedLimit sections; `fetchTrafficRoute()` for Leon
+src/lib/tomtom-budget.ts  daily 1,500 search / 2,500 total counters + cache TTLs
+src/lib/incidents-merge.ts  TomTom ↔ FDOT/MDPD dedupe
+functions/api/geocode.ts  Pages Function: TomTom first + budget, then Nominatim throttle; Vite plugin mirrors it
+functions/api/suggest.ts  Autocomplete alias of /api/geocode?mode=suggest
 src/plan/review-cards.ts  swipeable review cards from real ranked routes
 src/hud/voice-mute.ts  `#drive-mute` toggle + `slide:voice-mute` event
 src/voice/             spoken turn-by-turn; listens for `slide:voice-mute`, mirrors `slide.voice.v1`
@@ -107,13 +112,14 @@ src/lib/sources/mdpd.ts   Miami-Dade Police traffic call → radar item, Miami l
 src/lib/incidents.test.ts tests for the FDOT + MDPD mappers (live-shaped fixtures)
 src/hud/radar.ts       mini radar, Report sheet, heads-up banner, Nearby list
 src/hud/social.ts      Profile → Friends & followers (sign in, handle, lists, search)
-functions/api/incidents.ts  Pages Function: FDOT DIVAS + Miami-Dade Police (keyless) + FL511 (if FL511_API_KEY) merged, per-source status
-functions/api/traffic/[[path]].ts  Pages Function: TomTom proxy (status, relative flow tiles, incidents, along-route). Secret TOMTOM_API_KEY
+functions/api/incidents.ts  Pages Function: FDOT DIVAS + Miami-Dade Police (keyless) + FL511 + TomTom Incident Details (if keyed) merged + deduped, per-source status
+functions/api/traffic/[[path]].ts  Pages Function: TomTom proxy (status, flow tiles, incidents, along-route, **route** traffic ETA + speed limits). Secret TOMTOM_API_KEY
 functions/api/cameras.ts    Pages Function: OSM enforcement cameras via Overpass (24 h tile cache)
 functions/api/transit.ts    Pages Function: GTFS-realtime buses/trains from TRANSIT_FEEDS secret
-functions/api/geocode.ts    Pages Function: Photon → Nominatim → US Census for typed addresses
-src/lib/sources/tomtom.ts  TomTom incident + flow mappers (pure, tested)
-src/lib/traffic.ts     status / along-route / summary / route colour (pure + fetch)
+functions/api/geocode.ts    Pages Function: TomTom Fuzzy first, then Photon → Nominatim → US Census
+functions/api/suggest.ts    Pages Function: search autocomplete (same chain)
+src/lib/sources/tomtom.ts  TomTom incident + flow + Search/Routing URL builders (pure, tested)
+src/lib/traffic.ts     status / Routing ETA / along-route / summary / route colour (pure + fetch)
 src/lib/traffic.test.ts  traffic mappers, summary copy, garage toggle
 src/map/traffic.ts     MapLibre flow layer, route congestion, incident pins + card
 src/map/incident-icons.ts  original glass SVG pins + source labels
@@ -155,7 +161,7 @@ AGENTS.md / CLAUDE.md  short agent rules
 - Public Valhalla/Photon can rate-limit. Plan for self-host.
 - Phone demo is live on Cloudflare Pages: https://kings-slide.pages.dev (project `kings-slide`). Do not use slide.pages.dev — that hostname is an unrelated site.
 - Turn-by-turn is the next-maneuver banner plus a lane strip in `#lane-strip` when Valhalla sends `lanes` within 0.75 mi, plus spoken guidance (`speechSynthesis`). Grim's `#drive-mute` owns the button; speech listens for `slide:voice-mute` / `html[data-voice]` and mirrors `slide.voice.v1`. No full step list.
-- No leave-by target. Live traffic: FDOT / Miami-Dade / driver icons always (when the map has a centre). Green / yellow / red flow, route colour and live delay need the Pages secret `TOMTOM_API_KEY`. Off in Garage → Live traffic.
+- No leave-by target. Live traffic: FDOT / Miami-Dade / driver icons always (when the map has a centre). Green / yellow / red flow, TomTom Routing traffic ETA, speedLimit sections on the sign, and TomTom incident details need the Pages secret `TOMTOM_API_KEY`. Off in Garage → Live traffic.
 - Native CarPlay requires an iOS app + Apple entitlement — Drive Mode is the phone-mounted stand-in.
 - Leave-by and "Your usual" aren't built yet. Avoid options and multi-stop are done.
 
@@ -330,6 +336,8 @@ Read `TASKS.md` top unchecked item. Do not rebase history. Do not rename the pro
 
 - 2026-10-05 Cursor: **Live traffic layer + incident icons** (Pages Functions, not a standalone Worker). `/api/traffic/*` proxies TomTom when the **Pages project secret** `TOMTOM_API_KEY` is set: relative vector flow tiles, Incident Details, Flow Segment Data along the selected line. Missing key: flow hidden, one console info, no fake colours. Map pins for FDOT / Miami-Dade / driver reports (and TomTom when keyed). Mobile bug: official incidents only lived on the radar disc, and the disc stayed hidden until GPS — pins now load from the map centre. Garage **Live traffic** toggle (on by default). Refresh ~2 min. Drive / review / Command show a real summary and add delay to the ETA when samples exist. Did not touch the speed sign or next-turn banner (Grim #40). `--flow-*` and `--kind-*` retuned so G/Y/R and pins read on Night gold roads, Ember rust/orange roads, and Sand pale-gold motorways; flow lines get a `--flow-case` hairline.
 
+- 2026-10-05 Nard: **TomTom data (search, traffic ETA, speed limits, incident details).** Branch `nard/tomtom-data` from `main` @ `7a2dbd5`. All TomTom calls stay in Pages Functions (`TOMTOM_API_KEY` never a `VITE_` var). (1) `/api/geocode` + `/api/suggest` try TomTom Fuzzy (typeahead on suggest, bias `lat`/`lon`) first; miss / error / search budget ≥ ~1,500/day falls through to Photon → Nominatim → Census. Client debounce 350 ms, min 3 chars, AbortController cancels stale suggests. (2) `GET/POST /api/traffic/route` is TomTom Routing `traffic=true` + optional `sectionType=speedLimit`. `fetchTrafficRoute()` in `src/lib/tomtom-route.ts` is the contract Leon's `reroute.ts` can call — no reroute UI in this PR. Review/drive ETA prefers Routing delay; flow-segment along-route is the fallback. (3) SpeedLimit sections overlay the existing `#limit` sign when present; Valhalla bands stay when TomTom omits them (free-tier may not send sections). (4) `/api/incidents` merges TomTom Incident Details and dedupes vs FDOT/MDPD (~180 m, same kind; official pin kept, TomTom `+N min` folded into detail). Daily budget counter (~1,500 search / 2,500 non-tile). Cache: search 30 min, incidents 45 s, routing 15 s — TomTom terms only allow honoring Cache-Control, not a result database. Attribution `© TomTom` on TomTom suggests, live-traffic notes, and the existing flow layer. No scoring-contract change.
+
 - 2026-10-05 Cursor: **Persistent accounts (Supabase email OTP + magic link, not D1).** King was getting logged out. Root cause: the session lived in Safari-only storage, and iOS Home Screen apps have their own jar (cookies included), so a cookie bridge cannot move a Safari login into the installed app. Fix: email a 6-digit `{{ .Token }}` plus the link; the driver types the code in whichever app they are in (`verifyOtp` type `email`); that app gets the session and `persistSession` / `autoRefreshToken` keep it. Magic link stays for Safari / desktop. Sign in / Create account + a dedicated code screen. Home/work/history/ghosts/XP keyed to `auth.uid()`. **No D1. No new SQL.** Nard: paste the Magic Link template in Owner setup, confirm Site URL + Redirect URLs, redeploy. Verify on https://kings-slide.pages.dev from the Home Screen by typing the code.
 
 - 2026-10-04 Leon: **Game layer 1 (logic only).** Branch `leon/game-core`. Per-trip smooth score from real GPS speed / heading / timestamps and posted limit when present (`src/lib/game/smoothScore.ts`). Missing signals are skipped, never faked. Faster driving never raises score or XP; time over the limit zeros that segment. XP/levels use `xpAtLevel(n) = 40·(n−1)·n` and trip XP = smooth-miles × 10 + a score-only bonus (`src/lib/game/xp.ts`). Tiered badges (First Line, Glass Line, Soft Pedal, Night Owl, Long Slide, Sign Reader, Causeway) in `src/lib/game/badges.ts`. Unlocks: Nimbus at level 5, Glider at Night Owl silver, Halo / Dusk liveries via badges — starter six + Solid/Stripes/Fade stay free so the Garage picker is unchanged. Progress is `slide.game.v1` in localStorage (wiped by `eraseDeviceData`). `useGameProgress()` is the hook for Grim's arrival XP/badge slot, share-card mount, and 3D stage. Drive loop records samples and commits next to history; no CSS or screen layout. API in `docs/GAME-LAYER.md`. Later: Opal stage + 3D car, share card UI, opt-in friends leaderboard.
@@ -418,7 +426,7 @@ grant execute on function public.delete_my_account() to authenticated;
 2. **Cloudflare Pages `kings-slide`** (account `f52402ec…`). It is a **Direct Upload** project (no Git connection), so Cloudflare never builds the app: `VITE_` values are baked in on the machine that runs `npm run build`, and dashboard env vars never reach the bundle. Server keys are Pages **secrets** read by the Functions at runtime.
    - `VITE_SUPABASE_URL` is in the committed `.env.production` (public value).
    - `VITE_SUPABASE_ANON_KEY` (public by design, `role: anon`) is in `.env.production` too (2026-10-04). The same two values are also stored as Pages secrets for the record, but the bundle only gets them from `.env.production`.
-   - `TOMTOM_API_KEY` (secret, **optional**): free TomTom developer key. Turns on the flow layer, TomTom incident icons, route colour and live delay. Without it, FDOT / Miami-Dade / driver icons still show; the flow layer stays off.
+   - `TOMTOM_API_KEY` (secret, **already set** on kings-slide): free TomTom developer key. Turns on Fuzzy search, Routing traffic ETA + speedLimit sections, the flow layer, TomTom incident details, and live delay. Without it, search falls back to Photon/Nominatim/Census and FDOT / Miami-Dade / driver icons still show; the flow layer stays off. Free tier ≈ 2,500 non-tile + 50k tile requests/day.
    - `FL511_API_KEY` (secret, **optional** now that FDOT DIVAS + Miami-Dade Police feed `/api/incidents` without a key): a free key from fl511.com (Developers / API).
    - `TRANSIT_FEEDS` (secret): **set on 2026-10-04** for production and preview, with the three feeds that work without a key (see below).
    - Cameras need no key: they use the public Overpass API with OSM attribution.
@@ -461,7 +469,7 @@ Traffic-aware times need a paid provider, and the owner's rule is "HERE/TomTom o
 | Google Routes API | Yes | Yes | Yes | **Rejected**: Google Maps Platform terms don't allow showing its results on a non-Google map, and HANDOFF forbids replacing OSM routing with Google |
 
 - Both HERE and TomTom have a monthly free tier and charge per request above it. **Check current prices and free-tier limits on their pricing pages before approving.** This container can't reach them, so no numbers are written here that haven't been checked.
-- **Key handling:** never a `VITE_` variable. Traffic already lives in `functions/api/traffic/[[path]].ts` and reads the Pages secret `TOMTOM_API_KEY`. A future HERE route proxy would be a separate Function. Cache ~2 min.
+- **Key handling:** never a `VITE_` variable. Traffic and Routing live in `functions/api/traffic/[[path]].ts` and Search in `/api/geocode` + `/api/suggest`; all read the Pages secret `TOMTOM_API_KEY`. A future HERE route proxy would be a separate Function. Routing cache ~15 s; search ≤ 30 min.
 - **Fallback:** keep the current free Valhalla path (not OSRM; Slide has never used OSRM) whenever the provider errors or the quota runs out. The UI must then say "no live traffic".
 - Once approved: the provider adapter goes behind `src/lib/sources/routing/*` with the same `SlideRoute` output, and the Collins Ave check is "within ~10% of Google at the same time of day".
 

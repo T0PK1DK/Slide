@@ -98,6 +98,8 @@ export function fromTomTom(inc: TomTomIncident, now = Date.now()): RadarItem | n
   const where = [...new Set([from && to ? `${from} → ${to}` : from || to, road].filter(Boolean))].join(" · ");
   const start = Date.parse(String(p.startTime ?? ""));
   const id = String(p.id ?? `${at.lat},${at.lon}`);
+  const delaySec = Number(p.delay);
+  const delayNote = Number.isFinite(delaySec) && delaySec >= 45 ? ` · +${Math.max(1, Math.round(delaySec / 60))} min` : "";
   return {
     id: `tomtom-${id}`,
     source: "tomtom",
@@ -105,7 +107,7 @@ export function fromTomTom(inc: TomTomIncident, now = Date.now()): RadarItem | n
     lat: at.lat,
     lon: at.lon,
     title: [KIND_TITLE[kind], where].filter(Boolean).join(" · "),
-    detail: `TomTom · ${desc || KIND_TITLE[kind]}`,
+    detail: `TomTom · ${desc || KIND_TITLE[kind]}${delayNote}`,
     createdAt: Number.isFinite(start) ? start : now,
     confirms: 0,
     reportId: null,
@@ -152,3 +154,51 @@ export const TOMTOM_INCIDENTS = (bbox: string, key: string) =>
 
 export const TOMTOM_FLOW_SEGMENT = (lat: number, lon: number, key: string) =>
   `https://api.tomtom.com/traffic/services/4/flowSegmentData/relative0/10/json?point=${lat},${lon}&unit=MPH&key=${encodeURIComponent(key)}`;
+
+/** Fuzzy Search. `typeahead=true` is the as-you-type path (Autocomplete has no coordinates). */
+export const TOMTOM_FUZZY = (query: string, key: string, opts: { lat: number; lon: number; limit: number; typeahead: boolean }) => {
+  const url = new URL(`https://api.tomtom.com/search/2/search/${encodeURIComponent(query)}.json`);
+  url.searchParams.set("key", key);
+  url.searchParams.set("lat", String(opts.lat));
+  url.searchParams.set("lon", String(opts.lon));
+  url.searchParams.set("limit", String(opts.limit));
+  url.searchParams.set("language", "en-US");
+  url.searchParams.set("typeahead", opts.typeahead ? "true" : "false");
+  url.searchParams.set("idxSet", "POI,PAD,Addr,Str,XStr,Geo");
+  return url.toString();
+};
+
+export const TOMTOM_AUTOCOMPLETE = (query: string, key: string, opts: { lat: number; lon: number; limit: number }) => {
+  const url = new URL(`https://api.tomtom.com/search/2/autocomplete/${encodeURIComponent(query)}.json`);
+  url.searchParams.set("key", key);
+  url.searchParams.set("lat", String(opts.lat));
+  url.searchParams.set("lon", String(opts.lon));
+  url.searchParams.set("limit", String(opts.limit));
+  url.searchParams.set("language", "en-US");
+  return url.toString();
+};
+
+/** Routing overlay on an existing line. traffic=true; speedLimit sections when the tier sends them. */
+export const TOMTOM_ROUTE = (origin: { lat: number; lon: number }, dest: { lat: number; lon: number }, key: string) => {
+  const path = `${origin.lat},${origin.lon}:${dest.lat},${dest.lon}`;
+  const url = new URL(`https://api.tomtom.com/routing/1/calculateRoute/${path}/json`);
+  url.searchParams.set("key", key);
+  url.searchParams.set("traffic", "true");
+  url.searchParams.set("travelMode", "car");
+  url.searchParams.set("routeType", "fastest");
+  url.searchParams.set("sectionType", "speedLimit");
+  url.searchParams.set("computeTravelTimeFor", "all");
+  url.searchParams.set("instructionsType", "none");
+  return url.toString();
+};
+
+export function bboxAround(lat: number, lon: number, km: number): string {
+  const span = Math.min(Math.max(km, 1), 80);
+  const dLat = span / 111;
+  const dLon = span / (111 * Math.max(0.2, Math.cos((lat * Math.PI) / 180)));
+  const minLat = lat - dLat;
+  const maxLat = lat + dLat;
+  const minLon = lon - dLon;
+  const maxLon = lon + dLon;
+  return `${minLon.toFixed(4)},${minLat.toFixed(4)},${maxLon.toFixed(4)},${maxLat.toFixed(4)}`;
+}
