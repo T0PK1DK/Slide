@@ -58,6 +58,7 @@ import type { Alert } from "./lib/alerts";
 import type { TrafficSummary } from "./lib/traffic";
 import { createYouMarker } from "./map/you";
 import { mountCommand } from "./hud/command";
+import { etaNoteFor, offerFromTraffic, RouteBrain, routeKey } from "./lib/route-brain";
 import { recordTrip } from "./lib/history";
 import { useGameProgress, useLeaderboard } from "./lib/game";
 import { bindBoardToggle, currentRide, demoAward, mountGameSlots } from "./hud/gameSlots";
@@ -204,6 +205,15 @@ const ARRIVE_M = 40;
 const OFF_ROUTE_M = 60;
 const REROUTE_AFTER_MS = 8000;
 let lastTraffic: TrafficSummary = { line: null, etaNote: "Typical time · no live traffic yet", delaySec: 0, live: false };
+/**
+ * Single source of truth for the selected line and its ETA (src/lib/route-brain.ts).
+ * Valhalla, TomTom Routing and flow samples only *offer* times; every screen reads brain.snapshot().
+ */
+const brain = new RouteBrain();
+/** routeKey() of the selected line: what the traffic layer measures and the brain accepts. */
+let selectedKey = "";
+/** Whole-trip ETA shown when Go was pressed, saved with the trip for arrival accuracy. */
+let plannedAtStart = 0;
 
 const fromInput = $("#from") as HTMLInputElement;
 const toInput = $("#to") as HTMLInputElement;
@@ -414,11 +424,24 @@ const traffic = mountTraffic({
   getRoute: () => {
     const r = routes.find((x) => x.id === selectedId);
     if (!r || !selectedCoords.length) return null;
-    return { id: r.id, coords: selectedCoords, durationSec: r.durationSec, distanceMi: r.distanceMi };
+    return { id: selectedKey, coords: selectedCoords, durationSec: r.durationSec, distanceMi: r.distanceMi };
   },
   alongMi: () => progressMi,
   onSummary: applyTrafficHud,
+  onRouteTraffic: (rt, id, why) => {
+    if (why === "off") { brain.dropLive(); return; }
+    const s = brain.snapshot();
+    const offer = id === s.routeKey ? offerFromTraffic(rt, id, s.baselineSec, s.distanceMi) : null;
+    if (offer) brain.offer(offer);
+    else brain.fail(id);
+  },
+  committedDelaySec: () => {
+    const s = brain.snapshot();
+    return s.routeKey && s.source !== "valhalla" ? s.delaySec : null;
+  },
 });
+// Any committed ETA change repaints every non-drive surface; drive reads the brain each frame.
+brain.subscribe(() => paintEta());
 function applyTrafficHud(s: TrafficSummary) {
   lastTraffic = s;
   const note = $("#review-eta-note");
@@ -434,10 +457,27 @@ function applyTrafficHud(s: TrafficSummary) {
     live: s.live || traffic.items().length > 0,
     incidents: traffic.items().slice(0, 4).map(incidentAlert),
   });
-  if (sel && hudMode === "review") {
-    $("#review-eta").textContent = formatDuration(sel.durationSec + (s.live ? s.delaySec : 0));
-  }
+  paintEta();
   if (hudMode === "drive" && sel) updateDriveMeta(sel, progressMi);
+}
+/** Paint the brain's ETA on the review sheet, selected card + map chip, dash and trip sheet. */
+function paintEta() {
+  const s = brain.snapshot();
+  const sel = routes.find((r) => r.id === selectedId);
+  if (!sel || !s.routeKey || s.routeKey !== selectedKey) return;
+  const total = formatDuration(s.totalSec);
+  const liveFlag = s.live ? "1" : "0";
+  const rev = $("#review-eta");
+  setMaybeEmpty(rev, total);
+  rev.dataset.live = liveFlag;
+  rev.dataset.source = s.source;
+  $("#review-eta-note").textContent = etaNoteFor(s, lastTraffic.etaNote);
+  const card = document.querySelector<HTMLElement>(`.route-card[data-id="${CSS.escape(sel.id)}"] b`);
+  if (card) card.textContent = total;
+  const chip = routeChips.map((m) => m.getElement()).find((el) => el.classList.contains("on"))?.querySelector("b");
+  if (chip) chip.textContent = total;
+  setMaybeEmpty($("#stat-eta"), arrivalClock(s.totalSec));
+  command.setEta(s.totalSec, s.live);
 }
 function incidentAlert(it: RadarItem): Alert {
   const level = it.kind === "crash" || it.kind === "closure" ? "red" : it.kind === "jam" || it.kind === "roadwork" || it.kind === "hazard" ? "orange" : "info";
@@ -808,6 +848,7 @@ function setHudMode(mode: HudMode) {
 function startDrive() {
   if (!routes.length) return;
   driveLog = { ...freshLog(), startedAt: Date.now() };
+  plannedAtStart = brain.snapshot().totalSec;
   game.beginDrive();
   offSince = 0;
   disp = null;
@@ -881,6 +922,8 @@ function finishArrival() {
   stops = [];
   selectedId = "";
   selectedCoords = [];
+  selectedKey = "";
+  brain.setRoute(null);
   dest = null;
   destLabel = "";
   toInput.value = "";
@@ -903,7 +946,7 @@ function saveDriveToHistory() {
     destLabel,
     routeLabel: route.label,
     distanceMi: Math.round(log.drivenMi * 100) / 100,
-    plannedSec: route.durationSec,
+    plannedSec: Math.round(plannedAtStart || route.durationSec),
     actualSec: Math.round((Date.now() - log.startedAt) / 1000),
     slideScore: route.slideScore,
     lefts: route.lefts,
@@ -1300,7 +1343,7 @@ function paintRouteChips() {
     const toll = tollLabel(r.hasToll);
     const tag = r.tags[0] ?? "";
     const showToll = toll && tag !== "No tolls";
-    const chipSec = r.durationSec + (r.id === selectedId && lastTraffic.live ? lastTraffic.delaySec : 0);
+    const chipSec = r.id === selectedId && brain.routeKey() === selectedKey ? brain.snapshot().totalSec : r.durationSec;
     el.innerHTML = `<b>${formatDuration(chipSec)}</b>${tag ? `<span>${tag}</span>` : ""}${showToll ? `<em class="${r.hasToll ? "toll" : "free"}">${toll}</em>` : ""}`;
     el.setAttribute("aria-label", [...new Set([formatDuration(chipSec), ...r.tags, toll].filter(Boolean))].join(", "));
     el.onclick = (ev) => { ev.stopPropagation(); selectRoute(r.id); };
@@ -1345,8 +1388,6 @@ function renderReview() {
   if (active && !track.dataset.swiping) {
     active.scrollIntoView({ inline: "center", block: "nearest", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
   }
-  const liveSec = sel.durationSec + (lastTraffic.live ? lastTraffic.delaySec : 0);
-  setMaybeEmpty($("#review-eta"), formatDuration(liveSec));
   $("#review-dist").textContent = formatMiles(sel.distanceMi);
   $("#review-via").textContent = viaLine(sel.maneuvers);
   const shortWhy = sel.why.split(" · ")[0] || sel.label;
@@ -1355,7 +1396,7 @@ function renderReview() {
     ? "Slide pick · Fastest is also the smoothest line we found"
     : [sel.tags.join(" · ") || sel.label, shortWhy].filter(Boolean).join(" · ");
   $("#review-tag").textContent = toll && !sel.tags.includes("No tolls") ? `${head} · ${toll}` : head;
-  $("#review-eta-note").textContent = lastTraffic.etaNote;
+  paintEta();
   renderStops();
 }
 
@@ -1421,9 +1462,8 @@ function renderDash() {
   dashEl.removeAttribute("hidden");
   const sel = routes.find((r) => r.id === selectedId);
   if (sel) {
-    const liveSec = sel.durationSec + (lastTraffic.live ? lastTraffic.delaySec : 0);
     setMaybeEmpty($("#stat-score"), String(sel.slideScore));
-    setMaybeEmpty($("#stat-eta"), arrivalClock(liveSec));
+    setMaybeEmpty($("#stat-eta"), arrivalClock(brain.routeKey() === selectedKey ? brain.snapshot().totalSec : sel.durationSec));
   }
   routesEl.innerHTML = routes.map((r) => {
     const on = r.id === selectedId ? " selected" : "";
@@ -1443,6 +1483,9 @@ function renderSpeedRail() {
 function loadSelectedRoute() {
   const route = routes.find((r) => r.id === selectedId);
   selectedCoords = route ? decodePolyline6(tripShape(route.trip)) : [];
+  // The brain owns the line from here: same line → keeps its live ETA; new line → Valhalla baseline.
+  selectedKey = route && selectedCoords.length ? routeKey(route.id, selectedCoords, route.distanceMi) : "";
+  brain.setRoute(route && selectedKey ? { key: selectedKey, distanceMi: route.distanceMi, baselineSec: route.durationSec, coords: selectedCoords } : null);
   return route;
 }
 /** Point the drive at the selected line: shape, cumulative miles, guidance steps. */
@@ -1452,6 +1495,7 @@ function loadDriveRoute() {
   cumulative = cumulativeMiles(selectedCoords);
   steps = buildSteps(route.maneuvers);
   progressMi = 0;
+  brain.resetProgress();
   return route;
 }
 function bootDrive() {
@@ -1625,11 +1669,19 @@ function checkArrival(snap: RouteProgress | null, totalMi: number): boolean {
 }
 function updateDriveMeta(route: SlideRoute | undefined, mi: number) {
   if (hudMode !== "drive" || !route) return;
-  const remainMi = Math.max(0, route.distanceMi - mi);
-  const remainSec = route.durationSec * (remainMi / Math.max(route.distanceMi, 0.01));
-  const liveRemain = remainSec + (lastTraffic.live ? lastTraffic.delaySec * (remainMi / Math.max(route.distanceMi, 0.01)) : 0);
-  setMaybeEmpty($("#drive-eta"), formatDuration(liveRemain));
-  $("#drive-remain").textContent = `${formatMiles(remainMi)} · ${arrivalClock(liveRemain)}`;
+  // One number from one source, scaled by progress along this one line (route-brain.ts).
+  brain.setProgress(mi);
+  brain.tick();
+  const s = brain.snapshot();
+  const eta = formatDuration(s.remainingSec);
+  const remain = `${formatMiles(s.remainingMi)} · ${arrivalClock(s.remainingSec)}`;
+  const etaEl = $("#drive-eta");
+  if (etaEl.textContent !== eta) setMaybeEmpty(etaEl, eta);
+  const liveFlag = s.live ? "1" : "0";
+  if (etaEl.dataset.live !== liveFlag) etaEl.dataset.live = liveFlag;
+  etaEl.dataset.source = s.source;
+  const remainEl = $("#drive-remain");
+  if (remainEl.textContent !== remain) remainEl.textContent = remain;
   const chip = $("#drive-traffic");
   if (chip) {
     chip.hidden = !lastTraffic.line;

@@ -35,6 +35,8 @@ export type CommandView = {
   syncLook(): void;
   /** Live traffic line + official incident alerts. Real data only. */
   setTraffic(input: { line: string | null; live: boolean; incidents: Alert[] }): void;
+  /** Selected line's ETA from the route brain (src/lib/route-brain.ts). Null = Valhalla typical. */
+  setEta(totalSec: number | null, live: boolean): void;
 };
 
 const esc = (s: string) =>
@@ -395,6 +397,9 @@ export function mountCommand(h: CommandHooks): CommandView {
   });
 
   // --- right rail: route intelligence + drive rhythm
+  /** Brain ETA for the selected line; other lines keep their typical time for comparison. */
+  let etaSec: number | null = null;
+  const selTime = (r: SlideRoute) => (r.id === selectedId && etaSec !== null ? etaSec : r.durationSec);
   const renderRight = () => {
     const o = overview(loadTrips(), win);
     const sel = routes.find((r) => r.id === selectedId);
@@ -423,7 +428,7 @@ export function mountCommand(h: CommandHooks): CommandView {
     const wideIntel = `
       <section class="cmd-card cmd-wide cmd-nav-intel">
         <header><div><h2>Navigation intelligence</h2><p class="cmd-dim">From your planned lines${trafficLive ? " · live traffic" : " · typical times"}</p></div></header>
-        ${sel ? `<div class="cmd-sel"><span class="cmd-dim">${esc(sel.tags.join(" · ") || sel.label)}</span><b>${formatDuration(sel.durationSec)}</b><span>${sel.distanceMi.toFixed(1)} mi · ${sel.lefts} left${sel.lefts === 1 ? "" : "s"} · ${sel.signals} signals${sel.hasToll === true ? " · tolls" : sel.hasToll === false ? " · no tolls" : ""}</span></div>` : `<p class="cmd-empty">Plan a trip to compare lines here.</p>`}
+        ${sel ? `<div class="cmd-sel"><span class="cmd-dim">${esc(sel.tags.join(" · ") || sel.label)}</span><b>${formatDuration(selTime(sel))}</b><span>${sel.distanceMi.toFixed(1)} mi · ${sel.lefts} left${sel.lefts === 1 ? "" : "s"} · ${sel.signals} signals${sel.hasToll === true ? " · tolls" : sel.hasToll === false ? " · no tolls" : ""}</span></div>` : `<p class="cmd-empty">Plan a trip to compare lines here.</p>`}
         ${sug ? `<div class="cmd-sug ${sug.savesMin > 0 ? "faster" : "smoother"}"><div><em>${esc(sug.title)}</em><p>${esc(sug.detail)}</p></div><button type="button" class="cmd-switch" data-route="${sug.targetId}">Switch</button></div>`
           : sel && routes.length > 1 ? `<p class="cmd-best"><i class="dot ok"></i>You're on the best line: nothing quicker, nothing smoother within 10%.</p>` : ""}
         <p class="cmd-congestion"><i class="dot${trafficLive || trafficIncidents.length ? " ok" : ""}"></i>${
@@ -460,7 +465,7 @@ export function mountCommand(h: CommandHooks): CommandView {
     if (!sel) return;
     const posted = sel.bands.map((b) => b.postedMph ?? b.expectedMph).filter((v) => v > 0);
     card.innerHTML = `<header><span class="cmd-ico sm">${ICON.route}</span><span>${sel.label} route</span>${ICON.chev}</header>
-      <div class="cmd-rc-body"><div><b>${formatDuration(sel.durationSec)}</b><span>${sel.distanceMi.toFixed(1)} mi · score ${sel.slideScore}</span></div>${sparkSvg(posted, "cmd-spark lg")}</div>`;
+      <div class="cmd-rc-body"><div><b>${formatDuration(selTime(sel))}</b><span>${sel.distanceMi.toFixed(1)} mi · score ${sel.slideScore}</span></div>${sparkSvg(posted, "cmd-spark lg")}</div>`;
   };
 
   const openSheet = (on: boolean) => {
@@ -487,8 +492,17 @@ export function mountCommand(h: CommandHooks): CommandView {
   return {
     syncLook: markLook,
     setRoutes(next, id) {
+      if (id !== selectedId) etaSec = null;
       routes = next;
       selectedId = id;
+      renderRight();
+      renderRouteCard();
+    },
+    setEta(totalSec, live) {
+      const before = etaSec === null ? "" : formatDuration(etaSec);
+      etaSec = totalSec;
+      trafficLive = trafficLive || live;
+      if (formatDuration(totalSec ?? 0) === before) return;
       renderRight();
       renderRouteCard();
     },

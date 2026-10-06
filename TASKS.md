@@ -17,6 +17,9 @@ Work top-down. Check the box in the same PR.
 ## Phase 1 — Better routes (owner prompt, 2026-09-25)
 
 - [x] **Traffic-aware ETAs** — TomTom Routing `traffic=true` via `/api/traffic/route` (Leon can call `fetchTrafficRoute`); flow-segment along-route is the fallback. Typical time kept when the key is missing. HERE still the pick if we want toll prices.
+- [x] **Route brain: one ETA, no flip-flop** (King, 2026-10-06: "the maps data … is competing and glitching out the times") — `src/lib/route-brain.ts` is the single source of truth for the selected line + ETA. Valhalla typical, TomTom Routing and flow samples only *offer* a whole-trip time; fixed rank (TomTom > flow > typical), ≥45 s and ≥3 % to move, ≤1 change / 20 s, failures hold the last number, remaining = committed time × remaining share of the line. Review ETA + note, selected card + map chip, dash Arrive, drive bar, trip sheet all read it. 24 tests (branch `nard/route-brain`)
+- [x] **New deploys reach the phone** — build stamp (short commit) in Garage + Profile, `version.json` (no-store) checked on open / return to foreground / every 10 min, auto-reload on the plan screen or a "Slide updated · tap to load" pill (never mid-drive), per-build `sw.js`, `updateViaCache: "none"`, `/` + manifest no-cache
+- [ ] When #32 (leave-by) and #46 (traffic reroute prompts) land: read times from `brain.snapshot()` instead of `route.durationSec` / `lastTraffic` (see HANDOFF session log 2026-10-06 route brain)
 - [x] **TomTom search first** — Fuzzy + typeahead suggest in `/api/geocode` + `/api/suggest`, daily ~1,500 search / 2,500 total budget, Photon/Nominatim/Census fallback
 - [x] **TomTom speed limits** — Routing `speedLimit` sections overlay `#limit` when the free tier sends them
 - [x] **TomTom incident details** — merged into `/api/incidents`, deduped with FDOT/Miami-Dade, type + delay + description

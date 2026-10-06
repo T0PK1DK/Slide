@@ -4,7 +4,11 @@
 // The one exception is the map *style* (style JSON, TileJSON, sprite, glyphs):
 // it describes how the map looks, not what's on the road, so it's served from
 // cache at once and refreshed in the background (stale-while-revalidate).
-const CACHE = "slide-shell-v2";
+// Replaced at build with "<commit>-<build time>" (vite.config.ts), so every
+// deploy is a new service worker: the phone installs it, skipWaiting +
+// clients.claim take over at once, and the old shell cache is dropped.
+const BUILD = "__SLIDE_BUILD__";
+const CACHE = "slide-shell-v3";
 const MAP_CACHE = "slide-mapstyle-v1";
 const SHELL = ["./", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png", "./apple-touch-icon.png"];
 const TILES = "https://tiles.openfreemap.org";
@@ -18,7 +22,7 @@ function isMapStyle(url) {
 
 self.addEventListener("install", (e) => {
   e.waitUntil(
-    caches.open(CACHE).then((c) => c.addAll(SHELL))
+    caches.open(CACHE).then((c) => c.addAll(SHELL.map((u) => new Request(u, { cache: "reload" }))))
       // Best effort: a failed style pre-cache must never block the install.
       .then(() => caches.open(MAP_CACHE).then((c) => c.addAll(MAP_STYLE)).catch(() => {}))
       .then(() => self.skipWaiting())
@@ -31,6 +35,10 @@ self.addEventListener("activate", (e) => {
       .then((keys) => Promise.all(keys.filter((k) => k !== CACHE && k !== MAP_CACHE).map((k) => caches.delete(k))))
       .then(() => self.clients.claim())
   );
+});
+
+self.addEventListener("message", (e) => {
+  if (e.data === "slide:build") e.source?.postMessage({ build: BUILD });
 });
 
 self.addEventListener("fetch", (e) => {
@@ -54,14 +62,14 @@ self.addEventListener("fetch", (e) => {
     return;
   }
   if (url.origin !== self.location.origin) return; // tiles, Valhalla, Photon, fonts: straight to network
+  if (url.pathname.endsWith("/version.json") || url.pathname.startsWith("/api/")) return; // always live
 
   if (req.mode === "navigate") {
     // Network first so a new deploy shows up immediately; cached shell only when offline.
     e.respondWith(
       fetch(req)
         .then((res) => {
-          const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put("./", copy));
+          if (res.ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put("./", copy)); }
           return res;
         })
         .catch(() => caches.match("./"))

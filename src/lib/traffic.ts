@@ -35,6 +35,8 @@ export type RouteTraffic = {
   worst: Congestion | null;
   samples: FlowSample[];
   travelTimeSec?: number;
+  /** TomTom's length for the line it routed (routing only), to check it followed ours. */
+  lengthMeters?: number;
   speedLimits?: SpeedLimitSpan[];
   source?: "routing" | "flow";
 };
@@ -196,7 +198,7 @@ export function routeTraffic(typicalSec: number, distanceMi: number, samples: Fl
   const coverage = Math.min(1, covered / distanceMi);
   if (coverage < 0.35) return null;
   const delaySec = Math.max(0, Math.round(liveSec - typicalSec));
-  return { delaySec, coverage, worst, samples };
+  return { delaySec, coverage, worst, samples, source: "flow" };
 }
 
 function formatMin(sec: number): string {
@@ -217,6 +219,7 @@ export function routeTrafficFromRouting(route: TrafficRoute): RouteTraffic {
     worst,
     samples: [],
     travelTimeSec: route.travelTimeSec,
+    lengthMeters: route.lengthMeters,
     speedLimits: route.speedLimits,
     source: "routing",
   };

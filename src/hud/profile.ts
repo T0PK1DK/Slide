@@ -6,6 +6,7 @@ import { eraseDeviceData, FUELS, loadProfile, saveProfile, toCar, type DriverPro
 import type { SavedPlace } from "../lib/garage";
 import { lockApp } from "./login";
 import { renderSocial } from "./social";
+import { buildLabel } from "../lib/update";
 
 /**
  * Profile: who's driving, what they drive, and their own numbers. Everything on
@@ -113,6 +114,7 @@ export function mountProfile(h: ProfileHooks): { open(): void; close(): void } {
             <button type="button" class="pf-danger" data-clear-history>Clear my drive history</button>
             <button type="button" class="pf-danger" data-erase>Erase everything on this phone</button>
           </div>
+          <p class="build-stamp" id="pf-build-stamp">Slide version ${esc(buildLabel())}</p>
         </section>
       </div>`;
 

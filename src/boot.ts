@@ -10,6 +10,7 @@ import { ensureSignedIn } from "./hud/login";
 import { loadGarage, TRAILS } from "./lib/garage";
 import type { DriverProfile } from "./lib/profile";
 import { warmMapStyle } from "./map/warm";
+import { watchForUpdates } from "./lib/update";
 
 export const STYLE = "https://tiles.openfreemap.org/styles/dark";
 
@@ -52,12 +53,9 @@ function loadFonts() {
   window.setTimeout(go, 4000);
 }
 
-// Installable app shell (Add to Home Screen). Production only, so dev reloads stay uncached.
-if (import.meta.env.PROD && "serviceWorker" in navigator) {
-  const register = () => { void navigator.serviceWorker.register("./sw.js").catch(() => {}); };
-  if (document.readyState === "complete") register();
-  else window.addEventListener("load", register, { once: true });
-}
+// Installable app shell (Add to Home Screen) + "is there a newer deploy?" check.
+// Production only, so dev reloads stay uncached. See src/lib/update.ts.
+if (import.meta.env.PROD) watchForUpdates();
 void import("./main").catch(() => {
   // The app chunk failed to download (dropped connection mid-load). Say so instead of a dead HUD.
   const s = document.querySelector("#status");

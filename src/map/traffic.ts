@@ -33,7 +33,16 @@ export type TrafficHooks = {
   getRoute: () => { id: string; coords: Array<[number, number]>; durationSec: number; distanceMi: number } | null;
   alongMi: () => number;
   onSummary: (s: TrafficSummary) => void;
-  onRouteTraffic?: (rt: RouteTraffic | null) => void;
+  /**
+   * Every traffic measurement for the selected line goes to the route brain
+   * first (src/lib/route-brain.ts). `routeId` is the line it was measured on
+   * (a late answer for a line the driver already left is ignored there).
+   * `why`: "ok" = measured, "failed" = TomTom/flow gave nothing (quota,
+   * timeout, no coverage), "off" = the driver turned traffic off.
+   */
+  onRouteTraffic?: (rt: RouteTraffic | null, routeId: string, why: "ok" | "failed" | "off") => void;
+  /** The brain's committed delay, so "+N min" copy matches the ETA on screen. */
+  committedDelaySec?: () => number | null;
 };
 
 export type TrafficView = {
@@ -63,6 +72,8 @@ export function mountTraffic(h: TrafficHooks): TrafficView {
   let lastCenter: { lat: number; lon: number } | null = null;
   let lastRouteId = "";
   let lastRouteTraffic: RouteTraffic | null = null;
+  /** Line id the current lastRouteTraffic was measured on. */
+  let lastMeasuredId = "";
   let busy = false;
   let card: HTMLElement | null = null;
 
@@ -264,9 +275,14 @@ export function mountTraffic(h: TrafficHooks): TrafficView {
 
   const publish = () => {
     const route = h.getRoute();
+    // Brain first, so the copy below can use the number it committed.
+    const why = !h.enabled() ? "off" : lastRouteTraffic ? "ok" : "failed";
+    h.onRouteTraffic?.(h.enabled() ? lastRouteTraffic : null, lastMeasuredId || (route?.id ?? ""), why);
+    const committed = h.committedDelaySec?.() ?? null;
+    const shown = lastRouteTraffic && committed !== null ? { ...lastRouteTraffic, delaySec: committed } : lastRouteTraffic;
     const hit = route ? incidentAhead(items, route.coords, h.alongMi()) : null;
     const sum = trafficSummary({
-      traffic: lastRouteTraffic,
+      traffic: shown,
       ahead: hit?.item ?? null,
       aheadMi: hit?.mi ?? null,
       tomtom: configured,
@@ -274,7 +290,6 @@ export function mountTraffic(h: TrafficHooks): TrafficView {
       alongMi: h.alongMi(),
     });
     h.onSummary(sum);
-    h.onRouteTraffic?.(h.enabled() ? lastRouteTraffic : null);
   };
 
   const poll = async (force = false) => {
@@ -304,6 +319,7 @@ export function mountTraffic(h: TrafficHooks): TrafficView {
       drawMarkers();
 
       if (configured && h.enabled() && route && route.coords.length > 1) {
+        lastMeasuredId = route.id;
         const pts = sampleRoute(route.coords, 1.8, 12);
         const routed = await fetchTrafficRoute({ points: pts });
         if (routed) {
@@ -315,6 +331,7 @@ export function mountTraffic(h: TrafficHooks): TrafficView {
         setRouteData(route.coords);
       } else {
         lastRouteTraffic = null;
+        lastMeasuredId = route?.id ?? "";
         setRouteData([]);
       }
       publish();

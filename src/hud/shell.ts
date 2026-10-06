@@ -3,6 +3,7 @@
  * sees the HUD (and the login gate) on a slow phone while the map engine loads;
  * main.ts wires the listeners once it arrives.
  */
+import { buildLabel } from "../lib/update";
 export const HUD_HTML = `
   <div id="map"></div>
   <div class="vignette"></div>
@@ -194,6 +195,7 @@ export const HUD_HTML = `
       <div class="toggle"><span>Show ghosts</span><input id="g-ghosts" type="checkbox" /></div>
       <div class="toggle"><span>Share my ghost</span><input id="g-share" type="checkbox" /></div>
       <div class="toggle"><span>Weekly board<small>Opt in to this week's smooth average. Off by default.</small></span><input id="g-board" type="checkbox" /></div>
+      <p class="build-stamp" id="g-build-stamp">Version ${buildLabel()}</p>
     </div>
     <div id="car-stage" class="car-stage" data-slot="car-stage" hidden aria-label="3D car stage"></div>
   </div>
