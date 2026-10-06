@@ -188,7 +188,6 @@ export const TOMTOM_ROUTE = (origin: { lat: number; lon: number }, dest: { lat: 
   url.searchParams.set("routeType", "fastest");
   url.searchParams.set("sectionType", "speedLimit");
   url.searchParams.set("computeTravelTimeFor", "all");
-  url.searchParams.set("instructionsType", "none");
   return url.toString();
 };
 
