@@ -195,7 +195,7 @@ export async function onRequestGet({ request, env, waitUntil, params }: Ctx): Pr
     }
 
     if (parts[0] === "route") {
-      return routeResponse(url.searchParams.get("points"), null, key, waitUntil);
+      return await routeResponse(url.searchParams.get("points"), null, key, waitUntil);
     }
   } catch (e) {
     const msg = e instanceof Error && e.name === "AbortError" ? "timeout" : e instanceof Error ? e.message : "failed";
