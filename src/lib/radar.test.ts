@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { ago, fromReportRow, nextAlert, offsetMi, radarBlips, type RadarItem } from "./reports";
+import {
+  ago,
+  countReportsAroundYou,
+  fromReportRow,
+  nextAlert,
+  offsetMi,
+  radarBlips,
+  reportsAroundYouLabel,
+  type RadarItem,
+} from "./reports";
 import { fl511Kind, fromFl511, withinKm } from "./sources/fl511";
 import { carLabel, mutuals, normalizeHandle } from "./social";
 
@@ -38,6 +47,29 @@ describe("nextAlert", () => {
   it("alerts once for the nearest alert-worthy thing ahead within 0.8 mi (jams don't alert)", () => {
     expect(nextAlert(blips, new Set())?.id).toBe("cop");
     expect(nextAlert(blips, new Set(["cop"]))).toBeNull();
+  });
+});
+
+describe("reports around you", () => {
+  it("counts driver + official reports in range, never cameras or transit", () => {
+    const mixed: RadarItem[] = [
+      item("d", "police", 0.4, 0),
+      { ...item("f", "crash", 0.5, 0), source: "fdot", reportId: null },
+      { ...item("m", "crash", 0.2, 0), source: "mdpd", reportId: null },
+      { ...item("cam", "camera", 0.1, 0), source: "osm", reportId: null },
+      { ...item("bus", "bus", 0.1, 0), source: "transit", reportId: null },
+      { ...item("tt", "jam", 0.7, 0), source: "tomtom", reportId: null },
+      item("far", "jam", 3, 0),
+    ];
+    expect(countReportsAroundYou(mixed, you, 1.5)).toBe(4);
+    expect(reportsAroundYouLabel(3)).toBe("3 reports around you");
+    expect(reportsAroundYouLabel(1)).toBe("1 report around you");
+    expect(reportsAroundYouLabel(0)).toBe("");
+  });
+
+  it("hides when there is nothing real nearby", () => {
+    expect(countReportsAroundYou([], you, 1.5)).toBe(0);
+    expect(reportsAroundYouLabel(countReportsAroundYou([], you, 1.5))).toBe("");
   });
 });
 

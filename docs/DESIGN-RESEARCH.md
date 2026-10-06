@@ -115,7 +115,7 @@ Status: ✅ done · 🟡 partial · ❌ missing.
 |---|---|---|
 | Report button bottom-right, speedometer bottom-left | ✅ | `#drive-report` BR, `#speedo` BL. Radar disc stays up-right. |
 | Report grid with icons and a sub-type step | ✅ | Glass icons + subtype step, then Send / Later. Submit still sends the kind only. |
-| "N reports around you" pill | ❌ | A real count from `reports_near()` only. |
+| "N reports around you" pill | 🟡 | Real count from `reports_near()` + `/api/incidents` within 1.5 mi. Hidden when none. Cameras/transit excluded. |
 | Friends on the map as their cars | 🟡 | Today friends show as rough-area circles. Show their **chosen ride** inside the circle, still never precise. |
 | My impact (reports confirmed, drivers helped) | ❌ | Real counts only. |
 
