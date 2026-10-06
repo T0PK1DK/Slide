@@ -49,6 +49,8 @@ src/boot.ts            entry: paints HUD + login gate, warms the map style, then
 src/hud/shell.ts       HUD markup (painted by boot.ts before MapLibre arrives)
 src/map/warm.ts        style fetch + sprite/glyph preload once MapLibre has downloaded (pure warmUrls tested)
 src/plan/failure.ts    offline / no-route / busy / unreachable wording for the Try again sheet (pure)
+src/plan/leaveby.ts    typical duration + 3 min buffer → Leave by copy (pure)
+src/hud/leaveby.ts     `#leave-by` form in the search card
 src/plan/failure.test.ts  tests for failure wording + warmUrls
 src/main.ts            map + plan + drive loop (HUD listeners)
 src/styles.css         HUD stylesheet (tokens → base → components → screens)
@@ -161,9 +163,10 @@ AGENTS.md / CLAUDE.md  short agent rules
 - Public Valhalla/Photon can rate-limit. Plan for self-host.
 - Phone demo is live on Cloudflare Pages: https://kings-slide.pages.dev (project `kings-slide`). Do not use slide.pages.dev — that hostname is an unrelated site.
 - Turn-by-turn is the next-maneuver banner plus a lane strip in `#lane-strip` when Valhalla sends `lanes` within 0.75 mi, plus spoken guidance (`speechSynthesis`). Grim's `#drive-mute` owns the button; speech listens for `slide:voice-mute` / `html[data-voice]` and mirrors `slide.voice.v1`. No full step list.
-- No leave-by target. Live traffic: FDOT / Miami-Dade / driver icons always (when the map has a centre). Green / yellow / red flow, TomTom Routing traffic ETA, speedLimit sections on the sign, and TomTom incident details need the Pages secret `TOMTOM_API_KEY`. Off in Garage → Live traffic.
+- Leave-by sits in `#leave-by` on the plan search card: typical Slide-costing Valhalla duration + 3 min buffer. It does not use TomTom live traffic (the trip is later, so today's delay is not tomorrow's) and never invents traffic delay.
+- Live traffic: FDOT / Miami-Dade / driver icons always (when the map has a centre). Green / yellow / red flow, TomTom Routing traffic ETA, speedLimit sections on the sign, and TomTom incident details need the Pages secret `TOMTOM_API_KEY`. Off in Garage → Live traffic.
 - Native CarPlay requires an iOS app + Apple entitlement — Drive Mode is the phone-mounted stand-in.
-- Leave-by and "Your usual" aren't built yet. Avoid options and multi-stop are done.
+- "Your usual" isn't built yet. Avoid options, multi-stop, and leave-by are done.
 
 ## Architecture next
 
@@ -348,6 +351,7 @@ Read `TASKS.md` top unchecked item. Do not rebase history. Do not rename the pro
 
 - 2026-10-04 Leon: **3D car models.** Branch `leon/car-models` on `leon/game-wire`. Replaced the box-and-stripes stage meshes with original lofted hulls in `src/lib/game/carMeshes.ts` (starter six + Nimbus + Glider, each a distinct silhouette). Liveries are materials (Solid / Stripes / Fade / Halo / Dusk). Soft studio lights + ground shadow. Still lazy `three`, no model files, no licensed brands, idle spin respects `prefers-reduced-motion`. No Grim layout CSS. Preview: `window.slidePreviewGame.ride(id, livery)`.
 - 2026-10-04 Leon: **Car-stage review fix (PR #37).** Removed the under-glow slab so stripes stay on body UVs only (`liveryU` is paint on the underside). Slipstream spoiler sits on the deck with body-colored struts. `deepenHull` + `hullLift` (rocker at `wheelR * 0.34`) tucks tires into side arches; wheels are tire + sidewall + rim dish. `frameCar` now fits the AABB to ~70% at a low 3/4 front (no longer uses length vs vertical FOV). Soft dual-blob contact shadow. `dataset.stageHold` still pauses spin for shots.
+- 2026-10-04 Nard: **Leave-by rebased onto main** (`f16ac7d`). `#leave-by` in the plan search card. Real Slide-costing Valhalla duration + `leaveByForTarget` + 3 min buffer. Official incidents mentioned only when `/api/incidents` returns some — never as extra minutes. Token-only styles in the one stylesheet. Rebased again onto `main` @ `5cc2cac` (2026-10-06); leave-by still uses the typical Valhalla time, not `fetchTrafficRoute()`.
 
 ## Teammate slots (stable IDs — do not rename)
 
@@ -509,6 +513,7 @@ Follow **Owner setup for accounts + radar** above, step by step:
 
 - [x] **Lane guidance** into Grim's `#lane-strip` (based on PR #35).
 - [x] **Voice** listens to Grim's `#drive-mute` (`slide:voice-mute` / `html[data-voice]`) on #35.
+- [x] **Leave-by** (`leaveByForTarget` + 3 min buffer) in `#leave-by`.
 - [ ] **Your usual:** learn the routes you repeat between the same places (on-device only), and tag that line "Your usual".
 - [ ] **Real pace ghost:** record your own GPS run on a route and replay it next time (TASKS P2). This replaces the removed fake ghosts. Never draw invented drivers.
 - [ ] Leave-by (`leaveByForTarget` exists), the upcoming speed-limit chip, and fitting the camera to the route on the first plan.
