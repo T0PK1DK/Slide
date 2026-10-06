@@ -1,3 +1,4 @@
+import { currentCloudUser, PASSWORD_MAX, PASSWORD_MIN, signInWithUsername, signUpWithUsername } from "../lib/account";
 import { cloudConfigured } from "../lib/cloud";
 import { stopPresence } from "../lib/presence";
 import type { DriverProfile } from "../lib/profile";
@@ -13,16 +14,14 @@ import {
   removeFollower,
   saveMyProfile,
   searchDrivers,
-  sendCode,
   signOut,
   unfollow,
-  verifyCode,
   type PublicProfile,
   type Relation,
 } from "../lib/social";
 
 /**
- * The "Slide account" part of the Profile sheet: sign in with a 6-digit email code (or the link on desktop),
+ * The "Slide account" part of the Profile sheet: sign in with username + password (no email),
  * pick a @handle, then followers / following / friends and driver search.
  * Only the handle, name, car tag and (opt-in) car label are public.
  */
@@ -31,9 +30,6 @@ const esc = (s: string) =>
 
 type Tab = "friends" | "followers" | "following";
 
-/** One-shot message for the signed-out view, e.g. an expired email link. */
-let notice = "";
-export function setSocialNotice(msg: string) { notice = msg; }
 
 export type ShareHooks = { sharing: () => boolean; setSharing: (on: boolean) => void };
 
@@ -43,7 +39,7 @@ export function renderSocial(box: HTMLElement, local: DriverProfile, share: Shar
     return;
   }
   box.innerHTML = `<h3>Friends & followers</h3><p class="pf-note">Loading…</p>`;
-  let pendingEmail = "";
+  let mode: "in" | "up" = "in";
   let tab: Tab = "friends";
 
   const say = (msg: string) => {
@@ -53,30 +49,31 @@ export function renderSocial(box: HTMLElement, local: DriverProfile, share: Shar
   const fail = (e: unknown) => say(e instanceof Error ? e.message : "Something went wrong.");
 
   const signedOut = () => {
+    const up = mode === "up";
     box.innerHTML = `<h3>Friends & followers</h3>
-      <p class="pf-note">Sign in to follow drivers and report on the radar. Anyone can create an account — we'll email a 6-digit code. Type it in this app. On a computer you can tap the link instead.</p>
-      ${pendingEmail
-        ? `<form class="pf-form sc-code"><p class="pf-note">We sent a 6-digit code to ${esc(pendingEmail)}. Type it here. The email also has a link for Safari or a computer.</p><label>6-digit code<input name="code" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code" maxlength="6" required /></label>
-            <div class="pf-actions"><button type="submit" class="pf-save">Sign in with code</button><button type="button" class="pf-link" data-restart>Use a different email</button></div></form>`
-        : `<form class="pf-form sc-email"><label>Email<input name="email" type="email" autocomplete="email" required /></label>
-            <button type="submit" class="pf-save">Email me a code</button></form>`}
-      <p class="sc-msg pf-note" role="status">${esc(notice)}</p>`;
-    notice = "";
-    box.querySelector<HTMLFormElement>(".sc-email")?.addEventListener("submit", async (e) => {
+      <p class="pf-note">Sign in to follow drivers and report on the radar. Anyone can create an account with a username and password. No email needed.</p>
+      <form class="pf-form sc-account" novalidate>
+        <label>Username<input name="username" autocapitalize="none" autocorrect="off" spellcheck="false" autocomplete="username" maxlength="21" required /></label>
+        <label>Password<input name="password" type="password" autocomplete="${up ? "new-password" : "current-password"}" minlength="${PASSWORD_MIN}" maxlength="${PASSWORD_MAX}" required /></label>
+        <div class="pf-actions"><button type="submit" class="pf-save">${up ? "Create account" : "Sign in"}</button><button type="button" class="pf-link" data-mode>${up ? "Have an account? Sign in" : "New? Create an account"}</button></div>
+      </form>
+      <p class="sc-msg pf-note" role="status"></p>`;
+    box.querySelector<HTMLFormElement>(".sc-account")?.addEventListener("submit", async (e) => {
       e.preventDefault();
-      const email = String(new FormData(e.target as HTMLFormElement).get("email") ?? "");
-      try { await sendCode(email); pendingEmail = email; signedOut(); say("Check your email and type the 6-digit code here."); } catch (err) { fail(err); }
+      const d = new FormData(e.target as HTMLFormElement);
+      const username = String(d.get("username") ?? "");
+      const password = String(d.get("password") ?? "");
+      try {
+        if (up) await signUpWithUsername(username, password);
+        else await signInWithUsername(username, password);
+        await load();
+      } catch (err) { fail(err); }
     });
-    box.querySelector<HTMLFormElement>(".sc-code")?.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const code = String(new FormData(e.target as HTMLFormElement).get("code") ?? "");
-      try { await verifyCode(pendingEmail, code); pendingEmail = ""; await load(); } catch (err) { fail(err); }
-    });
-    box.querySelector("[data-restart]")?.addEventListener("click", () => { pendingEmail = ""; signedOut(); });
+    box.querySelector("[data-mode]")?.addEventListener("click", () => { mode = up ? "in" : "up"; signedOut(); });
   };
 
   const needsProfile = () => {
-    const suggested = normalizeHandle(local.name.replace(/\s+/g, "_")) ?? "";
+    const suggested = currentCloudUser()?.username ?? normalizeHandle(local.name.replace(/\s+/g, "_")) ?? "";
     box.innerHTML = `<h3>Pick your handle</h3>
       <form class="pf-form sc-create">
         <label>Handle<input name="handle" maxlength="21" value="@${esc(suggested)}" autocapitalize="none" autocomplete="username" required /></label>

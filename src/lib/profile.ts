@@ -2,7 +2,7 @@ import { scopedKey } from "./account-store";
 import { clearAuthStorage } from "./auth-storage";
 
 /**
- * On-device driver profile. The Slide account (email magic link) lives in
+ * On-device driver profile. The Slide account (username + password) lives in
  * Supabase; name, PIN, garage and places stay on this phone, keyed to that
  * account so another driver on the same phone does not see them.
  * The PIN is a local lock — it is not security against someone with

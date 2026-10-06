@@ -38,7 +38,7 @@ Everything below is on `main` (PR #13, 2026-09-25): 0 TS errors, 54/54 unit test
   - Speed and red-light cameras from OpenStreetMap (no key needed).
   - Live buses and trains from GTFS-realtime.
   - A heads-up banner with vibration.
-- **Accounts** (Supabase): email 6-digit OTP (type it in this app) plus a magic link for Safari / desktop; anyone can join; session restored on load in that same app; @handle, followers / following / friends, driver search, and opt-in rough location for friends on the map. Sign out from the gate and Profile.
+- **Accounts** (Supabase): **username + password, no email** (username maps to a hidden `<username>@users.slide.local`; needs Supabase "Confirm email" OFF); anyone can join; session restored on load in that same app; @handle, followers / following / friends, driver search, and opt-in rough location for friends on the map. Sign out from the gate and Profile.
 - **Installable PWA** on Cloudflare Pages: https://kings-slide.pages.dev
 - **Off until configured:** without the env vars, accounts, reports, FL511 and transit stay hidden and the rest of the app works.
 
@@ -91,8 +91,8 @@ tools/shoot-game-wire.mjs  mobile shots of arrival XP, share card, car stage
 src/lib/profile.ts     on-device driver profile, session, PIN hash, persistent storage (keyed to the signed-in account)
 src/lib/auth-storage.ts  supabase-js storage: localStorage + 90-day SameSite=Lax cookie (Safari ↔ Home Screen)
 src/lib/account-store.ts  per-account local keys for home/work, history, ghosts, XP
-src/lib/account.ts     magic-link send/verify, session restore, onAuthStateChange, sign-out
-src/hud/login.ts       login gate: Sign in / Create account, 6-digit email OTP, then driver setup / welcome back / sign-out
+src/lib/account.ts     username ↔ synthetic email, sign up / sign in with password, session restore, onAuthStateChange, sign-out
+src/hud/login.ts       login gate: Sign in / Create account (username + password), then driver setup / welcome back (PIN) / sign-out
 src/map/you.ts         "you are here" marker: glow dot, pulse, heading cone, accuracy halo
 src/hud/command.ts     Command view: SEKAI-style dashboard (wide) / Insights sheet (phone)
 src/lib/history.ts     on-device trip history + overview stats (live-GPS drives only)
@@ -102,9 +102,9 @@ src/plan/routes.test.ts  Vitest unit tests (`npm test`)
 src/lib/alerts.ts      desktop alert list + switch suggestion from real data only (pure, tested)
 src/lib/dashboard.test.ts  tests for alerts / week tiles
 src/hud/profile.ts     Profile sheet: driver, My car, all-time stats, places, privacy; friends section (not live)
-src/lib/cloud.ts       optional Supabase client (persistSession, autoRefreshToken, detectSessionInUrl always on)
-src/lib/cloud.test.ts  tests for the email-link return parser + production redirect URL
-src/lib/social.ts      email-code sign-in, profiles, follow/unfollow, friends, search
+src/lib/cloud.ts       optional Supabase client (persistSession, autoRefreshToken; detectSessionInUrl off, no emailed links)
+src/lib/cloud.test.ts  tests for the auth client flags
+src/lib/social.ts      profiles, follow/unfollow, friends, search (sign-in lives in account.ts)
 src/lib/reports.ts     radar items, heading-up geometry, alerts, report/vote RPCs
 src/lib/sources/fl511.ts  FL511 event → radar item (pure, tested)
 src/lib/sources/fdot.ts   FDOT DIVAS event → radar item, South Florida query URL (pure, tested)
@@ -348,6 +348,15 @@ Read `TASKS.md` top unchecked item. Do not rebase history. Do not rename the pro
 
 - 2026-10-04 Leon: **3D car models.** Branch `leon/car-models` on `leon/game-wire`. Replaced the box-and-stripes stage meshes with original lofted hulls in `src/lib/game/carMeshes.ts` (starter six + Nimbus + Glider, each a distinct silhouette). Liveries are materials (Solid / Stripes / Fade / Halo / Dusk). Soft studio lights + ground shadow. Still lazy `three`, no model files, no licensed brands, idle spin respects `prefers-reduced-motion`. No Grim layout CSS. Preview: `window.slidePreviewGame.ride(id, livery)`.
 - 2026-10-04 Leon: **Car-stage review fix (PR #37).** Removed the under-glow slab so stripes stay on body UVs only (`liveryU` is paint on the underside). Slipstream spoiler sits on the deck with body-colored struts. `deepenHull` + `hullLift` (rocker at `wheelR * 0.34`) tucks tires into side arches; wheels are tire + sidewall + rim dish. `frameCar` now fits the AABB to ~70% at a low 3/4 front (no longer uses length vs vertical FOV). Soft dual-blob contact shadow. `dataset.stageHold` still pauses spin for shots.
+
+- 2026-10-06 Nard: **Sign-in is username + password (no email).** King: "Just remove the login for now and let people use a username and pw." Branch `nard/username-password-auth`.
+  - Kept Supabase Auth so the uid (garage `slide.garage.v1.<uid>`, per-account keys, follows/friends, RLS) is unchanged. `src/lib/account.ts`: `normalizeUsername` (3–20 of `a-z0-9_`, lowercased, leading `@` dropped), `usernameToEmail` → `<username>@users.slide.local`, `usernameFromEmail`, `passwordProblem` (8–72 chars; bcrypt ignores bytes past 72), `signUpWithUsername` (`auth.signUp`, username also in `user_metadata`) and `signInWithUsername` (`auth.signInWithPassword`). `.local` is RFC-reserved and on Supabase's mailer blocklist, so no email can ever be sent to these addresses.
+  - Errors in plain words: taken username, "Wrong username or password." (also for unknown usernames, so names can't be probed by error text), password too short, rate limit, no connection. If Supabase still has **Confirm email** on, sign-up gets no session; the app says so (`CONFIRM_EMAIL_ON`) instead of hanging.
+  - UI: one sheet in the gate (`src/hud/login.ts`) with Sign in / Create account toggle (`.login-modes`), Username, Password. Profile → Friends & followers uses the same calls when signed out. Everywhere the account shows (gate, Profile header) uses `accountLabel()` → `@username`, never the fake email. The "pick your handle" step pre-fills the username. The on-device PIN lock / Welcome back is unchanged.
+  - Removed: magic link + 6-digit OTP (`sendMagicLink`, `verifyMagicCode`, `normalizeEmailOtp`), link-return parsing (`authReturn`, `authRedirectUrl`, `AUTH_SITE_URL`, `finishEmailLink`, `finishLinkSignIn` in `main.ts`), `.login-code` CSS. `detectSessionInUrl` is now off; `persistSession` + `autoRefreshToken` + the cookie-mirrored storage stay.
+  - **Supabase switch (required):** Dashboard → project `slide` (`zmriqctjkhwmhuvxyhdd`) → Authentication → Sign In / Providers → Email → turn **Confirm email** OFF → Save. On 2026-10-06 the public `/auth/v1/settings` reported `mailer_autoconfirm: false` (Confirm email ON); no Supabase management token or CLI login on the box, so it wasn't changed from here. Until it's off, Create account shows the "server still asks for email confirmation" message; sign-in of username accounts can't happen because none can be created.
+  - **Older email accounts:** they had no password, so they can't sign in any more. Those drivers make a new username account (new uid). Their old on-device garage/places stay in localStorage under the old uid's keys but aren't shown; their old public profile/follows sit on the old uid.
+  - Tests: `src/lib/account.test.ts` (15: validation, mapping, label, sign-up/sign-in/taken/wrong password/confirm-email-on/restore/sign-out) and `src/lib/cloud.test.ts` (2). Screenshot at 390 px: `/workspace/slide-shots/username-signin.png` (box).
 
 ## Teammate slots (stable IDs — do not rename)
 

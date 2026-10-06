@@ -50,9 +50,6 @@ import { lockApp } from "./hud/login";
 import { driverReady, STYLE } from "./boot";
 import { warmedStyle } from "./map/warm";
 import { mountProfile } from "./hud/profile";
-import { setSocialNotice } from "./hud/social";
-import { peekAuthLinkResult, takeAuthLinkResult } from "./lib/account";
-import { cloudConfigured } from "./lib/cloud";
 import { ago, type RadarItem } from "./lib/reports";
 import { mountRadar } from "./hud/radar";
 import { mountFriends } from "./map/friends";
@@ -514,19 +511,7 @@ void driverReady.then((driver) => {
   command.refreshHistory();
   if (!garage.coachDismissed) showCoach(true);
   void autoLocate();
-  finishLinkSignIn();
 });
-
-/** Back from the emailed sign-in link: boot already restored the session; open Profile. */
-function finishLinkSignIn() {
-  if (!cloudConfigured()) return;
-  const result = takeAuthLinkResult() ?? peekAuthLinkResult();
-  if (!result) return;
-  if (!result.ok) setSocialNotice(result.message);
-  showCoach(false);
-  profileSheet.open();
-  document.querySelector("#pf-social")?.scrollIntoView({ block: "start" });
-}
 
 /** Show the driver on the map at launch, but only if they've already allowed location — never a surprise prompt. */
 async function autoLocate() {

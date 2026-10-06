@@ -1,53 +1,72 @@
 import { describe, expect, it } from "vitest";
 import type { Session } from "@supabase/supabase-js";
 import {
+  accountLabel,
+  CONFIRM_EMAIL_ON,
+  friendlyAuthError,
   listenAuthState,
-  normalizeEmailOtp,
+  normalizeUsername,
+  passwordProblem,
   restoreSession,
-  sendMagicLink,
+  signInWithUsername,
   signOutAccount,
-  verifyMagicCode,
+  signUpWithUsername,
+  USERNAME_EMAIL_DOMAIN,
+  usernameFromEmail,
+  usernameToEmail,
   type AuthApi,
 } from "./account";
-import { AUTH_CLIENT_OPTIONS, AUTH_SITE_URL, authRedirectUrl } from "./cloud";
 
-function fakeSession(email: string, id = "user-1"): Session {
+function fakeSession(email: string, id = "user-1", meta: Record<string, unknown> = {}): Session {
   return {
     access_token: "tok",
     refresh_token: "ref",
     expires_in: 3600,
     expires_at: Math.floor(Date.now() / 1000) + 3600,
     token_type: "bearer",
-    user: { id, email, app_metadata: {}, user_metadata: {}, aud: "authenticated", created_at: new Date().toISOString() },
+    user: { id, email, app_metadata: {}, user_metadata: meta, aud: "authenticated", created_at: new Date().toISOString() },
   } as Session;
 }
 
-function mockAuth(start: Session | null = null): AuthApi & {
-  lastOtp: { email: string; options?: { shouldCreateUser?: boolean; emailRedirectTo?: string } } | null;
-  lastVerify: { email: string; token: string; type: string } | null;
-} {
+type Calls = {
+  signUps: Array<{ email: string; password: string; options?: { data?: Record<string, unknown> } }>;
+  signIns: Array<{ email: string; password: string }>;
+};
+
+/** A tiny in-memory GoTrue: `confirmEmail` mimics Supabase's "Confirm email" switch. */
+function mockAuth(start: Session | null = null, opts: { confirmEmail?: boolean } = {}): AuthApi & Calls {
   let session = start;
+  const users = new Map<string, { id: string; password: string }>();
   const listeners: Array<(event: string, session: Session | null) => void> = [];
-  const api: AuthApi & {
-    lastOtp: { email: string; options?: { shouldCreateUser?: boolean; emailRedirectTo?: string } } | null;
-    lastVerify: { email: string; token: string; type: string } | null;
-  } = {
-    lastOtp: null,
-    lastVerify: null,
+  const api: AuthApi & Calls = {
+    signUps: [],
+    signIns: [],
     auth: {
       async getSession() {
         return { data: { session }, error: null };
       },
-      async signInWithOtp({ email, options }) {
-        api.lastOtp = { email, options };
-        return { error: null };
-      },
-      async verifyOtp({ token, email, type }) {
-        api.lastVerify = { email, token, type };
-        if (token !== "123456") return { error: { message: "Invalid login credentials" } };
-        session = fakeSession(email);
+      async signUp(creds) {
+        api.signUps.push(creds);
+        if (users.has(creds.email)) {
+          if (opts.confirmEmail) return { data: { session: null, user: { identities: [] } as unknown as Session["user"] }, error: null };
+          return { data: { session: null, user: null }, error: { message: "User already registered", code: "user_already_exists", status: 422 } };
+        }
+        const id = `user-${users.size + 1}`;
+        users.set(creds.email, { id, password: creds.password });
+        if (opts.confirmEmail) return { data: { session: null, user: { id, identities: [{}] } as unknown as Session["user"] }, error: null };
+        session = fakeSession(creds.email, id, creds.options?.data ?? {});
         listeners.forEach((l) => l("SIGNED_IN", session));
-        return { error: null };
+        return { data: { session, user: session.user }, error: null };
+      },
+      async signInWithPassword(creds) {
+        api.signIns.push(creds);
+        const u = users.get(creds.email);
+        if (!u || u.password !== creds.password) {
+          return { data: { session: null }, error: { message: "Invalid login credentials", code: "invalid_credentials", status: 400 } };
+        }
+        session = fakeSession(creds.email, u.id);
+        listeners.forEach((l) => l("SIGNED_IN", session));
+        return { data: { session }, error: null };
       },
       async signOut() {
         session = null;
@@ -64,72 +83,122 @@ function mockAuth(start: Session | null = null): AuthApi & {
   return api;
 }
 
-describe("magic-link accounts", () => {
-  it("keeps supabase-js persistence flags on", () => {
-    expect(AUTH_CLIENT_OPTIONS).toMatchObject({
-      persistSession: true,
-      autoRefreshToken: true,
-      detectSessionInUrl: true,
-      flowType: "implicit",
-      storageKey: "slide.auth.v1",
+describe("username validation", () => {
+  it("accepts 3–20 letters, numbers or underscores and lowercases them", () => {
+    expect(normalizeUsername("King")).toBe("king");
+    expect(normalizeUsername("  slide_01 ")).toBe("slide_01");
+    expect(normalizeUsername("@KingSlides")).toBe("kingslides");
+    expect(normalizeUsername("abc")).toBe("abc");
+    expect(normalizeUsername("a".repeat(20))).toBe("a".repeat(20));
+  });
+
+  it("rejects too short, too long, spaces, symbols and emails", () => {
+    expect(normalizeUsername("ab")).toBeNull();
+    expect(normalizeUsername("a".repeat(21))).toBeNull();
+    expect(normalizeUsername("king slides")).toBeNull();
+    expect(normalizeUsername("king-slides")).toBeNull();
+    expect(normalizeUsername("king.slides")).toBeNull();
+    expect(normalizeUsername("king@gmail.com")).toBeNull();
+    expect(normalizeUsername("kíng")).toBeNull();
+    expect(normalizeUsername("")).toBeNull();
+  });
+
+  it("passwords need 8–72 characters", () => {
+    expect(passwordProblem("1234567")).toMatch(/at least 8/);
+    expect(passwordProblem("12345678")).toBeNull();
+    expect(passwordProblem("x".repeat(72))).toBeNull();
+    expect(passwordProblem("x".repeat(73))).toMatch(/at most 72/);
+  });
+});
+
+describe("username ↔ synthetic email mapping", () => {
+  it("maps a username to <username>@users.slide.local", () => {
+    expect(USERNAME_EMAIL_DOMAIN).toBe("users.slide.local");
+    expect(usernameToEmail("King_01")).toBe("king_01@users.slide.local");
+    expect(usernameToEmail("no way")).toBeNull();
+  });
+
+  it("maps it back, and leaves real (older) email accounts alone", () => {
+    expect(usernameFromEmail("king_01@users.slide.local")).toBe("king_01");
+    expect(usernameFromEmail("KING_01@USERS.SLIDE.LOCAL")).toBe("king_01");
+    expect(usernameFromEmail("king@gmail.com")).toBeNull();
+    expect(usernameFromEmail("king@evil.users.slide.local.com")).toBeNull();
+    expect(usernameFromEmail(null)).toBeNull();
+  });
+
+  it("shows the username, never the fake email", () => {
+    expect(accountLabel({ id: "1", email: "king@users.slide.local", username: "king" })).toBe("@king");
+    expect(accountLabel({ id: "1", email: "old@gmail.com", username: null })).toBe("old@gmail.com");
+    expect(accountLabel(null)).toBeNull();
+  });
+});
+
+describe("username + password accounts", () => {
+  it("create account: signUp with the synthetic email, signs straight in", async () => {
+    const api = mockAuth();
+    const user = await signUpWithUsername("King", "hunter2hunter2", api);
+    expect(api.signUps[0]).toEqual({
+      email: "king@users.slide.local",
+      password: "hunter2hunter2",
+      options: { data: { username: "king" } },
     });
+    expect(user).toEqual({ id: "user-1", email: "king@users.slide.local", username: "king" });
+    expect(await restoreSession(api)).toEqual(user);
   });
 
-  it("sends production magic links back to kings-slide.pages.dev", () => {
-    expect(authRedirectUrl("https://kings-slide.pages.dev", "/")).toBe(`${AUTH_SITE_URL}/`);
-    expect(authRedirectUrl("https://kings-slide.pages.dev", "/index.html")).toBe(`${AUTH_SITE_URL}/`);
-    expect(authRedirectUrl("https://nard-verify-main.kings-slide.pages.dev", "/")).toBe("https://nard-verify-main.kings-slide.pages.dev/");
-    expect(authRedirectUrl("http://localhost:5173", "/")).toBe(`${AUTH_SITE_URL}/`);
-  });
-
-  it("sign-up: anyone can create an account (shouldCreateUser) and get a link", async () => {
+  it("taken username gets a clear message", async () => {
     const api = mockAuth();
-    await sendMagicLink("new@slide.test", api, `${AUTH_SITE_URL}/`);
-    expect(api.lastOtp).toEqual({
-      email: "new@slide.test",
-      options: { shouldCreateUser: true, emailRedirectTo: `${AUTH_SITE_URL}/` },
-    });
+    await signUpWithUsername("king", "hunter2hunter2", api);
+    await expect(signUpWithUsername("KING", "another-password", api)).rejects.toThrow(/username is taken/i);
   });
 
-  it("normalizes a 6-digit email OTP and rejects junk", () => {
-    expect(normalizeEmailOtp("123456")).toBe("123456");
-    expect(normalizeEmailOtp(" 123 456 ")).toBe("123456");
-    expect(normalizeEmailOtp("12345")).toBeNull();
-    expect(normalizeEmailOtp("abcdef")).toBeNull();
-    expect(normalizeEmailOtp("")).toBeNull();
-  });
-
-  it("sign-in: verifyOtp type email in this app creates the session", async () => {
+  it("sign in: right password works, wrong password says so", async () => {
     const api = mockAuth();
-    await verifyMagicCode("king@slide.test", "123 456", api);
-    expect(api.lastVerify).toEqual({ email: "king@slide.test", token: "123456", type: "email" });
-    const user = await restoreSession(api);
-    expect(user).toEqual({ id: "user-1", email: "king@slide.test" });
-  });
-
-  it("rejects a wrong or expired sign-in code", async () => {
-    const api = mockAuth();
-    await expect(verifyMagicCode("king@slide.test", "000000", api)).rejects.toThrow(/invalid login credentials/i);
+    await signUpWithUsername("king", "hunter2hunter2", api);
+    await signOutAccount(api);
+    await expect(signInWithUsername("king", "wrong-password", api)).rejects.toThrow(/wrong username or password/i);
     expect(await restoreSession(api)).toBeNull();
+    const user = await signInWithUsername(" King ", "hunter2hunter2", api);
+    expect(api.signIns.at(-1)).toEqual({ email: "king@users.slide.local", password: "hunter2hunter2" });
+    expect(user.username).toBe("king");
   });
 
-  it("rejects a code that is not 6 digits before calling the server", async () => {
+  it("unknown username reads the same as a wrong password", async () => {
+    await expect(signInWithUsername("nobody_here", "whatever123", mockAuth())).rejects.toThrow(/wrong username or password/i);
+  });
+
+  it("validates before calling the server", async () => {
     const api = mockAuth();
-    await expect(verifyMagicCode("king@slide.test", "12", api)).rejects.toThrow(/6-digit/i);
-    expect(api.lastVerify).toBeNull();
+    await expect(signUpWithUsername("ab", "hunter2hunter2", api)).rejects.toThrow(/3–20/);
+    await expect(signUpWithUsername("king", "short", api)).rejects.toThrow(/at least 8/);
+    await expect(signInWithUsername("no spaces", "hunter2hunter2", api)).rejects.toThrow(/3–20/);
+    await expect(signInWithUsername("king", "", api)).rejects.toThrow(/password/i);
+    expect(api.signUps).toHaveLength(0);
+    expect(api.signIns).toHaveLength(0);
+  });
+
+  it("explains the Supabase switch if 'Confirm email' is still on", async () => {
+    const api = mockAuth(null, { confirmEmail: true });
+    await expect(signUpWithUsername("king", "hunter2hunter2", api)).rejects.toThrow(CONFIRM_EMAIL_ON);
+    expect(await restoreSession(api)).toBeNull();
+    expect(friendlyAuthError({ message: "Email not confirmed", code: "email_not_confirmed" }, "in")).toBe(CONFIRM_EMAIL_ON);
+    expect(friendlyAuthError({ message: 'Email address "king@users.slide.local" is invalid', code: "email_address_invalid" }, "up")).toBe(CONFIRM_EMAIL_ON);
   });
 
   it("restores the session after a reload (INITIAL_SESSION + getSession)", async () => {
-    const saved = fakeSession("back@slide.test", "user-9");
-    const api = mockAuth(saved);
-    const user = await listenAuthState(api);
-    expect(user).toEqual({ id: "user-9", email: "back@slide.test" });
-    const again = mockAuth(saved);
-    expect(await restoreSession(again)).toEqual({ id: "user-9", email: "back@slide.test" });
+    const saved = fakeSession("back@users.slide.local", "user-9");
+    const user = await listenAuthState(mockAuth(saved));
+    expect(user).toEqual({ id: "user-9", email: "back@users.slide.local", username: "back" });
+    expect(await restoreSession(mockAuth(saved))).toEqual(user);
+  });
+
+  it("an older email account still restores, labelled by its email", async () => {
+    const saved = fakeSession("old@gmail.com", "user-7");
+    expect(await restoreSession(mockAuth(saved))).toEqual({ id: "user-7", email: "old@gmail.com", username: null });
   });
 
   it("sign-out clears the session so the next load is signed out", async () => {
-    const api = mockAuth(fakeSession("out@slide.test"));
+    const api = mockAuth(fakeSession("out@users.slide.local"));
     await restoreSession(api);
     await signOutAccount(api);
     expect(await restoreSession(api)).toBeNull();
