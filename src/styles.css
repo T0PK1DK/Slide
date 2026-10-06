@@ -2715,6 +2715,26 @@ body[data-mode="drive"] .radar-banner { top: calc(112px + env(safe-area-inset-to
   .cmd-looks button span { display: none; }
 }
 
+/* Build stamp (Garage + Profile): which deploy is on this phone. */
+.build-stamp { margin: var(--space-3) 0 0; font-family: var(--font-mono); font-size: var(--fs-2xs); color: var(--faint); letter-spacing: .04em; }
+
+/* "Slide updated · tap to load" — only when a reload would lose a route on screen. */
+.update-pill {
+  position: fixed; left: 50%; top: calc(env(safe-area-inset-top) + 10px); transform: translateX(-50%);
+  z-index: 60; min-height: 36px; padding: 0 var(--space-4);
+  border-radius: var(--radius-pill); border: 1px solid var(--glass-border-strong);
+  background: var(--glass-fill-strong); color: var(--text); font: inherit; font-size: var(--fs-sm);
+  box-shadow: var(--glass-shadow-float); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+}
+.update-pill[hidden] { display: none; }
+
+/* Small live-traffic dot next to the ETA when the route brain's number is live TomTom traffic. */
+#drive-eta[data-live="1"]::after,
+#review-eta[data-live="1"]::after {
+  content: ""; display: inline-block; width: 7px; height: 7px; margin-left: 8px; vertical-align: middle;
+  border-radius: var(--radius-full); background: var(--flow-free); box-shadow: 0 0 6px var(--flow-free);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .radar .sweep,
   .radar .blip.police,

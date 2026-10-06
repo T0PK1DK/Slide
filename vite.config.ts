@@ -1,4 +1,40 @@
+import { execSync } from "node:child_process";
+import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { resolve } from "node:path";
 import { defineConfig, type Plugin } from "vite";
+
+/**
+ * Build stamp: short commit + build time. Shown in Garage and Profile so the
+ * driver can see which version is on the phone, written to dist/version.json
+ * (no-store) for the in-app update check, and baked into dist/sw.js so every
+ * deploy is a byte-different service worker that the phone installs.
+ */
+function buildStamp() {
+  let sha = (process.env.SLIDE_BUILD_SHA ?? "").trim().slice(0, 7);
+  if (!sha) {
+    try {
+      sha = execSync("git rev-parse --short=7 HEAD", { stdio: ["ignore", "pipe", "ignore"] }).toString().trim();
+    } catch {
+      sha = "local";
+    }
+  }
+  return { sha, builtAt: new Date().toISOString() };
+}
+const BUILD = buildStamp();
+
+function versionFiles(): Plugin {
+  let outDir = "dist";
+  return {
+    name: "slide-version-files",
+    apply: "build",
+    configResolved(c) { outDir = resolve(c.root, c.build.outDir); },
+    closeBundle() {
+      writeFileSync(resolve(outDir, "version.json"), JSON.stringify(BUILD) + "\n");
+      const sw = resolve(outDir, "sw.js");
+      if (existsSync(sw)) writeFileSync(sw, readFileSync(sw, "utf8").replaceAll("__SLIDE_BUILD__", `${BUILD.sha}-${BUILD.builtAt}`));
+    },
+  };
+}
 
 /**
  * boot.ts loads main.ts (and MapLibre) with a dynamic import so the HUD paints
@@ -55,7 +91,8 @@ export default defineConfig({
     host: true,
     port: 5173,
   },
-  plugins: [preloadApp(), geocodeApi()],
+  define: { __SLIDE_BUILD__: JSON.stringify(BUILD) },
+  plugins: [preloadApp(), geocodeApi(), versionFiles()],
   build: {
     // MapLibre is ~800 kB on its own; keep it in a separate long-cached chunk
     // so an app-only deploy doesn't make phones re-download the map engine.
