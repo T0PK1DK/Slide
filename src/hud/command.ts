@@ -273,17 +273,20 @@ export function mountCommand(h: CommandHooks): CommandView {
   overlay.querySelector('[data-ctl="layers"]')!.addEventListener("click", h.onGarage);
 
   const bannerSlot = overlay.querySelector<HTMLElement>(".cmd-banner-slot")!;
+  // `#drive-guide` stacks `#maneuver` + `#lane-strip` + `#posted` in flow; park the whole stack so a
+  // wrapping turn instruction pushes the lanes and the posted chip down instead of covering them.
+  const guideHome = document.createComment("drive-guide home");
   const parkDriveBanner = () => {
-    const el = document.getElementById("maneuver");
-    const home = document.getElementById("lane-strip");
+    const el = document.getElementById("drive-guide");
     if (!el) return;
+    if (!guideHome.parentNode && el.parentElement !== bannerSlot) el.before(guideHome);
     const wide = window.matchMedia("(min-width: 1100px)").matches;
     const drive = document.body.dataset.mode === "drive";
     if (drive && wide) {
       if (el.parentElement !== bannerSlot) bannerSlot.append(el);
       return;
     }
-    if (home && el.parentElement !== home.parentElement) home.before(el);
+    if (el.parentElement === bannerSlot && guideHome.parentNode) guideHome.after(el);
   };
   new MutationObserver(parkDriveBanner).observe(document.body, { attributes: true, attributeFilter: ["data-mode"] });
   window.addEventListener("resize", parkDriveBanner);

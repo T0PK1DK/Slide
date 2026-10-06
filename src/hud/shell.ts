@@ -65,13 +65,15 @@ export const HUD_HTML = `
         <button class="primary" id="place-go" type="button">Go</button>
       </div>
     </div>
-    <div class="panel maneuver drive-only" id="maneuver" hidden>
-      <svg class="arrow" viewBox="0 0 24 24" aria-hidden="true"><path id="man-arrow" d="" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      <div class="man-text"><b id="man-dist" class="is-empty">Next turn</b><span id="man-instr">Follow the line</span></div>
-      <div class="man-bar"><i id="man-fill"></i></div>
+    <div class="drive-guide drive-only" id="drive-guide">
+      <div class="panel maneuver drive-only" id="maneuver" hidden>
+        <svg class="arrow" viewBox="0 0 24 24" aria-hidden="true"><path id="man-arrow" d="" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <div class="man-text"><b id="man-dist" class="is-empty">Next turn</b><span id="man-instr">Follow the line</span></div>
+        <div class="man-bar"><i id="man-fill"></i></div>
+      </div>
+      <div id="lane-strip" class="lane-strip" data-slot="lane-strip" hidden aria-label="Lane guidance"></div>
+      <div class="panel posted-chip" id="posted" hidden></div>
     </div>
-    <div id="lane-strip" class="lane-strip drive-only" data-slot="lane-strip" hidden aria-label="Lane guidance"></div>
-    <div class="panel posted-chip drive-only" id="posted" hidden></div>
     <div class="panel review-sheet review-only" id="review-sheet" hidden>
       <div class="route-carousel" id="route-carousel" aria-label="Route choices">
         <div class="route-track" id="route-track"></div>
