@@ -3,8 +3,8 @@
  *
  * Those two contexts do not share localStorage. They do share first-party
  * cookies on kings-slide.pages.dev. Every write goes to both; a read prefers
- * localStorage and falls back to the cookie so a magic-link return in Safari
- * is still there when the driver opens the installed app.
+ * localStorage and falls back to the cookie so a sign-in in Safari
+ * is still there when the driver opens the installed app (where the cookie is shared).
  *
  * Cookies are first-party, Secure (on https), SameSite=Lax, Path=/, 90 days.
  * They are readable by JS on purpose: supabase-js has to persist and refresh

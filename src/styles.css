@@ -980,13 +980,26 @@ button.ghost.on { color: var(--glow); }
   outline: none;
 }
 .login-field input:focus { border-color: var(--glow); }
-.login-code input {
-  height: 64px;
-  font-family: var(--mono);
-  font-size: var(--fs-3xl);
-  letter-spacing: 0.24em;
-  text-align: center;
+.login-modes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--line);
+  background: var(--surface);
 }
+.login-modes button {
+  min-height: var(--touch);
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: var(--fs-md);
+  cursor: pointer;
+}
+.login-modes button.on { background: var(--fill-10); color: var(--text); box-shadow: var(--lift); }
 .login-error { margin: 0; font-size: var(--fs-md); color: var(--danger-text); }
 .login-go { min-height: 56px; border-radius: var(--radius-lg); font-size: var(--fs-lg); }
 .login-reset { min-height: var(--touch); border-radius: var(--radius-lg); font-size: var(--fs-md); }

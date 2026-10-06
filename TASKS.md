@@ -32,7 +32,10 @@ Work top-down. Check the box in the same PR.
 
 - [x] Remove bot data: seeded ghost drivers and the old demo preview page
 - [x] Profile: driver, My car, all-time stats, places, privacy (on-device)
-- [x] Accounts (Supabase, email code), profiles, follow/unfollow, friends = mutual follows, driver search
+- [x] Accounts (Supabase, username + password since 2026-10-06; was email code), profiles, follow/unfollow, friends = mutual follows, driver search
+- [x] **Sign-in: username + password, no email** (King, 2026-10-06) — `<username>@users.slide.local` under Supabase Auth, Sign in / Create account sheet, magic link + OTP removed, tests (branch `nard/username-password-auth`)
+- [ ] **King/Nard:** Supabase → Authentication → Sign In / Providers → Email → **Confirm email OFF** (needed before anyone can create a username account)
+- [ ] Later: password reset without email (e.g. admin reset or recovery code); older email-only accounts need a new username account
 - [x] Radar mini map + driver reports (police, crash, hazard, closure, jam) with votes, heads-up banner, FL511 incidents
 - [x] Supabase project `slide` created + schema applied (2026-10-04); the last 2 functions pasted in the SQL Editor (2026-10-04)
 - [x] `VITE_SUPABASE_URL` + anon key (`.env.production`), production redeployed, `TRANSIT_FEEDS` secret (Broward, Tri-Rail, Brightline) — 2026-10-04

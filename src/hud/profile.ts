@@ -1,4 +1,4 @@
-import { currentCloudUser, signOutAccount } from "../lib/account";
+import { accountLabel, currentCloudUser, signOutAccount } from "../lib/account";
 import { cloudConfigured } from "../lib/cloud";
 import { clearTrips, lifetime, loadTrips } from "../lib/history";
 import { stopPresence } from "../lib/presence";
@@ -61,7 +61,7 @@ export function mountProfile(h: ProfileHooks): { open(): void; close(): void } {
           <div class="pf-id">
             <h2 id="pf-name">${esc(p.name)}</h2>
             <span class="pf-tag">${esc(p.tag)}</span>
-            <span class="pf-since">Driving with Slide since ${since}${currentCloudUser()?.email ? ` · ${esc(currentCloudUser()!.email!)}` : ""}</span>
+            <span class="pf-since">Driving with Slide since ${since}${accountLabel(currentCloudUser()) ? ` · ${esc(accountLabel(currentCloudUser())!)}` : ""}</span>
           </div>
           <button type="button" class="pf-close" aria-label="Close profile">×</button>
         </header>

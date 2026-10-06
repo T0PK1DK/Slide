@@ -13,51 +13,18 @@ import { AUTH_STORAGE_KEY, authStorage } from "./auth-storage";
 const URL_ = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
 
-/** Production origin. Magic-link returns must land here (or a pages.dev preview). */
-export const AUTH_SITE_URL = "https://kings-slide.pages.dev";
-
-/**
- * Pure: is this page load a return from the emailed sign-in link? Supabase sends
- * the driver back with tokens in the hash (`#access_token=…`, implicit flow), a
- * `?code=` (PKCE), or an error (`#error=…&error_description=…`).
- */
-export function authReturn(hash: string, search: string): { kind: "session" } | { kind: "error"; message: string } | null {
-  const h = new URLSearchParams(hash.replace(/^#/, ""));
-  const q = new URLSearchParams(search.replace(/^\?/, ""));
-  const err = h.get("error_description") ?? q.get("error_description") ?? h.get("error") ?? q.get("error");
-  if (err) return { kind: "error", message: err.replace(/\+/g, " ") };
-  if (h.get("access_token") || q.get("code")) return { kind: "session" };
-  return null;
-}
-
-/**
- * Where the emailed *link* should send the driver (Safari / desktop). The
- * Home Screen app signs in with the 6-digit code instead — iOS does not share
- * cookies or localStorage with Safari. Production uses the live Pages origin.
- * Previews keep their own origin. Local http falls back to the live site URL.
- */
-export function authRedirectUrl(origin = "", pathname = "/"): string {
-  try {
-    const u = new URL(origin);
-    if (u.hostname === "kings-slide.pages.dev") return `${AUTH_SITE_URL}/`;
-    if (u.hostname.endsWith(".kings-slide.pages.dev") && u.protocol === "https:") return `${u.origin}/`;
-    if (u.protocol === "https:") return `${u.origin}${pathname || "/"}`;
-  } catch {
-    /* ignore */
-  }
-  return `${AUTH_SITE_URL}/`;
-}
-
 export function cloudConfigured(): boolean {
   return Boolean(URL_ && KEY);
 }
 
-/** Flags supabase-js needs so a session survives reload, Safari, and the PWA. */
+/**
+ * Flags supabase-js needs so a session survives reload, Safari, and the PWA.
+ * Sign-in is username + password (no emailed links), so nothing is read from the URL.
+ */
 export const AUTH_CLIENT_OPTIONS = {
   persistSession: true,
   autoRefreshToken: true,
-  detectSessionInUrl: true,
-  flowType: "implicit" as const,
+  detectSessionInUrl: false,
   storageKey: AUTH_STORAGE_KEY,
 };
 

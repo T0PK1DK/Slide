@@ -1,5 +1,5 @@
-import { sendMagicLink, signOutAccount, verifyMagicCode } from "./account";
-import { authReturn, cloud } from "./cloud";
+import { signOutAccount } from "./account";
+import { cloud } from "./cloud";
 
 /**
  * Accounts, public profiles, follows and friends (mutual follows). Only what a
@@ -40,45 +40,6 @@ export async function currentUserId(): Promise<string | null> {
   const sb = await cloud();
   const { data } = await sb.auth.getSession();
   return data.session?.user.id ?? null;
-}
-
-/**
- * Step 1 of sign-in: email a sign-in link (and a 6-digit code if the email template
- * includes {{ .Token }}). Creates the account on first use. The link returns to
- * https://kings-slide.pages.dev (or this preview's origin).
- */
-export async function sendCode(email: string): Promise<void> {
-  await sendMagicLink(email);
-}
-
-/** Step 2: the code from the email. */
-export async function verifyCode(email: string, code: string): Promise<void> {
-  await verifyMagicCode(email, code);
-}
-
-/**
- * Finish sign-in when the driver tapped the emailed link and landed back here.
- * Returns null when this load isn't a link return. Always strips the tokens from the address bar.
- * Prefer prepareAccount() on boot — this stays for the Profile return path.
- */
-export async function finishEmailLink(): Promise<{ ok: true } | { ok: false; message: string } | null> {
-  const ret = authReturn(location.hash, location.search);
-  if (!ret) return null;
-  const clean = () => history.replaceState(null, "", location.pathname);
-  if (ret.kind === "error") {
-    clean();
-    return { ok: false, message: /expired|invalid/i.test(ret.message) ? "That sign-in link has expired or was already used. Email yourself a new one." : ret.message };
-  }
-  try {
-    const sb = await cloud();
-    const { data, error } = await sb.auth.getSession();
-    clean();
-    if (error || !data.session) return { ok: false, message: error?.message ?? "That sign-in link didn't work. Email yourself a new one." };
-    return { ok: true };
-  } catch (e) {
-    clean();
-    return { ok: false, message: e instanceof Error ? e.message : "Sign-in failed." };
-  }
 }
 
 export async function signOut(): Promise<void> {
