@@ -23,7 +23,10 @@
  *   accepted number holds (no jump back to typical). Only an explicit
  *   "traffic off" returns to the Valhalla baseline.
  * - Progress: remaining time = committed whole-trip time × remaining share of
- *   this one line, so the countdown never switches source mid-drive.
+ *   this one line, so the countdown never switches source mid-drive. The share
+ *   is a share of *time* (Valhalla's per-maneuver times), not distance: 10 mi
+ *   of highway and 2 mi of downtown grid don't take the same time, so a
+ *   distance share made the countdown run fast on highways and stall in town.
  */
 
 import { haversineMeters } from "./polyline";
@@ -41,7 +44,40 @@ export type BrainRoute = {
   baselineSec: number;
   /** Line geometry [lon, lat]. Progress is measured along it. */
   coords?: Array<[number, number]>;
+  /** Cumulative typical time along the line (see `timeProfileOf`). Without it, progress is a distance share. */
+  profile?: TimeProfile | null;
 };
+
+/** Cumulative miles → cumulative typical seconds, from Valhalla maneuvers. */
+export type TimeProfile = { mi: number[]; sec: number[] };
+
+/** Build the time profile from maneuvers (`length` in miles, `time` in seconds). Null when unusable. */
+export function timeProfileOf(maneuvers: ReadonlyArray<{ length?: number; time?: number }>): TimeProfile | null {
+  const mi = [0];
+  const sec = [0];
+  for (const m of maneuvers) {
+    const len = Number(m.length);
+    const t = Number(m.time);
+    if (!Number.isFinite(len) || !Number.isFinite(t) || len < 0 || t < 0) return null;
+    if (len === 0 && t === 0) continue;
+    mi.push(mi[mi.length - 1] + len);
+    sec.push(sec[sec.length - 1] + t);
+  }
+  return mi.length > 1 && mi[mi.length - 1] > 0 && sec[sec.length - 1] > 0 ? { mi, sec } : null;
+}
+
+/** Share (0–1) of the typical trip time already behind you at `alongMi` (profile miles). */
+export function timeShareAt(p: TimeProfile, alongMi: number): number {
+  const totalMi = p.mi[p.mi.length - 1];
+  const totalSec = p.sec[p.sec.length - 1];
+  if (alongMi <= 0) return 0;
+  if (alongMi >= totalMi) return 1;
+  let i = 1;
+  while (i < p.mi.length && p.mi[i] < alongMi) i++;
+  const a = p.mi[i - 1], b = p.mi[i];
+  const t = b > a ? (alongMi - a) / (b - a) : 0;
+  return (p.sec[i - 1] + (p.sec[i] - p.sec[i - 1]) * t) / totalSec;
+}
 
 export type EtaOffer = {
   routeKey: string;
@@ -155,6 +191,7 @@ export class RouteBrain {
   private measuredAt = 0;
   private updatedAt = 0;
   private alongMi = 0;
+  private profile: TimeProfile | null = null;
   /** A measurement above threshold that arrived inside the rate-limit window. */
   private pending: { totalSec: number; at: number } | null = null;
   private listeners = new Set<(s: EtaSnapshot) => void>();
@@ -192,6 +229,7 @@ export class RouteBrain {
     this.distanceMi = Math.max(0, r.distanceMi);
     this.baselineSec = r.baselineSec;
     this.totalSec = r.baselineSec;
+    this.profile = r.profile ?? null;
     this.updatedAt = this.now();
     this.emit();
     return true;
@@ -278,7 +316,9 @@ export class RouteBrain {
     const now = this.now();
     const lineMi = this.coordsMi > 0 ? this.coordsMi : this.distanceMi;
     const progress = lineMi > 0 ? Math.min(1, Math.max(0, this.alongMi / lineMi)) : 0;
-    const remainingSec = this.key ? this.totalSec * (1 - progress) : 0;
+    // Time share, not distance share: map our progress onto the maneuver profile (same trip, its own mile scale).
+    const doneShare = this.profile ? timeShareAt(this.profile, progress * this.profile.mi[this.profile.mi.length - 1]) : progress;
+    const remainingSec = this.key ? this.totalSec * (1 - doneShare) : 0;
     return {
       routeKey: this.key,
       coords: this.coords,
@@ -325,6 +365,7 @@ export class RouteBrain {
     this.measuredAt = 0;
     this.updatedAt = 0;
     this.alongMi = 0;
+    this.profile = null;
     this.pending = null;
   }
 

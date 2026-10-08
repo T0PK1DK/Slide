@@ -55,10 +55,11 @@ import { mountRadar } from "./hud/radar";
 import { mountFriends } from "./map/friends";
 import { mountTraffic } from "./map/traffic";
 import type { Alert } from "./lib/alerts";
-import type { TrafficSummary } from "./lib/traffic";
+import { sampleRoute, type TrafficSummary } from "./lib/traffic";
+import { fetchTrafficRoute } from "./lib/tomtom-route";
 import { createYouMarker } from "./map/you";
 import { mountCommand } from "./hud/command";
-import { etaNoteFor, offerFromTraffic, RouteBrain, routeKey } from "./lib/route-brain";
+import { etaNoteFor, offerFromTraffic, RouteBrain, routeKey, timeProfileOf, tomtomTotalSec } from "./lib/route-brain";
 import { recordTrip } from "./lib/history";
 import { useGameProgress, useLeaderboard } from "./lib/game";
 import { bindBoardToggle, currentRide, demoAward, mountGameSlots } from "./hud/gameSlots";
@@ -67,8 +68,10 @@ import {
   cumulativeMiles,
   LOCATION_MESSAGES,
   LOCATION_TITLES,
-  snapToRoute,
+  offRouteLimitM,
+  RouteSnapper,
   startTracking,
+  UNUSABLE_ACCURACY_M,
   type Fix,
   type LocationProblem,
   type RouteProgress,
@@ -187,6 +190,10 @@ let styleReady = false;
 const styleQueue: Array<() => void> = [];
 let steps: Step[] = [];
 let cumulative: number[] = [];
+/** Keeps the driver on their own stretch of the line (no jumps to a parallel or crossing part of it). */
+let snapper: RouteSnapper | null = null;
+/** Last snap, recomputed only when a new GPS fix lands (not every frame). */
+let lastSnap: { at: number; snap: RouteProgress | null; off: boolean } | null = null;
 let progressMi = 0;
 let tracker: TrackerHandle | null = null;
 let liveFix: Fix | null = null;
@@ -1167,7 +1174,7 @@ function locateMe() {
   waitForFix(15_000).then(clear, (p: LocationProblem) => { clear(); showLocationProblem(p); });
 }
 /** Ask Valhalla for lines between two points, score each one, and rank them (Slide first). */
-async function fetchRanked(from: LonLat, to: LonLat): Promise<SlideRoute[]> {
+async function fetchRanked(from: LonLat, to: LonLat, opts: { fast?: boolean } = {}): Promise<SlideRoute[]> {
   // One request at a time, and stop once there are enough distinct lines: the
   // public Valhalla server rate-limits, and a burst of parallel calls is the
   // fastest way to get every one of them refused.
@@ -1180,6 +1187,9 @@ async function fetchRanked(from: LonLat, to: LonLat): Promise<SlideRoute[]> {
       results.push({ status: "rejected", reason });
     }
     if (mergeVariantTrips(results).length >= 3) break;
+    // Rerouting mid-drive: the first answer (it already carries alternates) is enough. Every extra
+    // call to the rate-limited server is seconds the driver spends on the wrong road.
+    if (opts.fast && mergeVariantTrips(results).length) break;
   }
   const trips = mergeVariantTrips(results);
   if (!trips.length) {
@@ -1191,7 +1201,30 @@ async function fetchRanked(from: LonLat, to: LonLat): Promise<SlideRoute[]> {
     const attrs = await requestTraceAttributes(tripShape(trip));
     scored.push(scoreTrip(trip, attrs.edges ?? [], "miles"));
   }
+  if (garage.showTraffic) await attachLiveTimes(scored);
   return rankRoutes(scored);
+}
+/**
+ * Measure every candidate line with live traffic before ranking, in parallel
+ * (TomTom via our Pages Function, not the rate-limited Valhalla server), so the
+ * Slide pick and "Fastest" reflect today's roads, not typical ones. Capped at
+ * 3.5 s; anything missing leaves the ranking on typical times.
+ */
+async function attachLiveTimes(scored: Array<{ shape: string; durationSec: number; distanceMi: number; liveSec?: number; liveAt?: number }>) {
+  const ctl = new AbortController();
+  const timer = window.setTimeout(() => ctl.abort(), 3500);
+  try {
+    await Promise.all(scored.map(async (r) => {
+      const coords = decodePolyline6(r.shape);
+      if (coords.length < 2) return;
+      const rt = await fetchTrafficRoute({ points: sampleRoute(coords, 1.8, 12), signal: ctl.signal });
+      if (!rt) return;
+      const total = tomtomTotalSec({ baselineSec: r.durationSec, distanceMi: r.distanceMi, travelTimeSec: rt.travelTimeSec, trafficDelaySec: rt.trafficDelaySec, lengthMeters: rt.lengthMeters });
+      if (total !== null && total > 0) { r.liveSec = total; r.liveAt = Date.now(); }
+    }));
+  } finally {
+    window.clearTimeout(timer);
+  }
 }
 async function plan() {
   if (planning) return;
@@ -1254,7 +1287,7 @@ async function reroute(from: LonLat) {
   lastRerouteAt = performance.now();
   setStatus("Off the line — finding a new Slide route…");
   try {
-    const next = await fetchRanked(from, dest);
+    const next = await fetchRanked(from, dest, { fast: true });
     if (hudMode !== "drive" || !next.length) return;
     routes = next;
     selectedId = routes[0].id;
@@ -1485,7 +1518,11 @@ function loadSelectedRoute() {
   selectedCoords = route ? decodePolyline6(tripShape(route.trip)) : [];
   // The brain owns the line from here: same line → keeps its live ETA; new line → Valhalla baseline.
   selectedKey = route && selectedCoords.length ? routeKey(route.id, selectedCoords, route.distanceMi) : "";
-  brain.setRoute(route && selectedKey ? { key: selectedKey, distanceMi: route.distanceMi, baselineSec: route.durationSec, coords: selectedCoords } : null);
+  brain.setRoute(route && selectedKey ? { key: selectedKey, distanceMi: route.distanceMi, baselineSec: route.durationSec, coords: selectedCoords, profile: timeProfileOf(route.maneuvers) } : null);
+  // The live time used for ranking is the first ETA this line shows (if it's still fresh).
+  if (route?.liveSec && route.liveAt && Date.now() - route.liveAt < 3 * 60_000 && selectedKey) {
+    brain.offer({ routeKey: selectedKey, source: "tomtom", totalSec: route.liveSec });
+  }
   return route;
 }
 /** Point the drive at the selected line: shape, cumulative miles, guidance steps. */
@@ -1493,6 +1530,8 @@ function loadDriveRoute() {
   const route = loadSelectedRoute();
   if (!route || !selectedCoords.length) return null;
   cumulative = cumulativeMiles(selectedCoords);
+  snapper = new RouteSnapper(selectedCoords, cumulative);
+  lastSnap = null;
   steps = buildSteps(route.maneuvers);
   progressMi = 0;
   brain.resetProgress();
@@ -1577,8 +1616,16 @@ function tick(ts: number) {
   if (liveFix) {
     // Real position wins: snap the fix to the planned line so the marker tracks
     // the road rather than drifting into the buildings beside it.
-    const snap = snapToRoute(selectedCoords, cumulative, liveFix.pos);
-    const off = snap ? snap.offRouteM > OFF_ROUTE_M : false;
+    // Snap once per GPS fix, not per frame. A very vague fix (towers, garages)
+    // keeps the last decision instead of flagging off-route on noise.
+    if (!lastSnap || lastSnap.at !== liveFix.at) {
+      const usable = liveFix.accuracyM <= UNUSABLE_ACCURACY_M;
+      const snapNow = usable && snapper ? snapper.snap({ pos: liveFix.pos, headingDeg: liveFix.headingDeg, speedMph: liveFix.speedMph }) : lastSnap?.snap ?? null;
+      const offNow = usable ? Boolean(snapNow && snapNow.offRouteM > offRouteLimitM(liveFix.accuracyM, OFF_ROUTE_M)) : lastSnap?.off ?? false;
+      lastSnap = { at: liveFix.at, snap: snapNow, off: offNow };
+    }
+    const snap = lastSnap.snap;
+    const off = lastSnap.off;
     if (snap && !off) {
       progressMi = snap.alongMi;
       target = { pos: snap.snapped, bearing: snap.bearing };

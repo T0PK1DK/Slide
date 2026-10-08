@@ -33,6 +33,10 @@ export type SlideRoute = {
   bands: SpeedBand[];
   maneuvers: Maneuver[];
   leaveBy?: Date;
+  /** Live-traffic whole-trip time for this line (TomTom), when it was measured at plan time. */
+  liveSec?: number;
+  /** When `liveSec` was measured (epoch ms). */
+  liveAt?: number;
 };
 
 const ROAD_CLASS_WEIGHT: Record<string, number> = {
@@ -278,11 +282,15 @@ export function rankRoutes(
   window = SLIDE_WINDOW
 ): SlideRoute[] {
   if (!scored.length) return [];
-  const byTime = [...scored].sort((a, b) => a.durationSec - b.durationSec);
+  // Rank on live-traffic times when every line has one; otherwise all on typical
+  // times. Mixing the two would compare a jammed live time against a typical one.
+  const allLive = scored.every((r) => typeof r.liveSec === "number" && r.liveSec > 0);
+  const timeOf = (r: (typeof scored)[number]) => (allLive ? (r.liveSec as number) : r.durationSec);
+  const byTime = [...scored].sort((a, b) => timeOf(a) - timeOf(b));
   const fastest = byTime[0];
-  const limit = fastest.durationSec * (1 + window);
+  const limit = timeOf(fastest) * (1 + window);
   const slide = byTime
-    .filter((r) => r.durationSec <= limit)
+    .filter((r) => timeOf(r) <= limit)
     .reduce((best, r) => (r.slideScore > best.slideScore ? r : best), fastest);
   const ordered = [slide, ...(slide === fastest ? [] : [fastest]), ...byTime.filter((r) => r !== slide && r !== fastest)];
   // "No tolls" only means something when the fastest line has tolls: tag the quickest toll-free one.

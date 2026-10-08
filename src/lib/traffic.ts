@@ -140,6 +140,11 @@ export function sampleRoute(coords: Array<[number, number]>, everyMi = 1.2, cap 
   const first = coords[0];
   const last = coords[coords.length - 1];
   const out: AlongPoint[] = [{ lon: first[0], lat: first[1] }];
+  // Spread the samples over the whole line: with a fixed spacing, a long trip
+  // ran out of samples part-way and the rest of the route went unmeasured.
+  let totalMi = 0;
+  for (let i = 1; i < coords.length; i++) totalMi += haversineMeters(coords[i - 1][0], coords[i - 1][1], coords[i][0], coords[i][1]) / 1609.344;
+  if (cap > 2) everyMi = Math.max(everyMi, totalMi / (cap - 1));
   let acc = 0;
   for (let i = 1; i < coords.length - 1 && out.length < cap - 1; i++) {
     acc += haversineMeters(coords[i - 1][0], coords[i - 1][1], coords[i][0], coords[i][1]) / 1609.344;
