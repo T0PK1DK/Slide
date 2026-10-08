@@ -375,7 +375,7 @@ Read `TASKS.md` top unchecked item. Do not rebase history. Do not rename the pro
   - **Best route ignored traffic.** `attachLiveTimes()` measures every candidate with TomTom in parallel (3.5 s cap) before `rankRoutes`. It ranks on live times only when every line has one, and the chosen line's live time is the first ETA the brain shows. Respects the Live traffic toggle. This costs up to 3 extra `/api/traffic/route` calls per plan, inside the daily budget.
   - **Long trips half-measured.** `sampleRoute` now spreads its samples over the whole line (a 40 mi trip used to stop sampling at ~20 mi).
   - **Reroute slowness.** A reroute uses only the first Valhalla answer (`fetchRanked(..., { fast: true })`) instead of up to 3 sequential calls.
-  - 290 → 301 tests (`src/lib/nav-accuracy.test.ts`).
+  - 279 → 290 tests (11 new in `src/lib/nav-accuracy.test.ts`).
   - **Not done:** voice/lanes are Nard's slots; true map matching, and live ETA measured from the current position mid-drive (TomTom still measures the whole line), are next.
 
 ## Teammate slots (stable IDs — do not rename)
