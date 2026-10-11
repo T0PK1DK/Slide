@@ -59,6 +59,30 @@ export function offsetMi(you: { lat: number; lon: number }, p: { lat: number; lo
 
 export type Blip = RadarItem & { distMi: number; x: number; y: number; ahead: boolean };
 
+/** Real reports only — driver + official `/api/incidents` (incl. TomTom when keyed); never cameras or transit, never a made-up count. */
+const REPORT_AROUND_SOURCES = new Set<RadarItem["source"]>(["driver", "fdot", "mdpd", "fl511", "tomtom"]);
+
+/** Pure: how many driver + official reports sit inside the radar range. */
+export function countReportsAroundYou(
+  items: readonly RadarItem[],
+  you: { lat: number; lon: number },
+  rangeMi: number
+): number {
+  let n = 0;
+  for (const it of items) {
+    if (!REPORT_AROUND_SOURCES.has(it.source)) continue;
+    const { east, north } = offsetMi(you, it);
+    if (Math.hypot(east, north) <= rangeMi) n += 1;
+  }
+  return n;
+}
+
+/** Empty when there is nothing to show — the pill stays hidden. */
+export function reportsAroundYouLabel(n: number): string {
+  if (n <= 0) return "";
+  return n === 1 ? "1 report around you" : `${n} reports around you`;
+}
+
 /**
  * Pure: place items on a heading-up radar. x/y are -1..1 (edge = `rangeMi`),
  * y negative = ahead. "Ahead" = within ±35° of your heading.

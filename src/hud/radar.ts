@@ -3,7 +3,9 @@ import { cloudConfigured } from "../lib/cloud";
 import {
   ago,
   nextAlert,
+  countReportsAroundYou,
   officialIncidents,
+  reportsAroundYouLabel,
   radarBlips,
   REPORT_KINDS,
   reportsNear,
@@ -118,11 +120,16 @@ export function mountRadar(h: RadarHooks): RadarView {
     root.querySelector(".blips")!.innerHTML = blips
       .map((b) => `<g class="blip ${b.kind} ${b.source}" transform="translate(${(b.x * 44).toFixed(1)} ${(b.y * 44).toFixed(1)}) scale(.42)"><g transform="translate(-12 -12)">${GLYPH[b.kind]}</g></g>`)
       .join("");
+    const around = countReportsAroundYou(items, fix.pos, RANGE_MI);
+    const aroundLabel = reportsAroundYouLabel(around);
     const ahead = blips.filter((b) => b.ahead).length;
     const count = root.querySelector<HTMLElement>(".radar-count")!;
-    count.hidden = blips.length === 0;
-    count.textContent = ahead ? `${ahead} ahead` : `${blips.length} near`;
-    root.querySelector(".radar-disc")!.setAttribute("aria-label", blips.length ? `Nearby reports: ${blips.length}, ${ahead} ahead` : "Nearby reports: none");
+    count.hidden = !aroundLabel;
+    count.textContent = aroundLabel;
+    root.querySelector(".radar-disc")!.setAttribute(
+      "aria-label",
+      aroundLabel ? `${aroundLabel}${ahead ? `, ${ahead} ahead` : ""}` : "Nearby reports: none"
+    );
     if (mode === "drive") maybeAlert();
   };
 
@@ -139,12 +146,13 @@ export function mountRadar(h: RadarHooks): RadarView {
 
   const openList = () => {
     const fix = h.getFix();
+    const aroundLabel = fix ? reportsAroundYouLabel(countReportsAroundYou(items, fix.pos, RANGE_MI)) : "";
     const rows = blips.length
       ? blips.map((b) => `<li class="rs-item"><span class="rb-dot ${b.kind}"></span><div><b>${esc(b.title)}</b><span>${b.distMi.toFixed(1)} mi${b.ahead ? " ahead" : ""}${b.createdAt ? ` · ${ago(b.createdAt)}` : ""} · ${esc(b.detail)}</span>
           ${b.reportId !== null ? `<div class="rs-votes"><button type="button" data-vote="${b.reportId}" data-yes="1">Still there</button><button type="button" data-vote="${b.reportId}" data-yes="0">Not there</button></div>` : ""}</div></li>`).join("")
       : `<li class="rs-empty">${fix ? "Nothing reported within 1.5 mi." : "Turn on location to see what's around you."}</li>`;
     sheet.innerHTML = `<div class="rs-card">
-      <header><h2>Radar</h2><button type="button" class="rs-close" aria-label="Close">×</button></header>
+      <header><h2>${esc(aroundLabel || "Radar")}</h2><button type="button" class="rs-close" aria-label="Close">×</button></header>
       <p class="rs-src">Driver reports${cloudConfigured() ? "" : " (accounts not set up on this build)"} · official incidents from FDOT and Miami-Dade Police (FL511 when keyed) · cameras mapped in OpenStreetMap (may be incomplete) · live buses and trains where agencies publish them. Slide never tracks police vehicles; police items are reports from other drivers.</p>
       <ul class="rs-list">${rows}</ul>
       <p class="rs-msg" role="status"></p>
