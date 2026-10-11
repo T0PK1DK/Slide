@@ -41,6 +41,13 @@ describe("leaveByCopy", () => {
     expect(r.headline).toMatch(/Leave now/);
   });
 
+  it("labels live traffic when asked", () => {
+    const r = leaveByCopy(22 * 60, target, now, null, true);
+    expect(r.note).toContain("Live 22 min");
+    expect(r.note).toContain("live traffic");
+    expect(r.note).not.toContain("no live traffic");
+  });
+
   it("mentions real incidents only when the count is > 0", () => {
     expect(leaveByCopy(600, target, now, null).note).not.toContain("incident");
     expect(leaveByCopy(600, target, now, 0).note).not.toContain("incident");

@@ -2,12 +2,13 @@ import { officialIncidents } from "../lib/reports";
 import type { SavedPlace } from "../lib/garage";
 import { requestRouteVariant, type LonLat } from "../lib/valhalla";
 import type { Avoid } from "../lib/valhalla";
-import { arrivalTarget, leaveByCopy } from "../plan/leaveby";
+import { arrivalTarget, leaveByCopy, resolveLeaveByDuration } from "../plan/leaveby";
 
 export type LeaveByHooks = {
   places: () => { home: SavedPlace | null; work: SavedPlace | null; recents: SavedPlace[] };
   origin: () => LonLat | null;
   avoid: () => Avoid;
+  trafficEnabled: () => boolean;
 };
 
 const esc = (s: string) =>
@@ -83,13 +84,15 @@ export function mountLeaveBy(el: HTMLElement, hooks: LeaveByHooks): { refresh():
     out.textContent = `Checking the typical time to ${picked.dataset.label ?? "that place"}…`;
     try {
       const res = await requestRouteVariant([origin, dest], "slide", hooks.avoid());
-      const durationSec = res.trip?.summary?.time;
-      if (typeof durationSec !== "number") {
+      const trip = res.trip;
+      const summary = trip?.summary;
+      if (!trip || typeof summary?.time !== "number") {
         out.textContent = "No typical time for that trip.";
         return;
       }
+      const { durationSec, live } = await resolveLeaveByDuration(trip, summary, hooks.trafficEnabled());
       const incidents = await officialIncidents(origin.lat, origin.lon, 8).catch(() => []);
-      const copy = leaveByCopy(durationSec, target, new Date(), incidents.length > 0 ? incidents.length : null);
+      const copy = leaveByCopy(durationSec, target, new Date(), incidents.length > 0 ? incidents.length : null, live);
       out.innerHTML = `<strong>${esc(copy.headline)}</strong><span> ${esc(copy.note)}</span>`;
     } catch {
       out.textContent = "Couldn't reach routing for that trip.";

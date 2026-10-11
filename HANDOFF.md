@@ -382,6 +382,8 @@ Read `TASKS.md` top unchecked item. Do not rebase history. Do not rename the pro
   - 279 → 290 tests (11 new in `src/lib/nav-accuracy.test.ts`).
   - **Not done:** voice/lanes are Nard's slots; true map matching, and live ETA measured from the current position mid-drive (TomTom still measures the whole line), are next.
 
+- 2026-10-11 Cursor: Re-rebased open PRs **#32 leave-by**, **#34 reports count**, **#38 docs**, **#39 lane strip** onto `main` @ `0e3779d`. **#32** leave-by duration now goes through `resolveLeaveByDuration()` → ephemeral `RouteBrain` + `fetchTrafficRoute` when Garage Live traffic is on (same `offerFromTraffic` rules as plan/drive). **#46** reroute prompts rebased next; brain wiring for `remainingSec` on that branch.
+
 ## Teammate slots (stable IDs — do not rename)
 
 | Who | Slot | Selector | Where |

@@ -400,6 +400,7 @@ const leaveBy = mountLeaveBy($("#leave-by"), {
   places: () => ({ home: garage.home, work: garage.work, recents: garage.recents ?? [] }),
   origin: () => liveFix?.pos ?? origin,
   avoid: () => garage.avoid,
+  trafficEnabled: () => garage.showTraffic,
 });
 const friends = mountFriends({
   map,
