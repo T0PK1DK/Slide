@@ -117,6 +117,10 @@ src/hud/radar.ts       mini radar, Report sheet, heads-up banner, Nearby list
 src/hud/social.ts      Profile → Friends & followers (sign in, handle, lists, search)
 functions/api/incidents.ts  Pages Function: FDOT DIVAS + Miami-Dade Police (keyless) + FL511 + TomTom Incident Details (if keyed) merged + deduped, per-source status
 functions/api/traffic/[[path]].ts  Pages Function: TomTom proxy (status, flow tiles, incidents, along-route, **route** traffic ETA + speed limits). Secret TOMTOM_API_KEY
+src/lib/reroute.ts     in-drive faster-route decision (thresholds, cooldown, budget). `currentLiveSec` from route-brain; alt times via `fetchTrafficRoute`
+src/lib/reroute.test.ts  thresholds, cooldown, no-key, toggle off, call cap
+src/hud/reroute.ts     glanceable Take it / Keep card above the drive bar
+tools/shoot-reroute.mjs  mobile 390×844 prompt shots (Night / Ember / Sand); mocks only in this script
 functions/api/cameras.ts    Pages Function: OSM enforcement cameras via Overpass (24 h tile cache)
 functions/api/transit.ts    Pages Function: GTFS-realtime buses/trains from TRANSIT_FEEDS secret
 functions/api/geocode.ts    Pages Function: TomTom Fuzzy first, then Photon → Nominatim → US Census
@@ -168,6 +172,9 @@ AGENTS.md / CLAUDE.md  short agent rules
 - Live traffic: FDOT / Miami-Dade / driver icons always (when the map has a centre). Green / yellow / red flow, TomTom Routing traffic ETA, speedLimit sections on the sign, and TomTom incident details need the Pages secret `TOMTOM_API_KEY`. Off in Garage → Live traffic.
 - Native CarPlay requires an iOS app + Apple entitlement — Drive Mode is the phone-mounted stand-in.
 - "Your usual" isn't built yet. Avoid options, multi-stop, and leave-by are done.
+- Leave-by in `#leave-by` (open PR #32). Live traffic: FDOT / Miami-Dade / driver icons always (when the map has a centre). Green / yellow / red flow, TomTom Routing traffic ETA, speedLimit sections on the sign, and TomTom incident details need the Pages secret `TOMTOM_API_KEY`. Off in Garage → Live traffic. In-drive faster-route prompts (#46) need the same key plus Garage → Reroute suggestions (on by default; silenced when Live traffic is off).
+- Native CarPlay requires an iOS app + Apple entitlement — Drive Mode is the phone-mounted stand-in.
+- "Your usual" isn't built yet. Avoid options, multi-stop, and leave-by are done or in PR.
 
 ## Architecture next
 
@@ -388,6 +395,9 @@ Read `TASKS.md` top unchecked item. Do not rebase history. Do not rename the pro
   - **Not done:** voice/lanes are Nard's slots; true map matching, and live ETA measured from the current position mid-drive (TomTom still measures the whole line), are next.
 
 - 2026-10-11 Cursor: Re-rebased open PRs **#32 leave-by**, **#34 reports count**, **#38 docs**, **#39 lane strip** onto `main` @ `0e3779d`. **#32** leave-by duration now goes through `resolveLeaveByDuration()` → ephemeral `RouteBrain` + `fetchTrafficRoute` when Garage Live traffic is on (same `offerFromTraffic` rules as plan/drive). **#46** reroute prompts rebased next; brain wiring for `remainingSec` on that branch.
+- 2026-10-05 Cursor: **In-drive traffic reroute prompts (#46).** Rebased onto `main` with route-brain: `currentLiveSec` = `brain.snapshot().remainingSec` when `snapshot().live`; alt times via `fetchTrafficRoute` (POST `/api/traffic/route`, same as plan). Valhalla alternatives; prompt when real TomTom time saves ≥ max(3 min, 10% remaining). Garage **Reroute suggestions** (default on; off when Live traffic is off).
+
+- 2026-10-11 Cursor: Re-rebased **#32–#39** onto `main`; leave-by + reroute wired through route-brain (see above).
 
 ## Teammate slots (stable IDs — do not rename)
 
@@ -466,7 +476,7 @@ grant execute on function public.delete_my_account() to authenticated;
 2. **Cloudflare Pages `kings-slide`** (account `f52402ec…`). It is a **Direct Upload** project (no Git connection), so Cloudflare never builds the app: `VITE_` values are baked in on the machine that runs `npm run build`, and dashboard env vars never reach the bundle. Server keys are Pages **secrets** read by the Functions at runtime.
    - `VITE_SUPABASE_URL` is in the committed `.env.production` (public value).
    - `VITE_SUPABASE_ANON_KEY` (public by design, `role: anon`) is in `.env.production` too (2026-10-04). The same two values are also stored as Pages secrets for the record, but the bundle only gets them from `.env.production`.
-   - `TOMTOM_API_KEY` (secret, **already set** on kings-slide): free TomTom developer key. Turns on Fuzzy search, Routing traffic ETA + speedLimit sections, the flow layer, TomTom incident details, and live delay. Without it, search falls back to Photon/Nominatim/Census and FDOT / Miami-Dade / driver icons still show; the flow layer stays off. Free tier ≈ 2,500 non-tile + 50k tile requests/day.
+   - `TOMTOM_API_KEY` (secret, **already set** on kings-slide): free TomTom developer key. Turns on Fuzzy search, Routing traffic ETA + speedLimit sections, the flow layer, TomTom incident details, live delay, and in-drive reroute prompts. Without it, search falls back to Photon/Nominatim/Census and FDOT / Miami-Dade / driver icons still show; the flow layer and reroute prompts stay off. Free tier ≈ 2,500 non-tile + 50k tile requests/day.
    - `FL511_API_KEY` (secret, **optional** now that FDOT DIVAS + Miami-Dade Police feed `/api/incidents` without a key): a free key from fl511.com (Developers / API).
    - `TRANSIT_FEEDS` (secret): **set on 2026-10-04** for production and preview, with the three feeds that work without a key (see below).
    - Cameras need no key: they use the public Overpass API with OSM attribution.

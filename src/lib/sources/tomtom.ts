@@ -201,3 +201,28 @@ export function bboxAround(lat: number, lon: number, km: number): string {
   const maxLon = lon + dLon;
   return `${minLon.toFixed(4)},${minLat.toFixed(4)},${maxLon.toFixed(4)},${maxLat.toFixed(4)}`;
 }
+
+export type TomTomRouteSummary = {
+  lengthInMeters?: number;
+  travelTimeInSeconds?: number;
+  trafficDelayInSeconds?: number;
+};
+
+export type TomTomRouteResult = {
+  travelSec: number;
+  delaySec: number;
+  lengthM: number;
+};
+
+/** Pure: one Calculate Route entry → live time, or null without a real travelTime. */
+export function fromTomTomRoute(route: { summary?: TomTomRouteSummary } | null | undefined): TomTomRouteResult | null {
+  const travel = Number(route?.summary?.travelTimeInSeconds);
+  if (!Number.isFinite(travel) || travel <= 0) return null;
+  const delay = Number(route?.summary?.trafficDelayInSeconds);
+  const lengthM = Number(route?.summary?.lengthInMeters);
+  return {
+    travelSec: Math.round(travel),
+    delaySec: Number.isFinite(delay) ? Math.max(0, Math.round(delay)) : 0,
+    lengthM: Number.isFinite(lengthM) && lengthM > 0 ? Math.round(lengthM) : 0,
+  };
+}

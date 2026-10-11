@@ -22,8 +22,13 @@ Work top-down. Check the box in the same PR.
 - [x] **#32 leave-by** uses `resolveLeaveByDuration()` → route-brain + TomTom Routing when Live traffic is on (branch `nard/leave-by`)
 - [ ] When #46 (traffic reroute prompts) lands: read times from `brain.snapshot()` instead of `lastTraffic` (see HANDOFF session log 2026-10-06 route brain)
 - [x] **TomTom search first** — Fuzzy + typeahead suggest in `/api/geocode` + `/api/suggest`, daily ~1,500 search / 2,500 total budget, Photon/Nominatim/Census fallback
+- [x] **Route brain: one ETA, no flip-flop** (King, 2026-10-06) — `src/lib/route-brain.ts`; review/drive/leave-by/reroute read `snapshot()`
+- [x] **New deploys reach the phone** — build stamp, `version.json`, SW update pill (never mid-drive)
+- [x] **#32 leave-by** + **#46 reroute** use route-brain for live times (rebased 2026-10-11)
+- [x] **In-drive traffic reroute prompts** — ~2.5 min + crash/closure on remaining line; TomTom via `fetchTrafficRoute`; Garage → Reroute suggestions
+- [x] **TomTom search first** — Fuzzy + typeahead suggest in `/api/geocode` + `/api/suggest`, daily budget, Photon/Nominatim/Census fallback
 - [x] **TomTom speed limits** — Routing `speedLimit` sections overlay `#limit` when the free tier sends them
-- [x] **TomTom incident details** — merged into `/api/incidents`, deduped with FDOT/Miami-Dade, type + delay + description
+- [x] **TomTom incident details** — merged into `/api/incidents`, deduped with FDOT/Miami-Dade
 - [x] 3+ routes drawn together (Slide / Fastest / No-tolls costings + `alternates`), tap line or bubble to select
 - [x] Tags: Slide pick, Fastest, No tolls (Your usual comes with Phase 2 learning)
 - [x] Tolls flagged per route from Valhalla `has_toll`; "Has tolls" with no price until a price source exists
