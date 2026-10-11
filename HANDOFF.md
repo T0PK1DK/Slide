@@ -49,7 +49,7 @@ src/boot.ts            entry: paints HUD + login gate, warms the map style, then
 src/hud/shell.ts       HUD markup (painted by boot.ts before MapLibre arrives)
 src/map/warm.ts        style fetch + sprite/glyph preload once MapLibre has downloaded (pure warmUrls tested)
 src/plan/failure.ts    offline / no-route / busy / unreachable wording for the Try again sheet (pure)
-src/plan/leaveby.ts    typical duration + 3 min buffer → Leave by copy (pure)
+src/plan/leaveby.ts    `resolveLeaveByDuration()` (route-brain + TomTom when keyed) + Leave by copy (pure)
 src/hud/leaveby.ts     `#leave-by` form in the search card
 src/plan/failure.test.ts  tests for failure wording + warmUrls
 src/main.ts            map + plan + drive loop (HUD listeners)
@@ -164,7 +164,7 @@ AGENTS.md / CLAUDE.md  short agent rules
 - Public Valhalla/Photon can rate-limit. Plan for self-host.
 - Phone demo is live on Cloudflare Pages: https://kings-slide.pages.dev (project `kings-slide`). Do not use slide.pages.dev — that hostname is an unrelated site.
 - Turn-by-turn is the next-maneuver banner plus a lane strip in `#lane-strip` when Valhalla sends `lanes` within 0.75 mi, plus spoken guidance (`speechSynthesis`). Grim's `#drive-mute` owns the button; speech listens for `slide:voice-mute` / `html[data-voice]` and mirrors `slide.voice.v1`. No full step list.
-- Leave-by sits in `#leave-by` on the plan search card: typical Slide-costing Valhalla duration + 3 min buffer. It does not use TomTom live traffic (the trip is later, so today's delay is not tomorrow's) and never invents traffic delay.
+- Leave-by sits in `#leave-by` on the plan search card: Slide-costing Valhalla duration + 3 min buffer; when Garage **Live traffic** is on, duration goes through the same route-brain + TomTom Routing rules as plan (labeled "Live …" in the note). Never invents delay beyond real Routing data.
 - Live traffic: FDOT / Miami-Dade / driver icons always (when the map has a centre). Green / yellow / red flow, TomTom Routing traffic ETA, speedLimit sections on the sign, and TomTom incident details need the Pages secret `TOMTOM_API_KEY`. Off in Garage → Live traffic.
 - Native CarPlay requires an iOS app + Apple entitlement — Drive Mode is the phone-mounted stand-in.
 - "Your usual" isn't built yet. Avoid options, multi-stop, and leave-by are done.
