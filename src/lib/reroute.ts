@@ -1,4 +1,5 @@
 import { haversineMeters } from "./polyline";
+import { fetchTrafficRoute } from "./tomtom-route";
 
 /**
  * In-drive traffic reroute prompts.
