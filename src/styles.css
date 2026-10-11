@@ -431,8 +431,24 @@ button.ghost.on { color: var(--glow); }
   left: auto;
 }
 body[data-mode="drive"] .map-credit {
-  left: var(--gutter);
-  right: auto;
+  top: auto;
+  left: auto;
+  right: var(--gutter);
+  bottom: calc(168px + env(safe-area-inset-bottom));
+}
+@media (min-width: 821px) {
+  .map-credit {
+    top: auto;
+    left: var(--space-4);
+    right: auto;
+    bottom: var(--space-4);
+  }
+  body[data-mode="drive"] .map-credit {
+    top: calc(12px + env(safe-area-inset-top));
+    left: var(--space-4);
+    right: auto;
+    bottom: auto;
+  }
 }
 
 .live-chips {

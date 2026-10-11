@@ -73,6 +73,7 @@ src/voice/             spoken turn-by-turn; listens for `slide:voice-mute`, mirr
 src/hud/report-ui.ts   report glass icons + subtypes (submit still sends kind)
 src/node-fs.d.ts       types for the metrics test
 tools/shoot-screens.mjs  phone/desktop HUD screenshots (390 + 1440)
+tools/shoot-tomtom-design.mjs  before/after shots for the TomTom design pass
 src/lib/valhalla.ts    route / trace
 src/lib/smooth.ts      Slide score + speed bands
 src/lib/polyline.ts    precision-6 decode
