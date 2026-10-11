@@ -464,7 +464,8 @@ body[data-mode="drive"] .map-credit {
 }
 body[data-mode="drive"] .live-chips {
   top: auto;
-  bottom: calc(208px + env(safe-area-inset-bottom));
+  /* Above #reroute-card (desktop bottom 108px, ~140px tall). */
+  bottom: calc(268px + env(safe-area-inset-bottom));
 }
 .live-chips[hidden] { display: none; }
 .glass-chip {
@@ -2559,6 +2560,16 @@ body[data-mode="drive"] .radar-banner { top: calc(112px + env(safe-area-inset-to
   body[data-mode="drive"] .speedo { left: var(--gutter); right: auto; transform: none; text-align: left; }
   .drive-bar { bottom: calc(12px + env(safe-area-inset-bottom)); }
   .reroute-card { bottom: calc(188px + env(safe-area-inset-bottom)); }
+  /* Phone reroute card sits at 188px and wraps ~160px tall; keep credit + chips above it. */
+  body[data-mode="drive"] .map-credit {
+    top: auto;
+    left: auto;
+    right: var(--gutter);
+    bottom: calc(368px + env(safe-area-inset-bottom));
+  }
+  body[data-mode="drive"] .live-chips {
+    bottom: calc(404px + env(safe-area-inset-bottom));
+  }
   .drive-report { bottom: calc(118px + env(safe-area-inset-bottom)); }
   .place-card { left: var(--gutter); right: var(--gutter); width: auto; }
   .recenter { right: var(--gutter); left: auto; width: auto; bottom: calc(118px + env(safe-area-inset-bottom)); }
@@ -2580,9 +2591,14 @@ body[data-mode="drive"] .radar-banner { top: calc(112px + env(safe-area-inset-to
   .review-sheet { left: var(--gutter); right: auto; width: min(360px, 52vw); }
   body[data-mode="drive"] .speedo { left: var(--gutter); right: auto; transform: none; bottom: calc(16px + env(safe-area-inset-bottom)); }
   body[data-mode="drive"] .drive-report { right: var(--gutter); bottom: calc(16px + env(safe-area-inset-bottom)); }
-  body[data-mode="drive"] .map-credit,
   body[data-mode="drive"] .live-chips {
     top: calc(12px + env(safe-area-inset-top));
+    right: var(--gutter);
+    left: auto;
+    bottom: auto;
+  }
+  body[data-mode="drive"] .map-credit {
+    top: calc(100px + env(safe-area-inset-top));
     right: var(--gutter);
     left: auto;
     bottom: auto;
@@ -2814,7 +2830,8 @@ body[data-mode="drive"] .radar-banner { top: calc(112px + env(safe-area-inset-to
     right: auto;
   }
   body.cmd[data-mode="drive"] .map-credit {
-    bottom: calc(148px + env(safe-area-inset-bottom));
+    /* Above #reroute-card (108px + ~140px) in the Command map inset. */
+    bottom: calc(268px + env(safe-area-inset-bottom));
   }
   body.cmd[data-mode="drive"] .live-chips {
     top: 148px;
