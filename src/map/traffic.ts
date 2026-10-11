@@ -49,6 +49,8 @@ export type TrafficView = {
   refresh(): void;
   setEnabled(on: boolean): void;
   restyle(): void;
+  /** Re-add flow/route layers after a basemap `setStyle`. Data/proxy unchanged. */
+  rebind(): void;
   items(): RadarItem[];
   configured(): boolean;
 };
@@ -353,6 +355,7 @@ export function mountTraffic(h: TrafficHooks): TrafficView {
       void poll(true);
     },
     restyle,
+    rebind: () => addLayers(),
     items: () => items,
     configured: () => configured,
   };

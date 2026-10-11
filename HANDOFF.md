@@ -125,6 +125,11 @@ functions/api/cameras.ts    Pages Function: OSM enforcement cameras via Overpass
 functions/api/transit.ts    Pages Function: GTFS-realtime buses/trains from TRANSIT_FEEDS secret
 functions/api/geocode.ts    Pages Function: TomTom Fuzzy first, then Photon → Nominatim → US Census
 functions/api/suggest.ts    Pages Function: search autocomplete (same chain)
+src/lib/tomtom-map.ts      map credit, search-row copy, traffic/ETA chips, TomTom style URL + key-safe rewrite (pure, tested)
+src/lib/tomtom-map.test.ts  credit / rows / chips / style rewrite + garage `tomtomMap` default off
+src/lib/tomtom-style-handler.test.ts  `/api/map/style` 204 without key; proxy path guard
+functions/api/map/style.ts  Pages Function: TomTom vector style JSON, key rewritten onto `/api/map/tt`
+functions/api/map/tt/[[path]].ts  Pages Function: Map Display tiles/glyphs/sprites (secret key; not the traffic proxy)
 src/lib/sources/tomtom.ts  TomTom incident + flow + Search/Routing URL builders (pure, tested)
 src/lib/traffic.ts     status / Routing ETA / along-route / summary / route colour (pure + fetch)
 src/lib/traffic.test.ts  traffic mappers, summary copy, garage toggle
@@ -382,6 +387,7 @@ Read `TASKS.md` top unchecked item. Do not rebase history. Do not rename the pro
   - Tests: `src/lib/route-brain.test.ts` (24: no flip-flop, smoothing, rate limit, fallback/stale, progress scaling, TomTom length check) and `src/lib/update.test.ts` (4). `tools/drive-eta-check.mjs` drives the real app on simulated GPS at 390 px and samples the ETA once a second (`SLIDE_MOCK_ACCOUNT=1` answers Supabase locally in the test browser so no real account is needed).
 
 - 2026-10-11 Cursor: **iPhone safe area (login + viewport).** `min-height: 100dvh` on `html/body/#app` so Home Screen height matches the visible screen; login gate respects `safe-area-inset-top` as well as bottom.
+- 2026-10-11 Grim: **PR 4 — TomTom design pass.** Rebased onto `main` after #32/#34/#38/#39/#52/#46. (1) `#map-credit` owns the legal line (OpenMapTiles/OSM, plus © TomTom when those tiles are on); MapLibre compact attrib is hidden so `#menu-fab` cannot cover it. Plan/review = top-right; phone drive = right stack above `#reroute-card`; landscape drive = top-right; Command = bottom-left of the map, lifted above the drive bar / Leon reroute zone. (2) Garage **TomTom map** toggle (`tomtomMap`, default off) loads TomTom's vector style via `/api/map/style` (secret key, rewritten onto `/api/map/tt`); Night/Ember/Sand tint after load; missing key or a failed style → stay on OpenFreeMap, no toast. Tiles are not counted against the Search/Routing budget. (3) Search rows: name / address / optional haversine distance from the known From pin, 52 px targets, © TomTom only on TomTom hits. Search debounce and request chain unchanged. (4) `#live-chips` — `Traffic +N min` and `Arrives 4:12 PM` from `brain.snapshot()` only; hidden when delay < 45 s or there is no countdown. Right-side / above `#reroute-card`; does not move `#lane-strip` or `#drive-guide`. No auth, traffic-proxy, routing, reroute, or car/game edits.
 
 - 2026-10-08 Claude: **Navigation accuracy (tracking, ETA, best route, speed).** King: tracking glitches, and times "incorrect and inconsistent" vs Apple/Google/Waze, "much slower". Found with magi mode plus a simulated drive (test harness only: fake Valhalla line, 4 mi highway + 2 mi downtown, noisy GPS):
   - **ETA counted distance, not time.** `remaining = total × remaining distance share`, so after 4 mi of highway (6 of 18 min) it said **6 min left** when 12 remained, then stalled downtown. `route-brain.ts` now takes `profile: timeProfileOf(route.maneuvers)` and uses the *time* share (`timeShareAt`). Same harness after the fix: 11 min at mile 4, a steady countdown through downtown.

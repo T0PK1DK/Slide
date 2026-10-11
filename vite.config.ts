@@ -59,6 +59,33 @@ function preloadApp(): Plugin {
   };
 }
 
+/** Local stand-in for /api/map/style + /api/map/tt so `npm run dev` matches Pages. */
+function mapStyleApi(): Plugin {
+  const handle = async (req: { url?: string; method?: string }, res: { statusCode: number; setHeader(k: string, v: string): void; end(s?: string | Buffer): void }, next: () => void) => {
+    const path = req.url?.split("?")[0] ?? "";
+    if (!path.startsWith("/api/map/")) return next();
+    const env = { TOMTOM_API_KEY: process.env.TOMTOM_API_KEY?.trim() };
+    const request = new Request(`https://localhost${req.url ?? "/api/map/style"}`);
+    const out = path === "/api/map/style" || path === "/api/map/style/"
+      ? await (await import("./functions/api/map/style")).onRequestGet({ request, env })
+      : await (await import("./functions/api/map/tt/[[path]]")).onRequestGet({ request, env });
+    res.statusCode = out.status;
+    out.headers.forEach((v, k) => res.setHeader(k, v));
+    if (out.status === 204 || out.status === 404) { res.end(); return; }
+    const buf = Buffer.from(await out.arrayBuffer());
+    res.end(buf);
+  };
+  return {
+    name: "slide-map-style-api",
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => { void handle(req, res, next); });
+    },
+    configurePreviewServer(server) {
+      server.middlewares.use((req, res, next) => { void handle(req, res, next); });
+    },
+  };
+}
+
 /** Local stand-in for functions/api/geocode.ts + /api/suggest so `npm run dev` hits the same chain. */
 function geocodeApi(): Plugin {
   const handle = async (req: { url?: string }, res: { statusCode: number; setHeader(k: string, v: string): void; end(s: string): void }, next: () => void) => {
@@ -92,7 +119,7 @@ export default defineConfig({
     port: 5173,
   },
   define: { __SLIDE_BUILD__: JSON.stringify(BUILD) },
-  plugins: [preloadApp(), geocodeApi(), versionFiles()],
+  plugins: [preloadApp(), geocodeApi(), mapStyleApi(), versionFiles()],
   build: {
     // MapLibre is ~800 kB on its own; keep it in a separate long-cached chunk
     // so an app-only deploy doesn't make phones re-download the map engine.

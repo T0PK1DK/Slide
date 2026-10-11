@@ -47,6 +47,12 @@ export type GarageConfig = {
   showTraffic: boolean;
   /** In-drive faster-route prompts. On by default; ignored when Live traffic is off. */
   suggestReroute: boolean;
+  /**
+   * Opt-in TomTom vector basemap. Off by default — those tiles are billed
+   * separately from Search/Routing. Falls back to OpenFreeMap if the key is
+   * missing or the style fails to load.
+   */
+  tomtomMap: boolean;
 };
 
 const KEY = "slide.garage.v1";
@@ -79,6 +85,7 @@ export const DEFAULT_GARAGE: GarageConfig = {
   shareWithFriends: false,
   showTraffic: true,
   suggestReroute: true,
+  tomtomMap: false,
 };
 
 const CAMERAS: readonly CameraMode[] = ["cinematic", "chase", "top"];
@@ -122,7 +129,7 @@ export function migrateGarage(saved: unknown): GarageConfig {
   const skin = saved.mapSkin === "waze" ? "slide" : saved.mapSkin;
   if (typeof skin === "string" && skin in MAP_STYLES) out.mapSkin = skin as MapSkin;
   if (typeof saved.look === "string" && (LOOKS as readonly string[]).includes(saved.look)) out.look = saved.look as Look;
-  for (const k of ["showGhosts", "showBuildings", "shareGhost", "coachDismissed", "shareWithFriends", "showTraffic", "suggestReroute"] as const) {
+  for (const k of ["showGhosts", "showBuildings", "shareGhost", "coachDismissed", "shareWithFriends", "showTraffic", "suggestReroute", "tomtomMap"] as const) {
     if (typeof saved[k] === "boolean") out[k] = saved[k] as boolean;
   }
   if (Array.isArray(saved.recents)) {
