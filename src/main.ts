@@ -45,7 +45,15 @@ import {
   liftNightBasemap,
   LINE_LAYOUT,
   routeLayerPaints,
+  themeTomTomBasemap,
 } from "./lib/maplook";
+import {
+  arrivalChipText,
+  fetchTomTomStyle,
+  mapCreditLine,
+  suggestRow,
+  trafficChipText,
+} from "./lib/tomtom-map";
 import { lockApp } from "./hud/login";
 import { driverReady, STYLE } from "./boot";
 import { warmedStyle } from "./map/warm";
@@ -190,6 +198,8 @@ let raf = 0;
 let lastTs = 0;
 let streak = 0;
 let styleReady = false;
+let tomtomStyleOn = false;
+let routeHitBound = false;
 const styleQueue: Array<() => void> = [];
 let steps: Step[] = [];
 let cumulative: number[] = [];
@@ -244,16 +254,7 @@ const moreBtn = $("#more");
 type HudMode = "plan" | "review" | "drive" | "arrive";
 let hudMode: HudMode = "plan";
 
-map.on("load", () => {
-  performance.mark("slide-map-load");
-  styleReady = true;
-  liftNightBasemap(map, garage.look);
-  ensure3DBuildings();
-  addRouteLayers();
-  if (hudMode === "drive") applyCamera(garage.camera);
-  else applyPlanView();
-  styleQueue.splice(0).forEach((fn) => fn());
-});
+map.on("load", () => { performance.mark("slide-map-load"); });
 // Timing marks read by the load-time check (and handy in DevTools): style loaded, first full render.
 map.once("idle", () => { performance.mark("slide-map-idle"); document.documentElement.dataset.map = "ready"; });
 map.on("error", () => {
@@ -506,6 +507,64 @@ const rerouteWatch = mountReroute({
     window.setTimeout(() => { if (statusEl.textContent === "New Slide line") setStatus(""); }, 2500);
   },
 });
+map.on("style.load", onBasemapReady);
+if (map.isStyleLoaded()) onBasemapReady();
+void applyBasemap();
+function onBasemapReady() {
+  styleReady = true;
+  if (tomtomStyleOn) themeTomTomBasemap(map, garage.look);
+  else liftNightBasemap(map, garage.look);
+  ensure3DBuildings();
+  addRouteLayers();
+  paintRoutes();
+  traffic.rebind();
+  if (hudMode === "drive") applyCamera(garage.camera);
+  else applyPlanView();
+  paintMapCredit();
+  paintLiveChips();
+  styleQueue.splice(0).forEach((fn) => fn());
+}
+function paintMapCredit() {
+  const line = mapCreditLine({ tomtomBasemap: tomtomStyleOn, tomtomTraffic: garage.showTraffic && Boolean(lastTraffic.live || lastTraffic.line) });
+  const el = $("#map-credit");
+  if (el) el.textContent = line;
+  const cmd = document.querySelector(".cmd-credit");
+  if (cmd) cmd.textContent = `Weather: Open-Meteo · ${line}`;
+}
+function paintLiveChips() {
+  const box = $("#live-chips");
+  const tEl = $("#chip-traffic");
+  const aEl = $("#chip-arrive");
+  if (!box || !tEl || !aEl) return;
+  const s = brain.snapshot();
+  const trafficText = trafficChipText(s);
+  const arriveText = arrivalChipText(s);
+  tEl.hidden = !trafficText;
+  aEl.hidden = !arriveText;
+  if (trafficText) tEl.textContent = trafficText;
+  if (arriveText) aEl.textContent = arriveText;
+  box.hidden = !trafficText && !arriveText;
+}
+async function applyBasemap() {
+  if (!garage.tomtomMap) {
+    if (tomtomStyleOn) {
+      tomtomStyleOn = false;
+      styleReady = false;
+      map.setStyle((warmedStyle() as maplibregl.StyleSpecification | null) ?? STYLE);
+    }
+    paintMapCredit();
+    return;
+  }
+  const style = await fetchTomTomStyle(garage.look);
+  if (!style) {
+    tomtomStyleOn = false;
+    paintMapCredit();
+    return;
+  }
+  tomtomStyleOn = true;
+  styleReady = false;
+  map.setStyle(style as maplibregl.StyleSpecification);
+}
 function applyTrafficHud(s: TrafficSummary) {
   lastTraffic = s;
   const note = $("#review-eta-note");
@@ -522,6 +581,8 @@ function applyTrafficHud(s: TrafficSummary) {
     incidents: traffic.items().slice(0, 4).map(incidentAlert),
   });
   paintEta();
+  paintMapCredit();
+  paintLiveChips();
   if (hudMode === "drive" && sel) {
     updateDriveMeta(sel, progressMi);
     rerouteWatch.tick();
@@ -529,6 +590,7 @@ function applyTrafficHud(s: TrafficSummary) {
 }
 /** Paint the brain's ETA on the review sheet, selected card + map chip, dash and trip sheet. */
 function paintEta() {
+  paintLiveChips();
   const s = brain.snapshot();
   const sel = routes.find((r) => r.id === selectedId);
   if (!sel || !s.routeKey || s.routeKey !== selectedKey) return;
@@ -651,7 +713,10 @@ function setLook(look: Look) {
   if (garage.look === look) return;
   garage.look = look;
   persist();
-  whenStyleReady(() => liftNightBasemap(map, look));
+  whenStyleReady(() => {
+    if (tomtomStyleOn) themeTomTomBasemap(map, look);
+    else liftNightBasemap(map, look);
+  });
   const sel = document.querySelector<HTMLSelectElement>("#g-look");
   if (sel) sel.value = look;
   command.syncLook();
@@ -854,10 +919,14 @@ function wireGarage() {
   const build = $("#g-build") as HTMLInputElement;
   const trafficBox = $("#g-traffic") as HTMLInputElement;
   const rerouteBox = $("#g-reroute") as HTMLInputElement;
+  const tomtomMapBox = $("#g-tomtom-map") as HTMLInputElement;
   const ghostsBox = $("#g-ghosts") as HTMLInputElement;
   const share = $("#g-share") as HTMLInputElement;
   tag.value = garage.tag; trail.value = garage.trail; cam.value = garage.camera;
-  build.checked = garage.showBuildings; trafficBox.checked = garage.showTraffic; rerouteBox.checked = garage.suggestReroute; ghostsBox.checked = garage.showGhosts; share.checked = garage.shareGhost;
+  build.checked = garage.showBuildings; trafficBox.checked = garage.showTraffic;
+  rerouteBox.checked = garage.suggestReroute;
+  tomtomMapBox.checked = garage.tomtomMap;
+  ghostsBox.checked = garage.showGhosts; share.checked = garage.shareGhost;
   const syncRerouteToggle = () => {
     rerouteBox.disabled = !trafficBox.checked;
     $("#g-reroute-row").classList.toggle("is-disabled", !trafficBox.checked);
@@ -875,6 +944,7 @@ function wireGarage() {
     persist();
     traffic.setEnabled(trafficBox.checked);
     syncRerouteToggle();
+    paintMapCredit();
     if (!trafficBox.checked) rerouteWatch.hide("off");
   });
   rerouteBox.addEventListener("change", () => {
@@ -882,6 +952,7 @@ function wireGarage() {
     persist();
     if (!rerouteBox.checked) rerouteWatch.hide("off");
   });
+  tomtomMapBox.addEventListener("change", () => { garage.tomtomMap = tomtomMapBox.checked; persist(); void applyBasemap(); });
   ghostsBox.addEventListener("change", () => { garage.showGhosts = ghostsBox.checked; persist(); setGhostVisibility(garage.showGhosts); });
   share.addEventListener("change", () => { garage.shareGhost = share.checked; persist(); });
   bindBoardToggle(board);
@@ -1096,13 +1167,16 @@ function addRouteLayers() {
   map.addLayer({ id: "route-core", type: "line", source: "routes", layout, paint: paint.core as never });
   // Invisible fat line so a thumb can pick an alternate by tapping it, not just its bubble.
   map.addLayer({ id: "route-hit", type: "line", source: "routes", layout: LINE_LAYOUT, paint: { "line-color": "#000", "line-opacity": 0, "line-width": 28 } });
-  map.on("click", "route-hit", (e) => {
-    if (hudMode !== "review" && hudMode !== "plan") return;
-    const id = e.features?.[0]?.properties?.id;
-    if (typeof id === "string" && id !== selectedId) selectRoute(id);
-  });
-  map.on("mouseenter", "route-hit", () => { map.getCanvas().style.cursor = "pointer"; });
-  map.on("mouseleave", "route-hit", () => { map.getCanvas().style.cursor = ""; });
+  if (!routeHitBound) {
+    routeHitBound = true;
+    map.on("click", "route-hit", (e) => {
+      if (hudMode !== "review" && hudMode !== "plan") return;
+      const id = e.features?.[0]?.properties?.id;
+      if (typeof id === "string" && id !== selectedId) selectRoute(id);
+    });
+    map.on("mouseenter", "route-hit", () => { map.getCanvas().style.cursor = "pointer"; });
+    map.on("mouseleave", "route-hit", () => { map.getCanvas().style.cursor = ""; });
+  }
   map.addLayer({ id: "ghost-trails", type: "line", source: "ghost-trails", paint: { "line-color": ["get", "color"], "line-width": 3, "line-opacity": 0.55, "line-dasharray": [1, 1.2] } });
 }
 function bindSearch(input: HTMLInputElement, box: HTMLElement, onPick: (hit: SearchHit) => void) {
@@ -1161,20 +1235,37 @@ function bindSearch(input: HTMLInputElement, box: HTMLElement, onPick: (hit: Sea
 }
 function renderSuggest(box: HTMLElement, items: SearchHit[], active: number, onPick: (hit: SearchHit) => void) {
   box.innerHTML = "";
+  const from = origin ?? liveFix?.pos ?? null;
   items.forEach((hit, i) => {
+    const row = suggestRow(hit, from);
     const btn = document.createElement("button");
-    btn.textContent = hit.label;
     btn.type = "button";
+    const name = document.createElement("span");
+    name.className = "suggest-name";
+    name.textContent = row.name;
+    btn.appendChild(name);
+    if (row.distance) {
+      const dist = document.createElement("span");
+      dist.className = "suggest-dist";
+      dist.textContent = row.distance;
+      btn.appendChild(dist);
+    }
+    if (row.address) {
+      const addr = document.createElement("span");
+      addr.className = "suggest-addr";
+      addr.textContent = row.address;
+      btn.appendChild(addr);
+    }
+    if (row.credit) {
+      const src = document.createElement("span");
+      src.className = "suggest-src";
+      src.textContent = row.credit;
+      btn.appendChild(src);
+    }
     if (i === active) { btn.classList.add("active"); btn.scrollIntoView({ block: "nearest" }); }
     btn.onclick = () => { onPick(hit); box.hidden = true; };
     box.appendChild(btn);
   });
-  if (items.some((h) => h.source === "tomtom")) {
-    const attr = document.createElement("p");
-    attr.className = "suggest-attr";
-    attr.textContent = "© TomTom";
-    box.appendChild(attr);
-  }
 }
 function stopTracking() {
   tracker?.stop();
@@ -1817,6 +1908,7 @@ function updateDriveMeta(route: SlideRoute | undefined, mi: number) {
     chip.hidden = !lastTraffic.line;
     chip.textContent = lastTraffic.line ?? "";
   }
+  paintLiveChips();
 }
 function setOffRoute(off: boolean) {
   maneuverEl.classList.toggle("off-route", off);

@@ -1,5 +1,6 @@
 import type { Map as MapLibreMap, PaddingOptions } from "maplibre-gl";
 import type { Look } from "./garage";
+import { tomtomPaintForLayer } from "./tomtom-map";
 
 /**
  * "Night network" palette (owner's SEKAI reference, docs/DESIGN.md): near-black
@@ -98,6 +99,26 @@ export function liftNightBasemap(map: MapLibreMap, look: Look = "night"): void {
     map.setLight({ anchor: "viewport", color: "#ffd9a8", intensity: 0.34 });
   } catch {
     // Older styles without a light block.
+  }
+}
+
+type PaintMap = {
+  getStyle(): { layers?: Array<{ id: string; type: string }> };
+  setPaintProperty(id: string, prop: string, value: unknown): void;
+};
+
+/** Tint a loaded TomTom vector style toward Night / Ember / Sand. Unknown layers stay as TomTom painted them. */
+export function themeTomTomBasemap(map: PaintMap, look: Look = "night"): void {
+  const p = PALETTES[look];
+  const layers = map.getStyle()?.layers ?? [];
+  for (const layer of layers) {
+    for (const { prop, value } of tomtomPaintForLayer(layer.id, layer.type, p)) {
+      try {
+        map.setPaintProperty(layer.id, prop, value);
+      } catch {
+        // Style variants omit paint props; fail soft.
+      }
+    }
   }
 }
 

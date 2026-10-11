@@ -38,6 +38,8 @@ html, body, #app {
 }
 .hud { position: absolute; inset: 0; pointer-events: none; z-index: 2; }
 .hud > * { pointer-events: auto; }
+.hud > .map-credit,
+.hud > .live-chips { pointer-events: none; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 
 :where(button, input, select, textarea) { font: inherit; color: inherit; }
@@ -279,21 +281,46 @@ button.ghost.on { color: var(--glow); }
   overflow-y: auto;
 }
 .suggest button {
-  display: block;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: start;
+  column-gap: var(--space-2);
   width: 100%;
   text-align: left;
   background: none;
   border: 0;
   color: var(--text);
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-3);
   font-size: var(--fs-md);
-  min-height: var(--touch);
+  min-height: calc(var(--touch) + var(--space-3));
   cursor: pointer;
 }
 .suggest button.active { background: color-mix(in srgb, var(--glow) 18%, transparent); }
+.suggest-name { font-weight: var(--fw-medium); line-height: var(--lh-snug); }
+.suggest-addr {
+  grid-column: 1;
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  line-height: var(--lh-snug);
+}
+.suggest-dist {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+  color: var(--faint);
+  font-family: var(--mono);
+  font-size: var(--fs-2xs);
+  white-space: nowrap;
+}
+.suggest-src {
+  grid-column: 1 / -1;
+  margin: var(--space-1) 0 0;
+  color: var(--faint);
+  font-size: var(--fs-2xs);
+}
 .suggest-attr {
   margin: 0;
-  padding: 4px var(--space-3) 6px;
+  padding: var(--space-1) var(--space-3) var(--space-2);
   font-size: var(--fs-2xs);
   color: var(--muted);
 }
@@ -380,6 +407,83 @@ button.ghost.on { color: var(--glow); }
 .menu-fab { top: calc(12px + env(safe-area-inset-top)); left: var(--gutter); right: auto; bottom: auto; }
 .compass-fab { left: var(--gutter); right: auto; bottom: calc(96px + env(safe-area-inset-bottom)); }
 .locate-fab { right: var(--gutter); left: auto; bottom: calc(96px + env(safe-area-inset-bottom)); }
+
+/* MapLibre compact attrib hides under #menu-fab; #map-credit is the legal line. */
+.maplibregl-ctrl-attrib,
+.maplibregl-ctrl-logo { display: none; }
+.map-credit {
+  position: absolute;
+  z-index: 2;
+  pointer-events: none;
+  max-width: min(240px, calc(100vw - 72px));
+  margin: 0;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--glass-2);
+  border: 1px solid var(--line);
+  color: var(--faint);
+  font-size: var(--fs-2xs);
+  line-height: var(--lh-snug);
+  backdrop-filter: blur(var(--blur-sm));
+  -webkit-backdrop-filter: blur(var(--blur-sm));
+  top: calc(12px + env(safe-area-inset-top));
+  right: var(--gutter);
+  left: auto;
+}
+body[data-mode="drive"] .map-credit {
+  top: auto;
+  left: auto;
+  right: var(--gutter);
+  bottom: calc(168px + env(safe-area-inset-bottom));
+}
+@media (min-width: 821px) {
+  .map-credit {
+    top: auto;
+    left: var(--space-4);
+    right: auto;
+    bottom: var(--space-4);
+  }
+  body[data-mode="drive"] .map-credit {
+    top: calc(12px + env(safe-area-inset-top));
+    left: var(--space-4);
+    right: auto;
+    bottom: auto;
+  }
+}
+
+.live-chips {
+  position: absolute;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-2);
+  pointer-events: none;
+  top: calc(40px + env(safe-area-inset-top));
+  right: var(--gutter);
+}
+body[data-mode="drive"] .live-chips {
+  top: auto;
+  /* Above #reroute-card (desktop bottom 108px, ~140px tall). */
+  bottom: calc(268px + env(safe-area-inset-bottom));
+}
+.live-chips[hidden] { display: none; }
+.glass-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: calc(var(--touch) - var(--space-2));
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-pill);
+  background: var(--glass-tint), var(--glass-2);
+  border: 1px solid var(--line);
+  color: var(--text);
+  font-size: var(--fs-xs);
+  line-height: var(--lh-snug);
+  backdrop-filter: blur(var(--blur-md));
+  -webkit-backdrop-filter: blur(var(--blur-md));
+  box-shadow: var(--lift);
+}
+.glass-chip[hidden] { display: none; }
 
 /* ---------- Dash / route options ---------- */
 .dash {
@@ -2456,6 +2560,16 @@ body[data-mode="drive"] .radar-banner { top: calc(112px + env(safe-area-inset-to
   body[data-mode="drive"] .speedo { left: var(--gutter); right: auto; transform: none; text-align: left; }
   .drive-bar { bottom: calc(12px + env(safe-area-inset-bottom)); }
   .reroute-card { bottom: calc(188px + env(safe-area-inset-bottom)); }
+  /* Phone reroute card sits at 188px and wraps ~160px tall; keep credit + chips above it. */
+  body[data-mode="drive"] .map-credit {
+    top: auto;
+    left: auto;
+    right: var(--gutter);
+    bottom: calc(368px + env(safe-area-inset-bottom));
+  }
+  body[data-mode="drive"] .live-chips {
+    bottom: calc(404px + env(safe-area-inset-bottom));
+  }
   .drive-report { bottom: calc(118px + env(safe-area-inset-bottom)); }
   .place-card { left: var(--gutter); right: var(--gutter); width: auto; }
   .recenter { right: var(--gutter); left: auto; width: auto; bottom: calc(118px + env(safe-area-inset-bottom)); }
@@ -2477,6 +2591,18 @@ body[data-mode="drive"] .radar-banner { top: calc(112px + env(safe-area-inset-to
   .review-sheet { left: var(--gutter); right: auto; width: min(360px, 52vw); }
   body[data-mode="drive"] .speedo { left: var(--gutter); right: auto; transform: none; bottom: calc(16px + env(safe-area-inset-bottom)); }
   body[data-mode="drive"] .drive-report { right: var(--gutter); bottom: calc(16px + env(safe-area-inset-bottom)); }
+  body[data-mode="drive"] .live-chips {
+    top: calc(12px + env(safe-area-inset-top));
+    right: var(--gutter);
+    left: auto;
+    bottom: auto;
+  }
+  body[data-mode="drive"] .map-credit {
+    top: calc(100px + env(safe-area-inset-top));
+    right: var(--gutter);
+    left: auto;
+    bottom: auto;
+  }
 }
 
 @media (max-width: 1099px) {
@@ -2697,6 +2823,21 @@ body[data-mode="drive"] .radar-banner { top: calc(112px + env(safe-area-inset-to
   body.cmd .menu-fab,
   body.cmd .compass-fab,
   body.cmd .locate-fab { display: none; }
+  body.cmd .map-credit {
+    top: auto;
+    bottom: 28px;
+    left: var(--space-3);
+    right: auto;
+  }
+  body.cmd[data-mode="drive"] .map-credit {
+    /* Above #reroute-card (108px + ~140px) in the Command map inset. */
+    bottom: calc(268px + env(safe-area-inset-bottom));
+  }
+  body.cmd[data-mode="drive"] .live-chips {
+    top: 148px;
+    bottom: auto;
+    right: var(--space-4);
+  }
   body.cmd .cmd-rail h2 { font-size: var(--fs-md); font-weight: var(--fw-medium); }
 
   body.cmd .cmd-stack {

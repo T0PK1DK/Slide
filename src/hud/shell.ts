@@ -9,6 +9,7 @@ export const HUD_HTML = `
   <div class="vignette"></div>
   <div class="hud">
     <button class="map-fab menu-fab plan-only" id="menu-fab" type="button" aria-label="Menu">☰</button>
+    <p id="map-credit" class="map-credit" aria-label="Map credits"></p>
     <button class="map-fab compass-fab plan-only" id="compass-fab" type="button" aria-label="North up">
       <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M12 3l4 14-4-2-4 2z" fill="currentColor"/></svg>
     </button>
@@ -75,6 +76,10 @@ export const HUD_HTML = `
       </div>
       <div id="lane-strip" class="lane-strip" data-slot="lane-strip" hidden aria-label="Lane guidance"></div>
       <div class="panel posted-chip" id="posted" hidden></div>
+    </div>
+    <div id="live-chips" class="live-chips" hidden>
+      <span id="chip-traffic" class="glass-chip" hidden></span>
+      <span id="chip-arrive" class="glass-chip" hidden></span>
     </div>
     <div class="panel review-sheet review-only" id="review-sheet" hidden>
       <div class="route-carousel" id="route-carousel" aria-label="Route choices">
@@ -196,6 +201,7 @@ export const HUD_HTML = `
       <label>Ride</label><div class="rides" id="g-rides" role="radiogroup" aria-label="Choose your ride"></div>
       <label>Livery</label><div class="liveries" id="g-livery" role="radiogroup" aria-label="Livery"></div>
       <label>Theme</label><select id="g-look"><option value="night">Night</option><option value="ember">Ember</option><option value="sand">Sand</option></select>
+      <div class="toggle"><span>TomTom map<small>Vector basemap. Off by default — tiles billed separately.</small></span><input id="g-tomtom-map" type="checkbox" /></div>
       <label>Tag</label><input id="g-tag" type="text" maxlength="12" />
       <label>Paint</label><div class="swatches" id="g-body"></div>
       <label>Accent glow</label><div class="swatches" id="g-glow"></div>
