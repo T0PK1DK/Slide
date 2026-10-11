@@ -52,6 +52,7 @@ import { warmedStyle } from "./map/warm";
 import { mountProfile } from "./hud/profile";
 import { ago, type RadarItem } from "./lib/reports";
 import { mountRadar } from "./hud/radar";
+import { mountLeaveBy } from "./hud/leaveby";
 import { mountFriends } from "./map/friends";
 import { mountTraffic } from "./map/traffic";
 import type { Alert } from "./lib/alerts";
@@ -395,6 +396,12 @@ const radar = mountRadar({
   openProfile: () => profileSheet.open(),
 });
 $("#drive-report").addEventListener("click", () => radar.openReport());
+const leaveBy = mountLeaveBy($("#leave-by"), {
+  places: () => ({ home: garage.home, work: garage.work, recents: garage.recents ?? [] }),
+  origin: () => liveFix?.pos ?? origin,
+  avoid: () => garage.avoid,
+  trafficEnabled: () => garage.showTraffic,
+});
 const friends = mountFriends({
   map,
   getFix: () => liveFix,
@@ -548,6 +555,7 @@ void driverReady.then((driver) => {
   // Session restore may have switched the account owner after this module loaded.
   garage = loadGarage();
   applyTheme(garage);
+  leaveBy.refresh(); // the restored account may have different Home / Work / recents
   // A new driver's car tag seeds the garage; after that the garage tag is theirs to change.
   if (garage.tag === "SLIDE-01" && driver.tag !== "SLIDE-01") {
     garage.tag = driver.tag;
@@ -602,6 +610,7 @@ function persist() {
   const chip = document.querySelector("#rank-chip");
   if (chip) chip.textContent = garage.tag;
   refreshPlaceChips();
+  leaveBy.refresh();
 }
 function openGarage(on: boolean) {
   garageEl.classList.toggle("open", on);
@@ -616,6 +625,7 @@ function rememberRecent(hit: { label: string; lon: number; lat: number }) {
   garage.recents = recents;
   persist();
   renderRecents();
+  leaveBy.refresh();
 }
 function renderRecents() {
   const box = $("#recents");
