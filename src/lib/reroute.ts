@@ -338,7 +338,6 @@ export async function tomtomRouteTime(q: {
   dest: LonLat;
   supporting?: Array<[number, number]>;
 }): Promise<LiveTravel | null> {
-  const { fetchTrafficRoute } = await import("./tomtom-route");
   const line = q.supporting && q.supporting.length >= 2 ? sampleSupporting(q.supporting, 40) : null;
   const points = line
     ? line.map(([lon, lat]) => ({ lat, lon }))
