@@ -63,11 +63,16 @@ export function renderSocial(box: HTMLElement, local: DriverProfile, share: Shar
       const d = new FormData(e.target as HTMLFormElement);
       const username = String(d.get("username") ?? "");
       const password = String(d.get("password") ?? "");
+      const btn = box.querySelector<HTMLButtonElement>(".pf-save");
+      if (btn) btn.disabled = true;
       try {
         if (up) await signUpWithUsername(username, password);
         else await signInWithUsername(username, password);
         await load();
-      } catch (err) { fail(err); }
+      } catch (err) {
+        if (btn) btn.disabled = false;
+        fail(err);
+      }
     });
     box.querySelector("[data-mode]")?.addEventListener("click", () => { mode = up ? "in" : "up"; signedOut(); });
   };
@@ -140,10 +145,13 @@ export function renderSocial(box: HTMLElement, local: DriverProfile, share: Shar
         window.clearTimeout(timer);
         timer = window.setTimeout(async () => {
           const out = box.querySelector<HTMLElement>(".sc-results")!;
+          const q = input.value.trim();
+          if (q.length < 2) { out.innerHTML = ""; return; }
+          out.innerHTML = `<li class="pf-note">Searching…</li>`;
           try {
             const found = (await searchDrivers(input.value)).filter((p) => p.id !== me.id);
             const rel = new Map(net.map((n) => [n.id, n]));
-            out.innerHTML = found.map((p) => personRow({ ...p, ...(rel.get(p.id) ?? { following: false, followsYou: false }) })).join("") || (input.value.trim().length >= 2 ? `<li class="pf-note">No drivers found.</li>` : "");
+            out.innerHTML = found.map((p) => personRow({ ...p, ...(rel.get(p.id) ?? { following: false, followsYou: false }) })).join("") || `<li class="pf-note">No drivers found.</li>`;
             bindPeople(out);
           } catch (err) { fail(err); }
         }, 300);

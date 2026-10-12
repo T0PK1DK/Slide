@@ -83,6 +83,13 @@ export function reportsAroundYouLabel(n: number): string {
   return n === 1 ? "1 report around you" : `${n} reports around you`;
 }
 
+/** Nearby-list copy. Don't say "nothing" while the first poll is still in flight. */
+export function radarEmptyCopy(opts: { hasFix: boolean; loaded: boolean }): string {
+  if (!opts.loaded) return "Looking around you…";
+  if (!opts.hasFix) return "Turn on location to see what's around you.";
+  return "Nothing reported within 1.5 mi.";
+}
+
 /**
  * Pure: place items on a heading-up radar. x/y are -1..1 (edge = `rangeMi`),
  * y negative = ahead. "Ahead" = within ±35° of your heading.

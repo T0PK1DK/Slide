@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EMPTY, isEmptyValue, postedSignText, setMaybeEmpty } from "./empty";
+import { EMPTY, isEmptyValue, postedSignText, SEARCH, setMaybeEmpty, suggestStatusText } from "./empty";
 
 describe("empty value styling", () => {
   it("treats placeholder copy as empty, not a real numeral", () => {
@@ -33,5 +33,11 @@ describe("empty value styling", () => {
     expect(postedSignText(undefined)).toBe("--");
     expect(postedSignText(35)).toBe("35");
     expect(postedSignText(null)).not.toBe(EMPTY.posted);
+  });
+
+  it("explains search suggest loading and empty, never a blank list", () => {
+    expect(suggestStatusText("loading")).toBe(SEARCH.loading);
+    expect(suggestStatusText("empty")).toBe(SEARCH.empty);
+    expect(SEARCH.empty).toBe("No match, try adding the city");
   });
 });

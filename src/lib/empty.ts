@@ -35,3 +35,13 @@ export function setMaybeEmpty(el: HTMLElement, value: string): void {
 export function postedSignText(mph: number | null | undefined): string {
   return mph ? String(mph) : "--";
 }
+
+/** Search-suggest status. Never hide the list with no explanation. */
+export const SEARCH = {
+  loading: "Searching…",
+  empty: "No match, try adding the city",
+} as const;
+
+export function suggestStatusText(state: "loading" | "empty"): string {
+  return state === "loading" ? SEARCH.loading : SEARCH.empty;
+}

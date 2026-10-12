@@ -133,12 +133,14 @@ export function renderAccount(gate: HTMLElement, onReady: Done, mode: "in" | "up
     const password = String(data.get("password") ?? "");
     const btn = form.querySelector<HTMLButtonElement>(".login-go")!;
     btn.disabled = true;
+    btn.textContent = up ? "Creating…" : "Signing in…";
     showError(err, "");
     try {
       if (up) await signUpWithUsername(username, password);
       else await signInWithUsername(username, password);
     } catch (ex) {
       btn.disabled = false;
+      btn.textContent = up ? "Create account" : "Sign in";
       return showError(err, ex instanceof Error ? ex.message : "That didn't work. Try again.");
     }
     afterAccount(gate, onReady);

@@ -56,7 +56,7 @@ src/main.ts            map + plan + drive loop (HUD listeners)
 src/styles.css         HUD stylesheet (tokens → base → components → screens)
 src/styles/tokens.css  Night / Ember / Sand tokens (only file with raw hex)
 src/styles/system.test.ts  design-system metrics (hex, radii, type, !important)
-src/lib/empty.ts       empty-state copy (never "—"); `.is-empty` helper; unsigned sign `--`
+src/lib/empty.ts       empty-state copy (never "—"); `.is-empty` helper; unsigned sign `--`; search suggest loading/empty
 src/lib/empty.test.ts  placeholder vs numeral + postedSignText
 src/lib/place.ts       Photon label → name + address
 src/lib/geocode.ts     address parse + TomTom-first / Photon / Nominatim / Census chain (tested)
@@ -109,7 +109,7 @@ src/hud/profile.ts     Profile sheet: driver, My car, all-time stats, places, pr
 src/lib/cloud.ts       optional Supabase client (persistSession, autoRefreshToken; detectSessionInUrl off, no emailed links)
 src/lib/cloud.test.ts  tests for the auth client flags
 src/lib/social.ts      profiles, follow/unfollow, friends, search (sign-in lives in account.ts)
-src/lib/reports.ts     radar items, heading-up geometry, alerts, report/vote RPCs, reports-around-you count
+src/lib/reports.ts     radar items, heading-up geometry, alerts, report/vote RPCs, reports-around-you count, nearby empty/loading copy
 src/lib/sources/fl511.ts  FL511 event → radar item (pure, tested)
 src/lib/sources/fdot.ts   FDOT DIVAS event → radar item, South Florida query URL (pure, tested)
 src/lib/sources/mdpd.ts   Miami-Dade Police traffic call → radar item, Miami local time → UTC (pure, tested)
@@ -405,6 +405,12 @@ Read `TASKS.md` top unchecked item. Do not rebase history. Do not rename the pro
 - 2026-10-05 Cursor: **In-drive traffic reroute prompts (#46).** Rebased onto `main` with route-brain: `currentLiveSec` = `brain.snapshot().remainingSec` when `snapshot().live`; alt times via `fetchTrafficRoute` (POST `/api/traffic/route`, same as plan). Valhalla alternatives; prompt when real TomTom time saves ≥ max(3 min, 10% remaining). Garage **Reroute suggestions** (default on; off when Live traffic is off).
 
 - 2026-10-11 Cursor: Re-rebased **#32–#39** onto `main`; leave-by + reroute wired through route-brain (see above).
+
+- 2026-10-12 Nard: **UI fix-up** (branch `nard/ui-fixup`). No backend, no new features, keys stay in Pages secrets.
+  - **Broken buttons:** Save Home/Work from the menu with no dest now opens the search card so the error is visible. Report with no GPS opens a sheet instead of a silent no-op. Sign-in / Create / Profile sign-in / Leave-by disable the submit while the request runs. Primary/ghost `:disabled` is now faded.
+  - **iPhone layout:** `100dvh` shell; login scrolls when the keyboard covers the card; Garage max-height + scroll; place card no longer sits on the Where to? pill (pill hides, FABs lift); overflow menu 44 px rows + max-height scroll; Me / close / loc-close / overflow hits are `--touch`.
+  - **Loading / empty / error:** suggest shows "Searching…" then "No match, try adding the city"; Nearby says "Looking around you…" until the first poll; driver search shows "Searching…"; boot map-chunk failure adds `.show` so the status pill is actually visible.
+  - Stale TASKS box for `#lane-strip` overlap marked done (already fixed in #39). No scoring-contract change.
 
 ## Teammate slots (stable IDs — do not rename)
 

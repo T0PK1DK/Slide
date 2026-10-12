@@ -26,7 +26,7 @@ import { bubbleCandidates, mergeVariantTrips, pickFree, tollLabel, variantsFor }
 import { dropIndex, MAX_STOPS, moveItem, stopsReached } from "./plan/stops";
 import { classifyFailure, type FailWhat } from "./plan/failure";
 import { cardAriaLabel, routeCards } from "./plan/review-cards";
-import { EMPTY, postedSignText, setMaybeEmpty } from "./lib/empty";
+import { EMPTY, postedSignText, SEARCH, setMaybeEmpty } from "./lib/empty";
 import { splitPlaceLabel } from "./lib/place";
 import { mountVoiceMute } from "./hud/voice-mute";
 import { resetVoice, startVoice, stopVoice, tickVoice } from "./voice";
@@ -879,7 +879,11 @@ function applyPlanView() {
   else applyCamera(garage.camera);
 }
 function savePlace(slot: "home" | "work") {
-  if (!dest) { showError("Set a destination first, then save it as Home or Work."); return; }
+  if (!dest) {
+    $("#search-card").classList.add("open");
+    showError("Set a destination first, then save it as Home or Work.");
+    return;
+  }
   garage[slot] = { label: destLabel || toInput.value, lon: dest.lon, lat: dest.lat };
   persist();
   refreshPlaceChips();
@@ -1198,12 +1202,18 @@ function bindSearch(input: HTMLInputElement, box: HTMLElement, onPick: (hit: Sea
       inflight?.abort();
       inflight = new AbortController();
       const mine = inflight;
+      box.hidden = false;
+      box.innerHTML = `<p class="suggest-status">${SEARCH.loading}</p>`;
       try {
         items = await searchPlaces(input.value, origin ?? MIAMI, { signal: mine.signal });
         if (mine.signal.aborted) return;
         active = -1;
-        draw();
-        box.hidden = items.length === 0;
+        if (!items.length) {
+          box.innerHTML = `<p class="suggest-status">${SEARCH.empty}</p>`;
+          box.hidden = false;
+        } else {
+          draw();
+        }
         if (netWhat === "search") hideFailure();
       } catch (err) {
         if (mine.signal.aborted || (err instanceof DOMException && err.name === "AbortError")) return;
