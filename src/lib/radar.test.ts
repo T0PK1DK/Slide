@@ -6,6 +6,7 @@ import {
   nextAlert,
   offsetMi,
   radarBlips,
+  radarEmptyCopy,
   reportsAroundYouLabel,
   type RadarItem,
 } from "./reports";
@@ -70,6 +71,12 @@ describe("reports around you", () => {
   it("hides when there is nothing real nearby", () => {
     expect(countReportsAroundYou([], you, 1.5)).toBe(0);
     expect(reportsAroundYouLabel(countReportsAroundYou([], you, 1.5))).toBe("");
+  });
+
+  it("does not say nothing nearby while the first poll is still running", () => {
+    expect(radarEmptyCopy({ hasFix: true, loaded: false })).toBe("Looking around you…");
+    expect(radarEmptyCopy({ hasFix: true, loaded: true })).toBe("Nothing reported within 1.5 mi.");
+    expect(radarEmptyCopy({ hasFix: false, loaded: true })).toBe("Turn on location to see what's around you.");
   });
 });
 

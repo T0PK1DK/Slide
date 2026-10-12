@@ -59,5 +59,8 @@ if (import.meta.env.PROD) watchForUpdates();
 void import("./main").catch(() => {
   // The app chunk failed to download (dropped connection mid-load). Say so instead of a dead HUD.
   const s = document.querySelector("#status");
-  if (s) s.textContent = "Couldn't load the map. Check your signal and reload.";
+  if (s) {
+    s.textContent = "Couldn't load the map. Check your signal and reload.";
+    s.classList.add("show");
+  }
 });

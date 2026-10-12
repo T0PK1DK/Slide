@@ -80,6 +80,8 @@ export function mountLeaveBy(el: HTMLElement, hooks: LeaveByHooks): { refresh():
       return;
     }
     const dest: LonLat = { lon: Number(picked.dataset.lon), lat: Number(picked.dataset.lat) };
+    const btn = el.querySelector<HTMLButtonElement>('#lb-form button[type="submit"]');
+    if (btn) btn.disabled = true;
     out.hidden = false;
     out.textContent = `Checking the typical time to ${picked.dataset.label ?? "that place"}…`;
     try {
@@ -96,6 +98,8 @@ export function mountLeaveBy(el: HTMLElement, hooks: LeaveByHooks): { refresh():
       out.innerHTML = `<strong>${esc(copy.headline)}</strong><span> ${esc(copy.note)}</span>`;
     } catch {
       out.textContent = "Couldn't reach routing for that trip.";
+    } finally {
+      if (btn) btn.disabled = false;
     }
   });
 

@@ -5,6 +5,7 @@ import {
   nextAlert,
   countReportsAroundYou,
   officialIncidents,
+  radarEmptyCopy,
   reportsAroundYouLabel,
   radarBlips,
   REPORT_KINDS,
@@ -150,7 +151,7 @@ export function mountRadar(h: RadarHooks): RadarView {
     const rows = blips.length
       ? blips.map((b) => `<li class="rs-item"><span class="rb-dot ${b.kind}"></span><div><b>${esc(b.title)}</b><span>${b.distMi.toFixed(1)} mi${b.ahead ? " ahead" : ""}${b.createdAt ? ` · ${ago(b.createdAt)}` : ""} · ${esc(b.detail)}</span>
           ${b.reportId !== null ? `<div class="rs-votes"><button type="button" data-vote="${b.reportId}" data-yes="1">Still there</button><button type="button" data-vote="${b.reportId}" data-yes="0">Not there</button></div>` : ""}</div></li>`).join("")
-      : `<li class="rs-empty">${fix ? "Nothing reported within 1.5 mi." : "Turn on location to see what's around you."}</li>`;
+      : `<li class="rs-empty">${esc(radarEmptyCopy({ hasFix: Boolean(fix), loaded: lastPollAt > 0 }))}</li>`;
     sheet.innerHTML = `<div class="rs-card">
       <header><h2>${esc(aroundLabel || "Radar")}</h2><button type="button" class="rs-close" aria-label="Close">×</button></header>
       <p class="rs-src">Driver reports${cloudConfigured() ? "" : " (accounts not set up on this build)"} · official incidents from FDOT and Miami-Dade Police (FL511 when keyed) · cameras mapped in OpenStreetMap (may be incomplete) · live buses and trains where agencies publish them. Slide never tracks police vehicles; police items are reports from other drivers.</p>
@@ -177,7 +178,13 @@ export function mountRadar(h: RadarHooks): RadarView {
 
   const openReport = async () => {
     const fix = h.getFix();
-    if (!fix) return;
+    if (!fix) {
+      sheet.innerHTML = `<div class="rs-card"><header><h2>Report</h2><button type="button" class="rs-close" aria-label="Close">×</button></header>
+        <p class="rs-src">Waiting for your location. Turn location on, then try Report again.</p></div>`;
+      sheet.hidden = false;
+      sheet.querySelector(".rs-close")!.addEventListener("click", closeSheet);
+      return;
+    }
     if (!cloudConfigured() || !(await currentUserId().catch(() => null))) {
       sheet.innerHTML = `<div class="rs-card"><header><h2>Report</h2><button type="button" class="rs-close" aria-label="Close">×</button></header>
         <p class="rs-src">${cloudConfigured() ? "Sign in on your Profile to report, so reports stay trustworthy." : "Reporting turns on once Slide accounts are set up on this build."}</p>
