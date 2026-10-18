@@ -86,18 +86,21 @@ describe("brand normalization", () => {
 
 describe("modelKey fallback", () => {
   it("uses the brand key when Leon has a model, else generic-category", () => {
+    expect(KNOWN_STORE_MODELS).toHaveLength(BRANDS.length);
+    expect(KNOWN_STORE_MODELS).toEqual(BRANDS.map((b) => b.brandKey));
     expect(KNOWN_STORE_MODELS).toContain("walmart");
+    expect(KNOWN_STORE_MODELS).toContain("kroger");
     expect(storeModelKey("walmart", "grocery")).toBe("walmart");
-    expect(storeModelKey("kroger", "grocery")).toBe("generic-grocery");
+    expect(storeModelKey("kroger", "grocery")).toBe("kroger");
     expect(storeModelKey("joes-fuel", "fuel")).toBe("generic-fuel");
-    const unknown = storeFromOsm({
+    const kroger = storeFromOsm({
       type: "node",
       id: 1,
       lat: 25.8,
       lon: -80.2,
       tags: { name: "Kroger", shop: "supermarket" },
     });
-    expect(unknown?.modelKey).toBe("generic-grocery");
+    expect(kroger?.modelKey).toBe("kroger");
     const known = storeFromOsm({
       type: "node",
       id: 2,

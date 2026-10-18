@@ -20,6 +20,7 @@ import {
   HOLOGRAM_MODEL_KEYS,
 } from "./keys";
 import { registerSlideModels, resetSlideModelsForTests } from "./register";
+import { BRANDS, KNOWN_STORE_MODELS } from "../lib/stores/brands";
 import { hasBrandModel, resolveGhostCarKey, resolveHologramModelKey } from "./resolve";
 import { estimateStoreTriangles, storeRecipe, storeSignature } from "./store-meshes";
 import { ghostCarSignature } from "./car-meshes";
@@ -63,6 +64,8 @@ describe("hologram model registry", () => {
 
   it("covers Nard's 32 chains plus one generic per category and *", () => {
     expect(HOLOGRAM_BRAND_KEYS).toHaveLength(32);
+    expect(HOLOGRAM_BRAND_KEYS).toEqual(KNOWN_STORE_MODELS);
+    expect(HOLOGRAM_BRAND_KEYS).toEqual(BRANDS.map((b) => b.brandKey));
     expect(GENERIC_MODEL_KEYS).toEqual([
       "generic-grocery",
       "generic-pharmacy",

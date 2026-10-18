@@ -1,38 +1,7 @@
-/** Nard's ~32 US chains from docs/DATA_SHAPES.md (`BRANDS` on #55). */
-export const HOLOGRAM_BRAND_KEYS = [
-  "walmart",
-  "target",
-  "costco",
-  "kroger",
-  "publix",
-  "whole-foods",
-  "aldi",
-  "trader-joes",
-  "safeway",
-  "albertsons",
-  "cvs",
-  "walgreens",
-  "rite-aid",
-  "shell",
-  "exxon",
-  "chevron",
-  "bp",
-  "circle-k",
-  "wawa",
-  "7-eleven",
-  "mcdonalds",
-  "burger-king",
-  "wendys",
-  "taco-bell",
-  "chick-fil-a",
-  "subway",
-  "chipotle",
-  "starbucks",
-  "dunkin",
-  "home-depot",
-  "lowes",
-  "best-buy",
-] as const;
+import { BRANDS } from "../lib/stores/brands";
+
+/** Nard's US chains — derived from `BRANDS` so this and `KNOWN_STORE_MODELS` can't drift. */
+export const HOLOGRAM_BRAND_KEYS = BRANDS.map((b) => b.brandKey);
 
 export type HologramBrandKey = (typeof HOLOGRAM_BRAND_KEYS)[number];
 
@@ -75,37 +44,6 @@ export const GHOST_CAR_ALIASES: Record<string, GhostCarKey> = {
   default: "default",
 };
 
-export const BRAND_CATEGORY: Record<HologramBrandKey, string> = {
-  walmart: "grocery",
-  target: "retail",
-  costco: "grocery",
-  kroger: "grocery",
-  publix: "grocery",
-  "whole-foods": "grocery",
-  aldi: "grocery",
-  "trader-joes": "grocery",
-  safeway: "grocery",
-  albertsons: "grocery",
-  cvs: "pharmacy",
-  walgreens: "pharmacy",
-  "rite-aid": "pharmacy",
-  shell: "fuel",
-  exxon: "fuel",
-  chevron: "fuel",
-  bp: "fuel",
-  "circle-k": "fuel",
-  wawa: "fuel",
-  "7-eleven": "retail",
-  mcdonalds: "fast_food",
-  "burger-king": "fast_food",
-  wendys: "fast_food",
-  "taco-bell": "fast_food",
-  "chick-fil-a": "fast_food",
-  subway: "fast_food",
-  chipotle: "fast_food",
-  starbucks: "coffee",
-  dunkin: "coffee",
-  "home-depot": "retail",
-  lowes: "retail",
-  "best-buy": "retail",
-};
+export const BRAND_CATEGORY: Record<string, string> = Object.fromEntries(
+  BRANDS.map((b) => [b.brandKey, b.category]),
+);

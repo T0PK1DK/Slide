@@ -3,7 +3,7 @@ import type { Brand, StoreCategory } from "./types";
 /**
  * ~30 major US chains. Matching uses `brand:wikidata` first (name-suggestion-index
  * / OSM), then `brand` / `name` aliases. Colors are the usual public brand hex.
- * Leon expands `KNOWN_STORE_MODELS` when a 3D store exists.
+ * `KNOWN_STORE_MODELS` is derived from this list so it stays in lockstep with Leon's holograms.
  */
 export const BRANDS: readonly Brand[] = [
   { brandKey: "walmart", name: "Walmart", color: "#0071ce", wikidata: "Q483551", wikidataIds: ["Q483551"], category: "grocery", aliases: ["walmart", "wal-mart", "walmart supercenter", "walmart neighborhood market"], nsi: "shop/supermarket|Walmart", logoFile: "Walmart_logo.svg" },
@@ -40,19 +40,8 @@ export const BRANDS: readonly Brand[] = [
   { brandKey: "best-buy", name: "Best Buy", color: "#0046be", wikidata: "Q533415", wikidataIds: ["Q533415"], category: "retail", aliases: ["best buy", "bestbuy"], nsi: "shop/electronics|Best Buy" },
 ];
 
-/** Brand keys Leon has (or will ship) a dedicated 3D store for. Everything else is generic. */
-export const KNOWN_STORE_MODELS: readonly string[] = [
-  "walmart",
-  "target",
-  "publix",
-  "starbucks",
-  "mcdonalds",
-  "shell",
-  "wawa",
-  "home-depot",
-  "cvs",
-  "walgreens",
-];
+/** Brand keys Leon has a dedicated 3D store for. Derived from `BRANDS` so the two can't drift. */
+export const KNOWN_STORE_MODELS: readonly string[] = BRANDS.map((b) => b.brandKey);
 
 const CATEGORY_COLOR: Record<StoreCategory, string> = {
   grocery: "#3d8b37",
