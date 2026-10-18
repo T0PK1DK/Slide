@@ -94,14 +94,17 @@ function mapStyleApi(): Plugin {
  * /api/places can reuse Nard's tile + place cache without editing functions/.
  */
 function memoryCache() {
-  const bag = new Map<string, Response>();
+  const bag = new Map<string, { body: string; type: string }>();
   return {
     async match(req: Request) {
       const hit = bag.get(req.url);
-      return hit?.clone();
+      if (!hit) return undefined;
+      return new Response(hit.body, { headers: { "content-type": hit.type } });
     },
     async put(req: Request, res: Response) {
-      bag.set(req.url, res.clone());
+      const type = res.headers.get("content-type") ?? "application/json";
+      const body = await res.text();
+      bag.set(req.url, { body, type });
     },
   };
 }

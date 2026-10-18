@@ -44,8 +44,8 @@ const GARAGE = {
   shareWithFriends: false,
 };
 
-/** Downtown Fort Lauderdale — dense OSM chains, same as the look demo. */
-const FTL = { lon: -80.1372, lat: 26.1224, zoom: 14.35 };
+/** Downtown Fort Lauderdale — dense OSM chains. */
+const FTL = { lon: -80.1372, lat: 26.1224, zoom: 14.9 };
 
 async function shot(page, name) {
   const file = path.join(outDir, `${name}.png`);
@@ -75,8 +75,11 @@ try {
   await page.waitForFunction(() => document.documentElement.dataset.map === "ready", { timeout: 45000 });
   await page.waitForFunction(() => Boolean(window.slideLookLive), { timeout: 15000 });
   await page.evaluate((ftl) => {
+    document.querySelector(".login")?.remove();
     document.getElementById("search-card")?.classList.remove("open");
+    document.getElementById("search-card")?.setAttribute("hidden", "");
     document.getElementById("coach")?.setAttribute("hidden", "");
+    document.getElementById("status")?.classList.remove("show");
     window.slideLookLive.flyTo(ftl.lon, ftl.lat, ftl.zoom);
   }, FTL);
 
@@ -92,21 +95,30 @@ try {
     throw new Error(`no live stores after wait (status=${kind} ${text})`);
   }
 
-  await new Promise((r) => setTimeout(r, 1200));
-  await shot(page, "live-pins-night");
-
-  const opened = await page.evaluate(async () => {
+  const pick = await page.evaluate((ftl) => {
     const stores = window.slideLookLive.stores();
-    const pick =
-      stores.find((s) => s.brandKey === "walmart") ||
+    const branded =
       stores.find((s) => s.brandKey === "publix") ||
+      stores.find((s) => s.brandKey === "mcdonalds") ||
       stores.find((s) => s.brandKey === "starbucks") ||
+      stores.find((s) => s.brandKey === "walgreens") ||
       stores.find((s) => s.name) ||
       stores[0];
-    if (!pick) return null;
-    await window.slideLookLive.showStore(pick.id);
-    return pick.name;
-  });
+    if (branded) window.slideLookLive.flyTo(branded.lon, branded.lat, 15.45);
+    else window.slideLookLive.flyTo(ftl.lon, ftl.lat, 15.2);
+    return branded ? { id: branded.id, name: branded.name, brandKey: branded.brandKey } : null;
+  }, FTL);
+  await page.waitForFunction(() => (window.slideLookLive?.stores()?.length ?? 0) > 0, { timeout: 20000 });
+  await new Promise((r) => setTimeout(r, 1800));
+  await shot(page, "live-pins-night");
+
+  const opened = await page.evaluate(async (picked) => {
+    const stores = window.slideLookLive.stores();
+    const store = (picked && stores.find((s) => s.id === picked.id)) || stores[0];
+    if (!store) return null;
+    await window.slideLookLive.showStore(store.id);
+    return store.name;
+  }, pick);
   if (!opened) throw new Error("could not open a live store card");
   await page.waitForSelector("#look-place-card:not([hidden])", { timeout: 15000 });
   await new Promise((r) => setTimeout(r, 1600));
