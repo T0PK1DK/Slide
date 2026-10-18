@@ -107,7 +107,7 @@ export function pinBadgeSvg(store: Pick<Store, "brand" | "brandKey" | "name" | "
   const known = hasBundledMark(store);
   const glyph = known
     ? `<text x="12" y="16.2" text-anchor="middle" font-size="11" font-weight="700" font-family="system-ui,sans-serif" fill="${ink}">${letter}</text>`
-    : `<g fill="none" stroke="${ink}" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" transform="translate(0,.4)">${categoryIconPath(store.category)}</g>`;
+    : `<path d="${categoryIconPath(store.category)}" fill="none" stroke="${ink}" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>`;
   return `<svg viewBox="0 0 24 24" width="24" height="24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
   <circle cx="12" cy="12" r="11" fill="${color}"/>
   <circle cx="12" cy="12" r="10.2" fill="none" stroke="${ink}" stroke-opacity=".28" stroke-width="1"/>

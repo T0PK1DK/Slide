@@ -15,7 +15,7 @@ describe("store pin marks", () => {
     const store = { name: "Corner Mart", category: "other" as const };
     expect(hasBundledMark(store)).toBe(false);
     expect(pinColor(store)).toBe("#8a8f98");
-    expect(pinBadgeSvg(store)).toContain("stroke=");
+    expect(pinBadgeSvg(store)).toContain("<path d=");
     expect(pinBadgeSvg(store)).not.toContain(">C<");
   });
 

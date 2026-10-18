@@ -56,7 +56,7 @@ try {
   await new Promise((r) => setTimeout(r, 600));
   await shot(night, "ghosts-night");
 
-  await night.evaluate(() => window.slideLook.zoom(12.2));
+  await night.evaluate(() => window.slideLook.zoom(13.15));
   await new Promise((r) => setTimeout(r, 700));
   await shot(night, "clusters-night");
   await night.close();
