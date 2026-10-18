@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en" data-look="night">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Slide look</title>
+    <meta name="theme-color" content="#07080a" />
+    <link rel="preconnect" href="https://tiles.openfreemap.org" crossorigin />
+  </head>
+  <body>
+    <div id="look-app">
+      <div id="map" role="application" aria-label="Look demo map"></div>
+      <div class="look-vignette" aria-hidden="true"></div>
+      <div class="look-chrome">
+        <header class="look-top">
+          <p class="look-wordmark panel">Slide look</p>
+          <div class="look-seg panel" role="group" aria-label="Theme">
+            <button type="button" data-look-btn="night" class="on">Night</button>
+            <button type="button" data-look-btn="day">Day</button>
+          </div>
+        </header>
+        <div class="look-status panel" id="look-status">Fixtures · not live OSM</div>
+        <div id="look-hud"></div>
+        <footer class="look-demo-bar panel" id="look-triggers">
+          <button type="button" data-trigger="stopped">Stopped</button>
+          <button type="button" data-trigger="destination" class="primary">At destination</button>
+          <button type="button" data-trigger="close">Close</button>
+        </footer>
+      </div>
+    </div>
+    <script type="module" src="/src/look/demo.ts"></script>
+  </body>
+</html>

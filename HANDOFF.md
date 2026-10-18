@@ -74,6 +74,15 @@ src/hud/report-ui.ts   report glass icons + subtypes (submit still sends kind)
 src/node-fs.d.ts       types for the metrics test
 tools/shoot-screens.mjs  phone/desktop HUD screenshots (390 + 1440)
 tools/shoot-tomtom-design.mjs  before/after shots for the TomTom design pass
+src/look/               store/place/hologram look (types, fixtures, marks, hologram hook, demo)
+src/look/types.ts       Store / PlaceInfo / Ghost shapes mirroring Nard's docs/DATA_SHAPES.md
+src/hud/place-card.ts   bottom-sheet place card (empty states, hologram slot)
+src/map/store-pins.ts   clustered brand pins
+src/map/ghost-car.ts    friend ghost-car markers (visual only)
+look.html               look demo (`?look=day`, `?place=`, `?empty=1`)
+tools/shoot-look.mjs    390×844 shots → docs/look/
+docs/LOOK.md            components, fixtures ↔ Nard, Leon hologram hook
+CLAUDE_NEXT.md          next-agent notes for Leon / Nard / HUD wire-up
 src/lib/valhalla.ts    route / trace
 src/lib/smooth.ts      Slide score + speed bands
 src/lib/polyline.ts    precision-6 decode
@@ -415,6 +424,8 @@ Read `TASKS.md` top unchecked item. Do not rebase history. Do not rename the pro
 - 2026-10-11 Cursor: Re-rebased **#32–#39** onto `main`; leave-by + reroute wired through route-brain (see above).
 
 - 2026-10-18 Cursor: **Wishlist backend (King GO).** Data only — Grim keeps pins/place cards, Leon keeps 3D stores + ghost cars. (1) OSM stores via Overpass: tiled bbox/route, 1 h cache, 429 backoff, brand normalize from `brand:wikidata` / NSI names, ~32 US chains in `src/lib/stores/brands.ts`. `/api/stores`. (2) Precise live ghosts on existing Supabase (no Durable Object): invite/accept, RLS + Realtime on `ghosts`, 2–5 s throttle, latest point + 45 s TTL, pause/stop deletes the row. Migration `…_ghost_sharing.sql` — Nard must paste it. (3) PlaceInfo from Wikidata/Commons + OSM hours, `/api/places`, 24 h cache. Contract in `docs/DATA_SHAPES.md`. No HUD, no paid APIs, no secrets. Tests cover brand normalize, modelKey fallback, throttle/TTL, privacy.
+- 2026-10-18 Grim: **Slide look** (branch `grim/slide-look-pins-cards`). Store pins (brand monogram + category fallback, MapLibre clusters), place card sheet with empty states, hologram slot + `registerHologramRenderer` for Leon, ghost-car markers. Fixtures match Nard's Store / PlaceInfo / Ghost. Demo `/look.html`. Did not touch `functions/**`, `src/lib/place.ts`, `src/lib/ghosts.ts`, `src/lib/presence.ts`, `src/lib/social.ts`, or `supabase/**`. Depends on Nard's wishlist backend PR for live data. No scoring-contract change.
+
 - 2026-10-12 Nard: **UI fix-up** (branch `nard/ui-fixup`). No backend, no new features, keys stay in Pages secrets.
   - **Broken buttons:** Save Home/Work from the menu with no dest now opens the search card so the error is visible. Report with no GPS opens a sheet instead of a silent no-op. Sign-in / Create / Profile sign-in / Leave-by disable the submit while the request runs. Primary/ghost `:disabled` is now faded.
   - **iPhone layout:** `100dvh` shell; login scrolls when the keyboard covers the card; Garage max-height + scroll; place card no longer sits on the Where to? pill (pill hides, FABs lift); overflow menu 44 px rows + max-height scroll; Me / close / loc-close / overflow hits are `--touch`.

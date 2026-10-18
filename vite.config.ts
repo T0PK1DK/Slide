@@ -1,7 +1,10 @@
 import { execSync } from "node:child_process";
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { defineConfig, type Plugin } from "vite";
+
+const here = fileURLToPath(new URL(".", import.meta.url));
 
 /**
  * Build stamp: short commit + build time. Shown in Garage and Profile so the
@@ -125,6 +128,10 @@ export default defineConfig({
     // so an app-only deploy doesn't make phones re-download the map engine.
     chunkSizeWarningLimit: 1100,
     rollupOptions: {
+      input: {
+        main: resolve(here, "index.html"),
+        look: resolve(here, "look.html"),
+      },
       output: {
         manualChunks: (id) => {
           if (id.includes("node_modules/maplibre-gl")) return "maplibre";
