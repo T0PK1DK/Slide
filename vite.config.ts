@@ -89,6 +89,105 @@ function mapStyleApi(): Plugin {
   };
 }
 
+/**
+ * In-memory stand-in for Cloudflare `caches.default` so local /api/stores and
+ * /api/places can reuse Nard's tile + place cache without editing functions/.
+ */
+function memoryCache() {
+  const bag = new Map<string, Response>();
+  return {
+    async match(req: Request) {
+      const hit = bag.get(req.url);
+      return hit?.clone();
+    },
+    async put(req: Request, res: Response) {
+      bag.set(req.url, res.clone());
+    },
+  };
+}
+
+/** Local stand-in for /api/stores + /api/places so `npm run dev` hits Overpass / Wikidata. */
+function storesPlacesApi(): Plugin {
+  const cache = memoryCache();
+  const waitUntil = (p: Promise<unknown>) => {
+    void p.catch(() => undefined);
+  };
+  const handle = async (
+    req: { url?: string; method?: string },
+    res: { statusCode: number; setHeader(k: string, v: string): void; end(s?: string): void },
+    next: () => void,
+  ) => {
+    const path = req.url?.split("?")[0] ?? "";
+    if (path !== "/api/stores" && path !== "/api/places") return next();
+    const url = `https://localhost${req.url ?? path}`;
+    try {
+      if (path === "/api/stores") {
+        const { parseStoresRequest, loadStoresForRequest } = await import("./src/lib/stores/handler");
+        const { STORE_CACHE_TTL_SEC } = await import("./src/lib/stores/overpass");
+        const parsed = parseStoresRequest(url);
+        if ("error" in parsed) {
+          res.statusCode = 200;
+          res.setHeader("content-type", "application/json");
+          res.end(JSON.stringify({ error: parsed.error }));
+          return;
+        }
+        const { items, error } = await loadStoresForRequest(parsed, { cache, waitUntil });
+        res.statusCode = 200;
+        res.setHeader("content-type", "application/json");
+        res.setHeader("cache-control", `public, max-age=${error && !items.length ? 60 : STORE_CACHE_TTL_SEC}`);
+        res.end(JSON.stringify({ items, source: "OpenStreetMap", ...(error ? { error } : {}) }));
+        return;
+      }
+      const { loadPlaceInfo, PLACE_CACHE_TTL_SEC } = await import("./src/lib/place-info");
+      const u = new URL(url);
+      const storeId = u.searchParams.get("storeId")?.trim();
+      if (!storeId) {
+        res.statusCode = 200;
+        res.setHeader("content-type", "application/json");
+        res.end(JSON.stringify({ error: "storeId required" }));
+        return;
+      }
+      const info = await loadPlaceInfo(
+        {
+          storeId,
+          brandKey: u.searchParams.get("brandKey") ?? undefined,
+          wikidata: u.searchParams.get("wikidata") ?? undefined,
+          hours: u.searchParams.get("hours") ?? undefined,
+          website: u.searchParams.get("website") ?? undefined,
+        },
+        { cache, waitUntil },
+      );
+      res.statusCode = 200;
+      res.setHeader("content-type", "application/json");
+      res.setHeader("cache-control", `public, max-age=${PLACE_CACHE_TTL_SEC}`);
+      res.end(JSON.stringify(info));
+    } catch {
+      res.statusCode = 200;
+      res.setHeader("content-type", "application/json");
+      res.end(
+        JSON.stringify(
+          path === "/api/stores"
+            ? { items: [], error: "Overpass unreachable", source: "OpenStreetMap" }
+            : { storeId: "", photos: [] },
+        ),
+      );
+    }
+  };
+  return {
+    name: "slide-stores-places-api",
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        void handle(req, res, next);
+      });
+    },
+    configurePreviewServer(server) {
+      server.middlewares.use((req, res, next) => {
+        void handle(req, res, next);
+      });
+    },
+  };
+}
+
 /** Local stand-in for functions/api/geocode.ts + /api/suggest so `npm run dev` hits the same chain. */
 function geocodeApi(): Plugin {
   const handle = async (req: { url?: string }, res: { statusCode: number; setHeader(k: string, v: string): void; end(s: string): void }, next: () => void) => {
@@ -122,7 +221,7 @@ export default defineConfig({
     port: 5173,
   },
   define: { __SLIDE_BUILD__: JSON.stringify(BUILD) },
-  plugins: [preloadApp(), geocodeApi(), mapStyleApi(), versionFiles()],
+  plugins: [preloadApp(), geocodeApi(), mapStyleApi(), storesPlacesApi(), versionFiles()],
   build: {
     // MapLibre is ~800 kB on its own; keep it in a separate long-cached chunk
     // so an app-only deploy doesn't make phones re-download the map engine.

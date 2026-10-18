@@ -43,4 +43,14 @@ describe("place card", () => {
     expect(html).toContain(PLACE_EMPTY.photos);
     expect(html).toContain("aria-disabled");
   });
+
+  it("shimmers photos and copy while place info is loading", () => {
+    const store = LOOK_FIXTURES.stores.find((s) => s.brandKey === "walmart")!;
+    const model = placeCardModel(store, undefined, { loading: true });
+    expect(model.photosLoading).toBe(true);
+    expect(model.descriptionLoading).toBe(true);
+    const html = placeCardHtml(model);
+    expect(html).toContain("look-photos is-loading");
+    expect(html).toContain("look-desc is-loading");
+  });
 });

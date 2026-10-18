@@ -1,9 +1,8 @@
 /**
- * Mirror of Nard's contract in docs/DATA_SHAPES.md (wishlist backend PR).
- * Any field can be missing — the look layer must empty-state, never crash.
- * Keep this file aligned when Nard's types land on main. Do not import from
- * `src/lib/stores`, `src/lib/place-info`, `src/lib/live-ghosts`, or
- * `src/lib/ghosts.ts` until that PR merges; swap fixtures for his hooks then.
+ * Defensive mirror of Nard's contract in docs/DATA_SHAPES.md.
+ * Live HUD code reads `src/lib/stores`, `src/lib/place-info`, and
+ * `src/lib/live-ghosts`. These optional fields stay so fixtures, the demo
+ * page, and missing OSM tags still empty-state instead of crashing.
  */
 
 export const STORE_CATEGORIES = [

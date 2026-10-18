@@ -74,9 +74,13 @@ src/hud/report-ui.ts   report glass icons + subtypes (submit still sends kind)
 src/node-fs.d.ts       types for the metrics test
 tools/shoot-screens.mjs  phone/desktop HUD screenshots (390 + 1440)
 tools/shoot-tomtom-design.mjs  before/after shots for the TomTom design pass
-src/look/               store/place/hologram look (types, fixtures, marks, hologram hook, demo)
-src/look/types.ts       Store / PlaceInfo / Ghost shapes mirroring Nard's docs/DATA_SHAPES.md
-src/hud/place-card.ts   bottom-sheet place card (empty states, hologram slot)
+src/look/               store/place/hologram look (types, fixtures, marks, hologram hook, demo, live HUD)
+src/look/types.ts       defensive Store / PlaceInfo / Ghost (fixtures); live code uses src/lib
+src/look/store-feed.ts  client tile/place cache, debounce, status copy for /api/stores + /api/places
+src/look/live.ts        HUD wire-up: pins, place sheet, hologram, watchLiveGhosts
+src/look/components.css shared sheet / hologram / ghost styles (tokens)
+src/look/live.css       live HUD status pill, skeleton pins, card shimmer
+src/hud/place-card.ts   bottom-sheet place card (empty states, hologram slot, loading shimmer)
 src/map/store-pins.ts   clustered brand pins
 src/map/ghost-car.ts    friend ghost-car markers (visual only; 3D via `mountGhostCar`)
 src/models/             procedural store holograms + ghost-car hulls (Leon)
@@ -86,8 +90,9 @@ src/models/store-meshes.ts  low-poly storefront recipes (shape + color, no logos
 src/models/car-meshes.ts    sedan / SUV / pickup / sports / default
 src/models/register.ts  `registerSlideModels()` → Grim hologram + ghost hooks
 look.html               look demo (`?look=day`, `?place=`, `?empty=1`)
-tools/shoot-look.mjs    390×844 shots → docs/look/
-docs/LOOK.md            components, fixtures ↔ Nard, Leon hologram hook
+tools/shoot-look.mjs    390×844 fixture shots → docs/look/
+tools/shoot-look-live.mjs  390×844 live OSM pin + card shots → docs/look/
+docs/LOOK.md            live HUD (/api/stores, /api/places), fixtures on /look.html, Leon hologram hook
 docs/MODELS.md          hologram / ghost keys and how to add one
 CLAUDE_NEXT.md          next-agent notes for Leon / Nard / HUD wire-up
 src/lib/valhalla.ts    route / trace
@@ -434,6 +439,8 @@ Read `TASKS.md` top unchecked item. Do not rebase history. Do not rename the pro
 - 2026-10-18 Grim: **Slide look** (branch `grim/slide-look-pins-cards`). Store pins (brand monogram + category fallback, MapLibre clusters), place card sheet with empty states, hologram slot + `registerHologramRenderer` for Leon, ghost-car markers. Fixtures match Nard's Store / PlaceInfo / Ghost. Demo `/look.html`. Did not touch `functions/**`, `src/lib/place.ts`, `src/lib/ghosts.ts`, `src/lib/presence.ts`, `src/lib/social.ts`, or `supabase/**`. Depends on Nard's wishlist backend PR for live data. No scoring-contract change.
 
 - 2026-10-18 Leon: **Store hologram + ghost car models** (branch `cursor/slide-hologram-ghost-models-b14a`, on Grim #56). Procedural low-poly three.js holograms for Nard's 32 US chains + `generic-<category>` + `"*"`, and ghost hulls sedan / SUV / pickup / sports / default mapped from garage `carModelKey`. Registers through `registerHologramRenderer` / `registerGhostCarRenderer`. Shared fill+edge materials, dispose on cleanup, SVG if WebGL is missing. Did not edit backend files (`functions/**`, `src/lib/stores/**`, `src/lib/live-ghosts/**`, `supabase/**`). Merge after #55 and #56. No scoring-contract change.
+
+- 2026-10-18 Grim: **Look live data** (branch `grim/slide-look-live-data`). Wired store pins, `#look-place-card`, and Leon's hologram slot in the real HUD to Nard's `/api/stores` + `/api/places`. Debounce 600 ms, zoom ≥ 12, 8 min tile cache, 30 min place cache, skeleton pins + card shimmer, empty/error pills, never blocks the map. Fixtures stay on `/look.html` + tests. Live ghost cars subscribe to `watchLiveGhosts` when accounts are configured; otherwise none (rough friends presence unchanged). Vite stand-in for the two endpoints; did not rewrite `functions/**` or `src/lib/stores/**`. No scoring-contract change.
 
 - 2026-10-12 Nard: **UI fix-up** (branch `nard/ui-fixup`). No backend, no new features, keys stay in Pages secrets.
   - **Broken buttons:** Save Home/Work from the menu with no dest now opens the search card so the error is visible. Report with no GPS opens a sheet instead of a silent no-op. Sign-in / Create / Profile sign-in / Leave-by disable the submit while the request runs. Primary/ghost `:disabled` is now faded.

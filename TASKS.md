@@ -12,6 +12,7 @@ Work top-down. Check the box in the same PR.
 - [x] **Grim PR 3:** polish — desktop drive top row + End vs map stack, `.is-empty` placeholders, Sand map/surfaces, unsigned `--` speed-limit sign
 - [x] **Grim PR 4:** TomTom design pass — map credit clear of `#menu-fab` / drive bar / reroute zone, opt-in TomTom vector basemap (Night/Ember/Sand, silent fallback), two-line search rows, traffic + arrival chips from the route brain
 - [x] **Grim look:** store pins, place cards, hologram slot for Leon, ghost-car markers — fixtures matching Nard's shapes, demo `/look.html`, shots in `docs/look/` (depends on Nard's wishlist backend PR for live OSM/ghosts)
+- [x] **Grim look live:** pins / place sheet / hologram on the real HUD via `/api/stores` + `/api/places` (debounce, tile cache, skeleton, empty/error). Fixtures stay on `/look.html`. Live ghosts via `watchLiveGhosts` when accounts are on.
 - [x] **Leon models:** store holograms (32 chains + generics + `*`) and ghost-car hulls — `src/models/`, `docs/MODELS.md`, registers on Grim's hologram hook (merge after #55 + #56)
 - [ ] Phase 4/5: 3D living map — garage car on Explore, "Miami driven %" (on-device), Effort icons on the route
 - [x] Presence design (friends' cars, opt-in) — King GO 2026-10-18: invite/accept live ghosts (`src/lib/live-ghosts`, Supabase RLS + Realtime). Rough ~1 km presence stays as-is.

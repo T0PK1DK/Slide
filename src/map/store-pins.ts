@@ -89,6 +89,7 @@ export type StorePinsHandle = {
   select(id: string | null): void;
   selected(): string | null;
   storeById(id: string): Store | undefined;
+  setVisible(on: boolean): void;
   destroy(): void;
 };
 
@@ -108,6 +109,7 @@ export function mountStorePins(hooks: StorePinsHooks): StorePinsHandle {
   let stores: Store[] = [];
   const byId = new Map<string, Store>();
   let selected: string | null = null;
+  let visible = true;
   let holo: maplibregl.Marker | null = null;
   let disposeHolo: HologramDispose | null = null;
   let bound = false;
@@ -132,7 +134,7 @@ export function mountStorePins(hooks: StorePinsHooks): StorePinsHandle {
     disposeHolo = null;
     holo?.remove();
     holo = null;
-    if (!selected) return;
+    if (!selected || !visible) return;
     const store = byId.get(selected);
     const lngLat = store ? storeLngLat(store) : null;
     if (!store || !lngLat) return;
@@ -148,6 +150,10 @@ export function mountStorePins(hooks: StorePinsHooks): StorePinsHandle {
     const src = map.getSource(STORE_SOURCE) as maplibregl.GeoJSONSource | undefined;
     if (src) src.setData(fc);
     if (selected && !byId.has(selected)) selected = null;
+    const vis = visible ? "visible" : "none";
+    for (const id of [STORE_LAYER_CLUSTERS, STORE_LAYER_COUNT, STORE_LAYER_PINS, STORE_LAYER_HALO]) {
+      if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", vis);
+    }
     if (map.getLayer(STORE_LAYER_HALO)) {
       map.setFilter(STORE_LAYER_HALO, ["==", ["get", "id"], selected ?? ""]);
     }
@@ -292,6 +298,16 @@ export function mountStorePins(hooks: StorePinsHooks): StorePinsHandle {
     },
     selected: () => selected,
     storeById: (id) => byId.get(id),
+    setVisible(on) {
+      visible = on;
+      if (!on) {
+        disposeHolo?.();
+        disposeHolo = null;
+        holo?.remove();
+        holo = null;
+      }
+      whenStyle(map, apply);
+    },
     destroy() {
       disposeHolo?.();
       holo?.remove();
