@@ -1,6 +1,7 @@
 import maplibregl from "maplibre-gl";
 import { vehicleSvg } from "../lib/vehicles";
 import { ghostLngLat, ghostName, type Ghost } from "../look/types";
+import { mountGhostCar, type GhostCarDispose } from "../models/ghost-renderer";
 
 export type GhostCarsHandle = {
   setGhosts(ghosts: Ghost[]): void;
@@ -34,8 +35,11 @@ export function ghostCarHtml(ghost: Ghost): string {
 
 export function mountGhostCars(map: maplibregl.Map): GhostCarsHandle {
   let markers: maplibregl.Marker[] = [];
+  let cars: GhostCarDispose[] = [];
 
   const clear = () => {
+    for (const dispose of cars) dispose();
+    cars = [];
     for (const m of markers) m.remove();
     markers = [];
   };
@@ -52,6 +56,18 @@ export function mountGhostCars(map: maplibregl.Map): GhostCarsHandle {
         el.setAttribute("role", "img");
         el.setAttribute("aria-label", `${label} on the map`);
         el.innerHTML = ghostCarHtml(g);
+        const slot = el.querySelector<HTMLElement>(".look-ghost-car");
+        const color = g.color && /^#([0-9a-fA-F]{6})$/.test(g.color) ? g.color : "#f0a04b";
+        if (slot) {
+          cars.push(
+            mountGhostCar(slot, {
+              carModelKey: g.carModelKey || "default",
+              color,
+              headingDeg: Number.isFinite(g.headingDeg) ? g.headingDeg : 0,
+              speedMps: Number.isFinite(g.speedMps) ? g.speedMps : 0,
+            }),
+          );
+        }
         markers.push(new maplibregl.Marker({ element: el, anchor: "center" }).setLngLat(lngLat).addTo(map));
       }
     },

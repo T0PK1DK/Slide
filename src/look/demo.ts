@@ -2,10 +2,13 @@ import maplibregl from "maplibre-gl";
 import { mountPlaceCard, shouldOpenPlaceCard } from "../hud/place-card";
 import { liftNightBasemap } from "../lib/maplook";
 import { mountGhostCars } from "../map/ghost-car";
+import { registerSlideModels } from "../models";
 import { mountStorePins } from "../map/store-pins";
 import { LOOK_FIXTURES, placeFor } from "./fixtures";
 import "./look.css";
 import type { Store } from "./types";
+
+registerSlideModels();
 
 export type LookTheme = "night" | "day";
 
