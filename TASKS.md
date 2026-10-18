@@ -12,7 +12,7 @@ Work top-down. Check the box in the same PR.
 - [x] **Grim PR 3:** polish — desktop drive top row + End vs map stack, `.is-empty` placeholders, Sand map/surfaces, unsigned `--` speed-limit sign
 - [x] **Grim PR 4:** TomTom design pass — map credit clear of `#menu-fab` / drive bar / reroute zone, opt-in TomTom vector basemap (Night/Ember/Sand, silent fallback), two-line search rows, traffic + arrival chips from the route brain
 - [ ] Phase 4/5: 3D living map — garage car on Explore, "Miami driven %" (on-device), Effort icons on the route
-- [ ] Presence design (friends' cars, opt-in) before any backend
+- [x] Presence design (friends' cars, opt-in) — King GO 2026-10-18: invite/accept live ghosts (`src/lib/live-ghosts`, Supabase RLS + Realtime). Rough ~1 km presence stays as-is.
 - [ ] Phase 3: `rankRoutes()` = least Effort within +10% of fastest (today it has no time bound)
 
 ## Phase 1 — Better routes (owner prompt, 2026-09-25)
@@ -61,7 +61,10 @@ Work top-down. Check the box in the same PR.
 - [ ] Later: FDOT WZDx work zones
 - [x] Live buses/trains on the radar (GTFS-realtime via TRANSIT_FEEDS) — Broward, Tri-Rail, Brightline live; Miami-Dade waits on a Swiftly key
 - [x] Speed / red-light cameras on the radar (OpenStreetMap via Overpass)
+- [x] OSM chain stores near the view/route (`/api/stores`, brand table + NSI/wikidata, tiled Overpass cache) — Grim pins, Leon `modelKey`
+- [x] Place info + photos (`/api/places`, Wikidata/Commons/OSM only, cached)
 - [x] Friends on the map: opt-in, server-rounded ~1 km, mutual friends only, 15 min expiry, one-tap stop, hidden while driving
+- [x] Live friend ghosts (wishlist backend, 2026-10-18): opt-in, invite/accept, 2–5 s throttle, 45 s TTL, latest point only. Apply `supabase/migrations/20261018000000_ghost_sharing.sql`. Leon draws the cars.
 - [ ] Real pace ghost: record your own GPS run per route and replay it (replaces the removed fake ghosts)
 
 ## Phase 2–5 (not started): save + learn, transit/walk/bike, home sheet, worker features — see the owner prompt in the 2026-09-25 session log
@@ -107,8 +110,8 @@ Work top-down. Check the box in the same PR.
 
 - [x] Record local ghost of last GO in localStorage and replay as YOU
 - [ ] Replay *your* last ghost against the new run
-- [ ] Sketch `src/lib/presence.ts` with `GhostSample` wire format (`tag`, `color`, `lon`, `lat`, `bearing`, `t`, `routeHash`)
-- [ ] Do not build a full multiplayer backend until P0 is done
+- [x] Live ghost wire format (`src/lib/live-ghosts`): `Ghost` `{ userId, displayName, carModelKey, color, lat, lon, headingDeg, speedMps, updatedAt }` — see `docs/DATA_SHAPES.md`
+- [x] Wishlist backend (King GO): OSM stores + place photos + private live ghosts. No HUD. Grim/Leon consume the hooks.
 
 ## Game layer (Leon — DESIGN-RESEARCH §4 step 4)
 

@@ -38,8 +38,9 @@ export function samplesFromLine(coords: [number, number][]): GhostSample[] {
  * No invented drivers. The old seedGhosts() put fake cars ("NOVA", "KITE",
  * "VEX", plus a pretend "you") on every route as if they were real people.
  * Ghosts come back only from real data: your own recorded run on the same
- * route (pace ghost), or opt-in friends once presence exists (docs/STRATEGY.md).
- * Persist under scopedKey("slide.ghosts.v1") so they stay private to the account.
+ * route (pace ghost), or opt-in friends via `src/lib/live-ghosts` (invite/accept,
+ * latest point + TTL). Persist under scopedKey("slide.ghosts.v1") so they stay
+ * private to the account.
  */
 
 export function stepGhost(g: GhostCar, dt: number): GhostSample {
