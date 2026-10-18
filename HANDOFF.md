@@ -78,10 +78,17 @@ src/look/               store/place/hologram look (types, fixtures, marks, holog
 src/look/types.ts       Store / PlaceInfo / Ghost shapes mirroring Nard's docs/DATA_SHAPES.md
 src/hud/place-card.ts   bottom-sheet place card (empty states, hologram slot)
 src/map/store-pins.ts   clustered brand pins
-src/map/ghost-car.ts    friend ghost-car markers (visual only)
+src/map/ghost-car.ts    friend ghost-car markers (visual only; 3D via `mountGhostCar`)
+src/models/             procedural store holograms + ghost-car hulls (Leon)
+src/models/keys.ts      Nard's 32 brand keys + generics + car aliases
+src/models/resolve.ts   brand → generic-<category> → *
+src/models/store-meshes.ts  low-poly storefront recipes (shape + color, no logos)
+src/models/car-meshes.ts    sedan / SUV / pickup / sports / default
+src/models/register.ts  `registerSlideModels()` → Grim hologram + ghost hooks
 look.html               look demo (`?look=day`, `?place=`, `?empty=1`)
 tools/shoot-look.mjs    390×844 shots → docs/look/
 docs/LOOK.md            components, fixtures ↔ Nard, Leon hologram hook
+docs/MODELS.md          hologram / ghost keys and how to add one
 CLAUDE_NEXT.md          next-agent notes for Leon / Nard / HUD wire-up
 src/lib/valhalla.ts    route / trace
 src/lib/smooth.ts      Slide score + speed bands
@@ -425,6 +432,8 @@ Read `TASKS.md` top unchecked item. Do not rebase history. Do not rename the pro
 
 - 2026-10-18 Cursor: **Wishlist backend (King GO).** Data only — Grim keeps pins/place cards, Leon keeps 3D stores + ghost cars. (1) OSM stores via Overpass: tiled bbox/route, 1 h cache, 429 backoff, brand normalize from `brand:wikidata` / NSI names, ~32 US chains in `src/lib/stores/brands.ts`. `/api/stores`. (2) Precise live ghosts on existing Supabase (no Durable Object): invite/accept, RLS + Realtime on `ghosts`, 2–5 s throttle, latest point + 45 s TTL, pause/stop deletes the row. Migration `…_ghost_sharing.sql` — Nard must paste it. (3) PlaceInfo from Wikidata/Commons + OSM hours, `/api/places`, 24 h cache. Contract in `docs/DATA_SHAPES.md`. No HUD, no paid APIs, no secrets. Tests cover brand normalize, modelKey fallback, throttle/TTL, privacy.
 - 2026-10-18 Grim: **Slide look** (branch `grim/slide-look-pins-cards`). Store pins (brand monogram + category fallback, MapLibre clusters), place card sheet with empty states, hologram slot + `registerHologramRenderer` for Leon, ghost-car markers. Fixtures match Nard's Store / PlaceInfo / Ghost. Demo `/look.html`. Did not touch `functions/**`, `src/lib/place.ts`, `src/lib/ghosts.ts`, `src/lib/presence.ts`, `src/lib/social.ts`, or `supabase/**`. Depends on Nard's wishlist backend PR for live data. No scoring-contract change.
+
+- 2026-10-18 Leon: **Store hologram + ghost car models** (branch `cursor/slide-hologram-ghost-models-b14a`, on Grim #56). Procedural low-poly three.js holograms for Nard's 32 US chains + `generic-<category>` + `"*"`, and ghost hulls sedan / SUV / pickup / sports / default mapped from garage `carModelKey`. Registers through `registerHologramRenderer` / `registerGhostCarRenderer`. Shared fill+edge materials, dispose on cleanup, SVG if WebGL is missing. Did not edit backend files (`functions/**`, `src/lib/stores/**`, `src/lib/live-ghosts/**`, `supabase/**`). Merge after #55 and #56. No scoring-contract change.
 
 - 2026-10-12 Nard: **UI fix-up** (branch `nard/ui-fixup`). No backend, no new features, keys stay in Pages secrets.
   - **Broken buttons:** Save Home/Work from the menu with no dest now opens the search card so the error is visible. Report with no GPS opens a sheet instead of a silent no-op. Sign-in / Create / Profile sign-in / Leave-by disable the submit while the request runs. Primary/ghost `:disabled` is now faded.

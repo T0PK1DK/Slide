@@ -10,15 +10,14 @@ Grim shipped the **look** for King’s store / place / hologram / ghost-car wish
 
 ## Leon — 3D holograms
 
-`src/look/hologram.ts`:
+Shipped on `cursor/slide-hologram-ghost-models-b14a` (`docs/MODELS.md`). `registerSlideModels()` in `src/look/demo.ts` fills Grim’s hook:
 
 ```ts
 registerHologramRenderer(modelKey | "*", (el, { modelKey, color }) => dispose)
+registerGhostCarRenderer(carModelKey | "*", (el, { carModelKey, color, headingDeg, speedMps }) => dispose)
 ```
 
-Slots already exist: above the selected pin (`.look-holo-float`) and at the top of the place card (`[data-hologram]`). Default outline spins unless `prefers-reduced-motion`. `modelKey` matches Nard’s `KNOWN_STORE_MODELS` plus `generic-<category>`.
-
-Ghost markers already pass `carModelKey` (garage ids: slipstream, brawler, hatch, …).
+Slots: above the selected pin (`.look-holo-float`) and at the top of the place card (`[data-hologram]`). Ghost markers call `mountGhostCar` on `.look-ghost-car`. Nard can expand `KNOWN_STORE_MODELS` to the full 32 so live rows use brand keys instead of `generic-<category>`.
 
 ## Nard — swap fixtures
 

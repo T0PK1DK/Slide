@@ -401,6 +401,52 @@ body:has(#look-place-card:not([hidden])) .look-demo-bar { display: none; }
 
 .look-holo-float .look-holo { width: 56px; height: 56px; }
 
+.look-holo-3d {
+  position: relative;
+  width: 88px;
+  height: 88px;
+  color: var(--holo-color, var(--glow));
+}
+
+.look-holo-slot .look-holo-3d,
+.look-holo-slot .look-holo {
+  width: 88px;
+  height: 88px;
+}
+
+.look-holo-float .look-holo-3d {
+  width: 56px;
+  height: 56px;
+}
+
+.look-holo-3d canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 0 10px var(--holo-color, var(--glow)));
+}
+
+.look-holo-scan {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    color-mix(in srgb, var(--holo-color, var(--glow)) 28%, transparent) 46%,
+    transparent 72%
+  );
+  background-size: 100% 220%;
+  mix-blend-mode: screen;
+  opacity: 0.5;
+  animation: look-holo-scan calc(var(--dur-ambient) * 1.35) linear infinite;
+}
+
+@keyframes look-holo-scan {
+  from { background-position: 0 -30%; }
+  to { background-position: 0 140%; }
+}
+
 @keyframes look-yaw {
   from { transform: rotateY(-22deg) rotateZ(-3deg); }
   to { transform: rotateY(22deg) rotateZ(3deg); }
@@ -408,6 +454,7 @@ body:has(#look-place-card:not([hidden])) .look-demo-bar { display: none; }
 
 @media (prefers-reduced-motion: reduce) {
   .look-holo-spin .look-holo-outline { animation: none; }
+  .look-holo-scan { animation: none; opacity: 0.22; }
 }
 
 /* ---------- Ghost cars ---------- */
@@ -441,7 +488,16 @@ body:has(#look-place-card:not([hidden])) .look-demo-bar { display: none; }
   transform-origin: 50% 50%;
 }
 
-.look-ghost-car svg {
+.look-ghost-car {
+  display: block;
+  width: 28px;
+  height: 48px;
+  color: var(--ghost-color, var(--glow));
+}
+
+.look-ghost-car svg,
+.look-ghost-3d,
+.look-ghost-3d canvas {
   width: 28px;
   height: 48px;
   display: block;
