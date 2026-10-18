@@ -79,6 +79,14 @@ src/lib/smooth.ts      Slide score + speed bands
 src/lib/polyline.ts    precision-6 decode
 src/lib/garage.ts      customization persist
 src/lib/ghosts.ts      ghost replay along a line
+src/lib/stores/        OSM chain stores: brand table (~32 US), NSI/wikidata normalize, Overpass tiling + backoff
+src/lib/stores/handler.ts  /api/stores request parse + tile cache
+src/lib/live-ghosts/   precise live ghosts: invite/accept, 2–5 s throttle, 45 s TTL, privacy rules
+src/lib/place-info.ts  PlaceInfo from Wikidata / Commons / OSM hours (cached)
+functions/api/stores.ts   Pages Function: Overpass chains near view/route
+functions/api/places.ts   Pages Function: place copy + photos
+docs/DATA_SHAPES.md    Store / Ghost / PlaceInfo types + sample JSON
+supabase/migrations/20261018000000_ghost_sharing.sql  ghost_invites + ghosts + RLS / Realtime
 src/lib/guidance.ts    next maneuver, posted-speed lookahead, turn arrows
 src/lanes/             Valhalla turn-lane strip for Grim's `#lane-strip` slot
 src/lib/tracking.ts    live GPS watch (course + speed smoothing), RouteSnapper (windowed, heading-aware), accuracy-aware off-route
@@ -166,7 +174,7 @@ AGENTS.md / CLAUDE.md  short agent rules
 
 ## Known gaps (honest)
 
-- Ghosts: the fake seeded drivers were **removed** (2026-09-25). No ghosts are drawn until a real source exists (your recorded pace run, or opt-in friends).
+- Ghosts: the fake seeded drivers were **removed** (2026-09-25). Live friends are now an opt-in invite/accept backend (`src/lib/live-ghosts`, migration `…_ghost_sharing.sql`) — latest point + 45 s TTL, approved viewers only. Leon still draws the cars. Pace-ghost replay of *your* last run is separate.
 - Car marker is an SVG wedge, not a 3D model.
 - Snap-to-route is nearest-segment projection, not real map matching.
 - 3D buildings depend on OpenFreeMap `building` layer; fail soft if missing.
@@ -406,6 +414,7 @@ Read `TASKS.md` top unchecked item. Do not rebase history. Do not rename the pro
 
 - 2026-10-11 Cursor: Re-rebased **#32–#39** onto `main`; leave-by + reroute wired through route-brain (see above).
 
+- 2026-10-18 Cursor: **Wishlist backend (King GO).** Data only — Grim keeps pins/place cards, Leon keeps 3D stores + ghost cars. (1) OSM stores via Overpass: tiled bbox/route, 1 h cache, 429 backoff, brand normalize from `brand:wikidata` / NSI names, ~32 US chains in `src/lib/stores/brands.ts`. `/api/stores`. (2) Precise live ghosts on existing Supabase (no Durable Object): invite/accept, RLS + Realtime on `ghosts`, 2–5 s throttle, latest point + 45 s TTL, pause/stop deletes the row. Migration `…_ghost_sharing.sql` — Nard must paste it. (3) PlaceInfo from Wikidata/Commons + OSM hours, `/api/places`, 24 h cache. Contract in `docs/DATA_SHAPES.md`. No HUD, no paid APIs, no secrets. Tests cover brand normalize, modelKey fallback, throttle/TTL, privacy.
 - 2026-10-12 Nard: **UI fix-up** (branch `nard/ui-fixup`). No backend, no new features, keys stay in Pages secrets.
   - **Broken buttons:** Save Home/Work from the menu with no dest now opens the search card so the error is visible. Report with no GPS opens a sheet instead of a silent no-op. Sign-in / Create / Profile sign-in / Leave-by disable the submit while the request runs. Primary/ghost `:disabled` is now faded.
   - **iPhone layout:** `100dvh` shell; login scrolls when the keyboard covers the card; Garage max-height + scroll; place card no longer sits on the Where to? pill (pill hides, FABs lift); overflow menu 44 px rows + max-height scroll; Me / close / loc-close / overflow hits are `--touch`.
@@ -437,6 +446,7 @@ Unhide empty slots with `el.hidden = false`. Do not add a CSS override layer.
 - **URL:** `https://zmriqctjkhwmhuvxyhdd.supabase.co`
 - **Anon key:** Dashboard → Project Settings → API Keys → `anon` (legacy JWT; supabase-js accepts it). It's public by design, and RLS protects the data. The publishable key `sb_publishable_…` also works.
 - **Applied:** profiles, follows, reports, report_votes and presence, with RLS; `reports_near`, `submit_report`, `vote_report`, `my_social_counts`, `share_presence` and `friends_presence`; and the grants. These match `supabase/migrations/` except for the last two functions below.
+- **Still to run (Nard, 2026-10-18):** paste `supabase/migrations/20261018000000_ghost_sharing.sql` in the SQL Editor. Until it runs, live ghosts stay off (invite / publish RPCs 404). Rough ~1 km presence is unchanged.
 - **Still to run (Nard):** the connector timed out on statements containing `delete`, so paste this into Dashboard → SQL Editor and click Run. Until it's run, "Stop sharing" and "Delete my Slide account" fail:
 
 ```sql
