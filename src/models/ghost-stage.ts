@@ -1,9 +1,8 @@
-import { prefersReducedMotion } from "../look/hologram";
 import { buildGhostCarGroup } from "./car-meshes";
 import { fallbackGhostCarMarkup } from "./fallback";
 import type { GhostCarDispose, GhostCarOpts } from "./ghost-renderer";
 import { resolveGhostCarKey } from "./resolve";
-import { disposeObject, frameObject, ghostMaterials, loadThree } from "./stage-utils";
+import { disposeObject, ghostMaterials, loadThree } from "./stage-utils";
 import { parseHexColor, webglAvailable } from "./webgl";
 
 export function mountGhostCarModel(el: HTMLElement, opts: GhostCarOpts): GhostCarDispose {
@@ -49,44 +48,31 @@ async function boot(el: HTMLElement, kind: string, color: string, speedMps: numb
   wrap.dataset.carKey = kind;
 
   const renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true });
-  renderer.setPixelRatio(1);
+  renderer.setPixelRatio(Math.min(typeof devicePixelRatio === "number" ? devicePixelRatio : 1, 2));
   renderer.setClearColor(0x000000, 0);
 
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(28, 28 / 48, 0.1, 12);
   const { fill, edge } = ghostMaterials(THREE, parseHexColor(color));
-  fill.opacity = 0.28 + Math.min(0.14, speedMps * 0.008);
+  fill.opacity = 0.36 + Math.min(0.12, speedMps * 0.008);
   const group = buildGhostCarGroup(THREE, kind, fill, edge);
   scene.add(group);
-  frameObject(THREE, camera, group, 1.15);
-  camera.position.y += 0.35;
+  camera.up.set(0, 0, 1);
+  camera.position.set(0, 2.05, 0.01);
+  camera.lookAt(0, 0.12, 0);
+  camera.updateProjectionMatrix();
 
   wrap.append(renderer.domElement);
   el.replaceChildren(wrap);
 
-  const still = prefersReducedMotion();
-  let raf = 0;
-  const t0 = typeof performance !== "undefined" ? performance.now() : 0;
   const w = Math.max(1, el.clientWidth || 28);
   const h = Math.max(1, el.clientHeight || 48);
   renderer.setSize(w, h, false);
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
-
-  const tick = (now: number) => {
-    if (!still) {
-      const t = (now - t0) / 1000;
-      group.position.y = Math.sin(t * 1.6) * 0.02;
-    }
-    renderer.render(scene, camera);
-    if (!still) raf = requestAnimationFrame(tick);
-  };
-
-  if (still) renderer.render(scene, camera);
-  else raf = requestAnimationFrame(tick);
+  renderer.render(scene, camera);
 
   return () => {
-    cancelAnimationFrame(raf);
     scene.remove(group);
     disposeObject(group);
     renderer.dispose();

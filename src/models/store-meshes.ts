@@ -61,11 +61,11 @@ const RECIPES: Record<HologramModelKey, StoreRecipe> = {
     key: "walmart",
     family: "grocery",
     parts: [
-      box(0, 0.28, 0, 1.7, 0.56, 1.05),
-      box(0, 0.58, 0, 1.76, 0.06, 1.1),
-      box(0, 0.42, 0.58, 0.82, 0.08, 0.28),
-      box(-0.42, 0.72, 0.52, 0.1, 0.28, 0.1),
-      box(0.42, 0.72, 0.52, 0.1, 0.28, 0.1),
+      box(0, 0.22, 0, 1.7, 0.44, 1.0),
+      box(0, 0.46, 0, 1.76, 0.06, 1.06),
+      box(0, 0.34, 0.62, 1.05, 0.1, 0.36),
+      box(-0.48, 0.62, 0.58, 0.12, 0.42, 0.12),
+      box(0.48, 0.62, 0.58, 0.12, 0.42, 0.12),
     ],
   },
   target: {
@@ -259,9 +259,9 @@ const RECIPES: Record<HologramModelKey, StoreRecipe> = {
     key: "mcdonalds",
     family: "food",
     parts: [
-      box(0, 0.18, 0, 0.95, 0.36, 0.7),
-      torus(-0.18, 0.58, 0.02, 0.26, 0.045, PI / 2, 0, 0.18, 6, 8),
-      torus(0.18, 0.58, 0.02, 0.26, 0.045, PI / 2, 0, -0.18, 6, 8),
+      box(0, 0.14, 0, 0.95, 0.28, 0.62),
+      torus(-0.16, 0.5, 0.04, 0.24, 0.045, 0, 0, 0.18, 6, 8),
+      torus(0.16, 0.5, 0.04, 0.24, 0.045, 0, 0, -0.18, 6, 8),
     ],
   },
   "burger-king": {
@@ -392,7 +392,11 @@ const RECIPES: Record<HologramModelKey, StoreRecipe> = {
   "generic-coffee": {
     key: "generic-coffee",
     family: "coffee",
-    parts: [box(0, 0.22, 0, 0.85, 0.44, 0.64), cyl(0.38, 0.2, 0.28, 0.1, 0.18, 7)],
+    parts: [
+      box(0, 0.2, -0.06, 0.85, 0.4, 0.58),
+      cyl(0, 0.2, 0.42, 0.14, 0.28, 8),
+      torus(0.16, 0.2, 0.42, 0.1, 0.025, PI / 2, 0, 0, 6, 8),
+    ],
   },
   "generic-retail": {
     key: "generic-retail",
