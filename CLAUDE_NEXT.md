@@ -1,28 +1,27 @@
-# Next agent notes — Slide look
+# Next agent notes — Slide look live
 
-Grim shipped the **look** for King’s store / place / hologram / ghost-car wishlist. Branch `grim/slide-look-pins-cards`. Demo `/look.html`. Fixtures only.
+Grim wired the look HUD to Nard’s live endpoints. Branch `grim/slide-look-live-data`. Real app, not just `/look.html`.
+
+## Shipped
+
+- `src/look/live.ts` + `src/look/store-feed.ts`: `GET /api/stores?tiles=` (debounce 600 ms, zoom ≥ 12, 8 min client tile cache) and `GET /api/places` (30 min client place cache). Skeleton pins + card shimmer while Overpass / Wikidata are slow. Empty / error pills; retry does not use a failed-tile cache. Map is never blocked.
+- Leon’s `registerSlideModels()` runs on the live HUD so holograms and ghost hulls mount in the real slots.
+- Vite `storesPlacesApi` stand-in so `npm run dev` / `preview` hit the same `loadStoresForRequest` / `loadPlaceInfo` as Pages. Did **not** rewrite `functions/api/stores.ts` or `functions/api/places.ts`.
+- Fixtures remain on `/look.html` and in tests only.
+
+## Ghosts
+
+`watchLiveGhosts` / `listLiveGhosts` are exposed (`src/lib/live-ghosts/client.ts`) and the live HUD subscribes **when `cloudConfigured()`**. This environment / a keyless build draws **no** live ghost cars — that is expected. Rough ~1 km `mountFriends` presence is unchanged. Pace-replay `src/lib/ghosts.ts` is still unwired (same as before). Apply `supabase/migrations/20261018000000_ghost_sharing.sql` on the live project before friend ghosts can appear.
 
 ## Do not
 
 - Do not merge this PR from an agent.
-- Do not edit `functions/**`, `src/lib/place.ts`, `src/lib/ghosts.ts`, `src/lib/presence.ts`, `src/lib/social.ts`, or `supabase/**` for look work.
-- Do not hotlink paid logo APIs. Monograms live in `src/look/marks.ts`.
+- Do not edit `functions/**`, `src/lib/stores/**`, `src/lib/place-info.ts`, `src/lib/live-ghosts/**`, or `supabase/**` for look work.
+- Do not put fixtures on the live HUD.
+- Do not add a CSS override layer on `src/styles.css`. Live look CSS is `src/look/live.css` → `components.css` (tokens only).
 
-## Leon — 3D holograms
+## Follow-ups
 
-Shipped on `cursor/slide-hologram-ghost-models-b14a` (`docs/MODELS.md`). `registerSlideModels()` in `src/look/demo.ts` fills Grim’s hook:
-
-```ts
-registerHologramRenderer(modelKey | "*", (el, { modelKey, color }) => dispose)
-registerGhostCarRenderer(carModelKey | "*", (el, { carModelKey, color, headingDeg, speedMps }) => dispose)
-```
-
-Slots: above the selected pin (`.look-holo-float`) and at the top of the place card (`[data-hologram]`). Ghost markers call `mountGhostCar` on `.look-ghost-car`. Nard can expand `KNOWN_STORE_MODELS` to the full 32 so live rows use brand keys instead of `generic-<category>`.
-
-## Nard — swap fixtures
-
-When the wishlist backend PR is on `main`, replace `LOOK_FIXTURES` in `src/look/demo.ts` (and later `src/main.ts`) with `lookDataFromNard(loadStoresNear, fetchPlaceInfo, listLiveGhosts / watchLiveGhosts)`. Types in `src/look/types.ts` are the contract. Details: `docs/LOOK.md`.
-
-## Grim follow-up
-
-Wire pins + the new place sheet into the live HUD **after** Nard’s hooks exist. Keep `#place-card` in `shell.ts` until that swap; this PR’s sheet is `#look-place-card` so the two can sit side by side. No new CSS override layer on `src/styles.css` — look styles stay in `src/look/look.css` until that wire-up.
+- If Overpass is cold, first pins can take several seconds — the skeleton is the intended state, not a hang.
+- Drive / Arrive hide pins, sheet, and ghosts (same as friends).
+- `#place-card` is still the search result sheet; store taps use `#look-place-card`.

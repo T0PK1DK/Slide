@@ -63,6 +63,7 @@ import { mountRadar } from "./hud/radar";
 import { mountLeaveBy } from "./hud/leaveby";
 import { mountFriends } from "./map/friends";
 import { mountTraffic } from "./map/traffic";
+import { mountLookLive } from "./look/live";
 import { altsFromRanked, mountReroute } from "./hud/reroute";
 import { routeFingerprint } from "./lib/reroute";
 import type { Alert } from "./lib/alerts";
@@ -457,6 +458,24 @@ const traffic = mountTraffic({
     return s.routeKey && s.source !== "valhalla" ? s.delaySec : null;
   },
 });
+const lookLive = mountLookLive({
+  map,
+  host: document.querySelector(".hud")!,
+  getMode: () => hudMode,
+  dest: () => dest,
+  showGhosts: () => garage.showGhosts,
+  onDirections: (store) => {
+    lookLive.hideCard();
+    openPlace({
+      label: store.name,
+      name: store.name,
+      lon: store.lon,
+      lat: store.lat,
+      kind: "store",
+    });
+    void plan();
+  },
+});
 // Any committed ETA change repaints every non-drive surface; drive reads the brain each frame.
 brain.subscribe(() => paintEta());
 const rerouteWatch = mountReroute({
@@ -518,6 +537,7 @@ function onBasemapReady() {
   addRouteLayers();
   paintRoutes();
   traffic.rebind();
+  lookLive.refresh();
   if (hudMode === "drive") applyCamera(garage.camera);
   else applyPlanView();
   paintMapCredit();
@@ -815,6 +835,7 @@ function showLocationProblem(problem: LocationProblem) {
 }
 
 function openPlace(hit: SearchHit) {
+  lookLive.hideCard();
   dest = { lon: hit.lon, lat: hit.lat };
   destLabel = hit.label;
   toInput.value = hit.label;
@@ -957,7 +978,12 @@ function wireGarage() {
     if (!rerouteBox.checked) rerouteWatch.hide("off");
   });
   tomtomMapBox.addEventListener("change", () => { garage.tomtomMap = tomtomMapBox.checked; persist(); void applyBasemap(); });
-  ghostsBox.addEventListener("change", () => { garage.showGhosts = ghostsBox.checked; persist(); setGhostVisibility(garage.showGhosts); });
+  ghostsBox.addEventListener("change", () => {
+    garage.showGhosts = ghostsBox.checked;
+    persist();
+    setGhostVisibility(garage.showGhosts);
+    lookLive.setGhostsVisible(garage.showGhosts);
+  });
   share.addEventListener("change", () => { garage.shareGhost = share.checked; persist(); });
   bindBoardToggle(board);
 }
@@ -978,6 +1004,7 @@ function setHudMode(mode: HudMode) {
   you.setVisible(!driving);
   radar.setMode(mode);
   friends.setMode(mode);
+  lookLive.setMode(mode);
   const reviewing = mode === "review";
   driveBarEl.toggleAttribute("hidden", !driving);
   reviewEl.toggleAttribute("hidden", !reviewing);

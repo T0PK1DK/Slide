@@ -28,6 +28,8 @@ export type PlaceCardModel = {
   photos: Array<{ url: string; credit: string }>;
   photosEmpty: boolean;
   photosEmptyLabel: string;
+  photosLoading: boolean;
+  descriptionLoading: boolean;
   callHref: string | null;
   webHref: string | null;
   callEmpty: boolean;
@@ -45,7 +47,7 @@ function esc(s: string): string {
   return s.replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]!);
 }
 
-export function placeCardModel(store: Store, info?: PlaceInfo): PlaceCardModel {
+export function placeCardModel(store: Store, info?: PlaceInfo, opts?: { loading?: boolean }): PlaceCardModel {
   const name = storeName(store);
   const cat = store.category ? CATEGORY_LABEL[store.category] : PLACE_EMPTY.brand;
   const brand = store.brand?.trim() || store.brandKey?.trim();
@@ -58,6 +60,7 @@ export function placeCardModel(store: Store, info?: PlaceInfo): PlaceCardModel {
   const website = store.website?.trim() || info?.website?.trim();
   const phone = store.phone?.trim();
   const color = pinColor(store);
+  const loading = Boolean(opts?.loading);
 
   return {
     id: store.id ?? "",
@@ -76,6 +79,8 @@ export function placeCardModel(store: Store, info?: PlaceInfo): PlaceCardModel {
     photos: photos.map((p) => ({ url: p.url, credit: p.credit?.trim() || PLACE_EMPTY.credit })),
     photosEmpty: photos.length === 0,
     photosEmptyLabel: PLACE_EMPTY.photos,
+    photosLoading: loading && photos.length === 0,
+    descriptionLoading: loading && !description,
     callHref: phone ? `tel:${phone.replace(/[^\d+]/g, "")}` : null,
     webHref: website ?? null,
     callEmpty: !phone,
@@ -86,7 +91,9 @@ export function placeCardModel(store: Store, info?: PlaceInfo): PlaceCardModel {
 }
 
 export function placeCardHtml(model: PlaceCardModel): string {
-  const photos = model.photosEmpty
+  const photos = model.photosLoading
+    ? `<div class="look-photos is-loading" data-empty="photos"></div>`
+    : model.photosEmpty
     ? `<div class="look-photos is-empty" data-empty="photos">${esc(model.photosEmptyLabel)}</div>`
     : `<div class="look-photos" role="list">${model.photos
         .map(
@@ -118,11 +125,11 @@ export function placeCardHtml(model: PlaceCardModel): string {
   <button class="look-act look-act-primary" data-act="directions" type="button"><span>Directions</span><small>From here</small></button>
 </div>
 ${photos}
-<p class="look-desc${model.descriptionEmpty ? " is-empty" : ""}">${esc(model.description)}</p>`;
+<p class="look-desc${model.descriptionLoading ? " is-loading" : model.descriptionEmpty ? " is-empty" : ""}">${model.descriptionLoading ? "" : esc(model.description)}</p>`;
 }
 
 export type PlaceCardHandle = {
-  show(store: Store, info?: PlaceInfo): void;
+  show(store: Store, info?: PlaceInfo, opts?: { loading?: boolean }): void;
   hide(): void;
   isOpen(): boolean;
   el: HTMLElement;
@@ -172,8 +179,8 @@ export function mountPlaceCard(hooks: PlaceCardHooks): PlaceCardHandle {
 
   return {
     el: root,
-    show(store, info) {
-      const model = placeCardModel(store, info);
+    show(store, info, opts) {
+      const model = placeCardModel(store, info, opts);
       current = store;
       disposeHolo?.();
       root.innerHTML = placeCardHtml(model);
