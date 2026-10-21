@@ -52,5 +52,16 @@ describe("place card", () => {
     const html = placeCardHtml(model);
     expect(html).toContain("look-photos is-loading");
     expect(html).toContain("look-desc is-loading");
+    expect(html).toContain("look-holo-stage is-loading");
+    expect(html).toContain("look-holo-well");
+  });
+
+  it("wraps the hologram in a stage and formats posted hours", () => {
+    const store = LOOK_FIXTURES.stores.find((s) => s.brandKey === "walmart")!;
+    const html = placeCardHtml(placeCardModel(store, placeFor(store)));
+    expect(html).toContain("look-holo-stage");
+    expect(html).toContain("look-holo-caption");
+    expect(html).toContain("Daily 6a");
+    expect(html).toContain("look-act-ico");
   });
 });

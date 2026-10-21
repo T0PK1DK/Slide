@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { contrastInk, hasBundledMark, monogramLetter, pinBadgeSvg, pinColor } from "./marks";
+import { contrastInk, hasBundledMark, monogramLetter, monogramPair, pinBadgeSvg, pinColor } from "./marks";
 
 describe("store pin marks", () => {
   it("uses brand color and a monogram when the chain is known", () => {
@@ -22,5 +22,11 @@ describe("store pin marks", () => {
   it("picks dark ink on pale brand discs", () => {
     expect(contrastInk("#ffd100")).toBe("#1a140c");
     expect(contrastInk("#0071ce")).toBe("#f7f3ea");
+  });
+
+  it("keeps the first letter and adds a second for known chains", () => {
+    expect(monogramPair({ brandKey: "walmart", brand: "Walmart" })).toEqual({ lead: "W", rest: "a" });
+    expect(monogramPair({ brandKey: "cvs", brand: "CVS" })).toEqual({ lead: "C", rest: "V" });
+    expect(monogramPair({ name: "Corner Mart" })).toEqual({ lead: "C", rest: "" });
   });
 });

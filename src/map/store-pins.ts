@@ -1,7 +1,7 @@
 import maplibregl from "maplibre-gl";
 import type { FeatureCollection } from "geojson";
 import { mountHologram, type HologramDispose } from "../look/hologram";
-import { contrastInk, hasBundledMark, monogramLetter, pinColor } from "../look/marks";
+import { categoryIconPath, contrastInk, hasBundledMark, monogramLetter, monogramPair, pinColor } from "../look/marks";
 import { modelKeyOf, storeId, storeLngLat, type Store } from "../look/types";
 
 export const STORE_SOURCE = "slide-look-stores";
@@ -46,7 +46,35 @@ export function pinImageId(store: Pick<Store, "brandKey" | "category" | "color" 
   return `look-pin-${kind}-${letter}-${color}`;
 }
 
-function drawPinCanvas(color: string, letter: string, categoryFallback: boolean): HTMLCanvasElement {
+function drawCategoryGlyph(ctx: CanvasRenderingContext2D, category: Store["category"], ink: string): void {
+  ctx.save();
+  ctx.translate(16, 8);
+  ctx.scale(32 / 24, 32 / 24);
+  ctx.strokeStyle = ink;
+  ctx.lineWidth = 1.7;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  if (typeof Path2D === "function") {
+    ctx.stroke(new Path2D(categoryIconPath(category)));
+  } else {
+    ctx.beginPath();
+    ctx.moveTo(7, 9);
+    ctx.lineTo(17, 9);
+    ctx.lineTo(16, 20);
+    ctx.lineTo(8, 20);
+    ctx.closePath();
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawPinCanvas(
+  color: string,
+  letter: string,
+  categoryFallback: boolean,
+  rest = "",
+  category?: Store["category"],
+): HTMLCanvasElement {
   const size = 64;
   const c = document.createElement("canvas");
   c.width = size;
@@ -54,32 +82,50 @@ function drawPinCanvas(color: string, letter: string, categoryFallback: boolean)
   const ctx = c.getContext("2d");
   if (!ctx) return c;
   ctx.clearRect(0, 0, size, size);
+
+  ctx.save();
+  ctx.shadowColor = "rgba(8,10,12,0.42)";
+  ctx.shadowBlur = 6;
+  ctx.shadowOffsetY = 3;
   ctx.beginPath();
-  ctx.arc(32, 32, 26, 0, Math.PI * 2);
+  ctx.moveTo(32, 60);
+  ctx.quadraticCurveTo(14, 42, 14, 28);
+  ctx.arc(32, 26, 20, Math.PI * 0.82, Math.PI * 0.18);
+  ctx.quadraticCurveTo(50, 42, 32, 60);
+  ctx.closePath();
   ctx.fillStyle = color;
   ctx.fill();
-  ctx.lineWidth = 4;
+  ctx.restore();
+
+  ctx.beginPath();
+  ctx.moveTo(32, 58);
+  ctx.quadraticCurveTo(16, 42, 16, 28);
+  ctx.arc(32, 26, 18, Math.PI * 0.82, Math.PI * 0.18);
+  ctx.quadraticCurveTo(48, 42, 32, 58);
+  ctx.closePath();
+  ctx.lineWidth = 3;
   ctx.strokeStyle = "rgba(255,255,255,0.92)";
   ctx.stroke();
+
+  ctx.beginPath();
+  ctx.arc(24, 18, 5.5, 0, Math.PI * 2);
+  ctx.fillStyle = "rgba(255,255,255,0.16)";
+  ctx.fill();
+
   const ink = contrastInk(color);
   if (categoryFallback) {
-    ctx.strokeStyle = ink;
-    ctx.lineWidth = 3.2;
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-    ctx.beginPath();
-    ctx.moveTo(22, 24);
-    ctx.lineTo(42, 24);
-    ctx.lineTo(40, 42);
-    ctx.lineTo(24, 42);
-    ctx.closePath();
-    ctx.stroke();
+    drawCategoryGlyph(ctx, category, ink);
   } else {
     ctx.fillStyle = ink;
-    ctx.font = "700 26px system-ui, sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(letter, 32, 34);
+    if (rest) {
+      ctx.font = "700 17px system-ui, sans-serif";
+      ctx.fillText(`${letter}${rest}`, 32, 27);
+    } else {
+      ctx.font = "700 20px system-ui, sans-serif";
+      ctx.fillText(letter, 32, 27);
+    }
   }
   return c;
 }
@@ -122,7 +168,14 @@ export function mountStorePins(hooks: StorePinsHooks): StorePinsHandle {
       images.add(id);
       return;
     }
-    const canvas = drawPinCanvas(pinColor(store), monogramLetter(store), !hasBundledMark(store));
+    const pair = monogramPair(store);
+    const canvas = drawPinCanvas(
+      pinColor(store),
+      pair.lead,
+      !hasBundledMark(store),
+      pair.rest,
+      store.category,
+    );
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
     map.addImage(id, ctx.getImageData(0, 0, canvas.width, canvas.height), { pixelRatio: 2 });
@@ -141,7 +194,7 @@ export function mountStorePins(hooks: StorePinsHooks): StorePinsHandle {
     const el = document.createElement("div");
     el.className = "look-holo-float";
     disposeHolo = mountHologram(el, { modelKey: modelKeyOf(store), color: pinColor(store) });
-    holo = new maplibregl.Marker({ element: el, anchor: "bottom", offset: [0, -22] }).setLngLat(lngLat).addTo(map);
+    holo = new maplibregl.Marker({ element: el, anchor: "bottom", offset: [0, -28] }).setLngLat(lngLat).addTo(map);
   };
 
   const apply = () => {
@@ -179,11 +232,12 @@ export function mountStorePins(hooks: StorePinsHooks): StorePinsHandle {
         source: STORE_SOURCE,
         filter: ["has", "point_count"],
         paint: {
-          "circle-color": "rgba(240,160,75,0.92)",
-          "circle-stroke-color": "rgba(255,255,255,0.88)",
-          "circle-stroke-width": 2,
-          "circle-radius": ["step", ["get", "point_count"], 16, 8, 20, 20, 24],
-          "circle-opacity": 0.95,
+          "circle-color": "rgba(240,160,75,0.88)",
+          "circle-stroke-color": "rgba(255,255,255,0.92)",
+          "circle-stroke-width": 2.4,
+          "circle-radius": ["step", ["get", "point_count"], 15, 6, 18, 14, 22],
+          "circle-opacity": 0.96,
+          "circle-blur": 0.05,
         },
       });
       map.addLayer({
@@ -207,10 +261,11 @@ export function mountStorePins(hooks: StorePinsHooks): StorePinsHandle {
         source: STORE_SOURCE,
         filter: ["==", ["get", "id"], ""],
         paint: {
-          "circle-radius": ["interpolate", ["linear"], ["zoom"], 11, 10, 16, 22],
-          "circle-color": "rgba(240,160,75,0.22)",
+          "circle-radius": ["interpolate", ["linear"], ["zoom"], 11, 12, 16, 26],
+          "circle-color": "rgba(240,160,75,0.18)",
           "circle-stroke-width": 2,
-          "circle-stroke-color": "rgba(240,160,75,0.85)",
+          "circle-stroke-color": "rgba(240,160,75,0.9)",
+          "circle-blur": 0.15,
         },
       });
       map.addLayer({
@@ -220,13 +275,14 @@ export function mountStorePins(hooks: StorePinsHooks): StorePinsHandle {
         filter: ["!", ["has", "point_count"]],
         layout: {
           "icon-image": ["get", "icon"],
-          "icon-size": ["interpolate", ["linear"], ["zoom"], 10, 0.72, 13, 0.92, 16, 1.12],
+          "icon-size": ["interpolate", ["linear"], ["zoom"], 10, 0.7, 13, 0.9, 16, 1.08],
+          "icon-anchor": "bottom",
           "icon-allow-overlap": false,
           "icon-ignore-placement": false,
-          "icon-padding": 6,
+          "icon-padding": 4,
           "text-field": ["step", ["zoom"], "", 15, ["get", "name"]],
           "text-size": 11,
-          "text-offset": [0, 1.35],
+          "text-offset": [0, 0.35],
           "text-anchor": "top",
           "text-optional": true,
           "text-font": ["Noto Sans Regular"],

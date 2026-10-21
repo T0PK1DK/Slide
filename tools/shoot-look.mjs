@@ -49,6 +49,18 @@ try {
   await new Promise((r) => setTimeout(r, 500));
   await shot(night, "card-empty-night");
 
+  await night.evaluate(() => window.slideLook.showLoading("osm:node/123"));
+  await new Promise((r) => setTimeout(r, 400));
+  await shot(night, "card-loading-night");
+
+  await night.evaluate(() => {
+    window.slideLook.trigger("close");
+    window.slideLook.showSkel(true);
+  });
+  await new Promise((r) => setTimeout(r, 400));
+  await shot(night, "pins-skel-night");
+  await night.evaluate(() => window.slideLook.showSkel(false));
+
   await night.evaluate(() => {
     window.slideLook.trigger("close");
     window.slideLook.zoom(15.6);

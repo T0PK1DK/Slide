@@ -44,6 +44,11 @@ html, body, #look-app {
   pointer-events: none;
 }
 
+#look-hud {
+  position: absolute;
+  inset: 0;
+}
+
 .look-top {
   position: absolute;
   top: calc(var(--space-3) + env(safe-area-inset-top));
@@ -191,3 +196,9 @@ html[data-look="day"] {
 html[data-look="day"] #map { filter: saturate(0.92) brightness(1.02); }
 
 html[data-look="day"] .look-sheet h2 { color: var(--text); }
+html[data-look="day"] .look-holo-well {
+  background:
+    radial-gradient(circle at 50% 42%, var(--fill-08), transparent 62%),
+    var(--fill-05);
+}
+html[data-look="day"] .look-photo img { background: var(--surface-2); }

@@ -32,6 +32,8 @@ describe("hologram slot", () => {
     expect(html).toContain("data-model-key=\"walmart\"");
     expect(html).toContain("#0071ce");
     expect(html).toContain("look-holo-outline");
+    expect(html).toContain("look-holo-scan");
+    expect(html).toContain("<ellipse");
   });
 
   it("lets Leon register a model renderer and a wildcard", () => {

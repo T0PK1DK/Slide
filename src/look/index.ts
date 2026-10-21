@@ -10,7 +10,8 @@ export {
   type HologramOpts,
   type HologramRenderer,
 } from "./hologram";
-export { BRAND_COLOR, CATEGORY_COLOR, contrastInk, pinBadgeSvg, pinColor } from "./marks";
+export { formatHours } from "./hours";
+export { BRAND_COLOR, CATEGORY_COLOR, contrastInk, monogramPair, pinBadgeSvg, pinColor } from "./marks";
 export {
   ghostLngLat,
   ghostName,

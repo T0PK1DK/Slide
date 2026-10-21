@@ -2,7 +2,7 @@
 
 Look HUD for King’s wishlist. **Nard owns the data** (`/api/stores`, `/api/places`, live ghosts). **Leon owns 3D models**. The real app (`index.html`) paints pins and the place sheet from those endpoints. Fixtures stay on **`/look.html`** and in tests.
 
-Demo: **`/look.html`** (`?look=day`, `?place=osm:node/123`, `?empty=1`). Phone-first. Night is default; Day is a warm light preview.
+Demo: **`/look.html`** (`?look=day`, `?place=osm:node/123`, `?empty=1`, `?loading=1`, `?skel=1`). Phone-first. Night is default; Day is a warm light preview.
 
 ## Live HUD (real app)
 
@@ -23,9 +23,9 @@ Local `npm run dev` / `preview` serve `/api/stores` and `/api/places` through th
 
 | Piece | Files | Behavior |
 |---|---|---|
-| Store pins | `src/map/store-pins.ts`, `src/look/marks.ts` | Brand-colored monogram badge. Unknown chains use the category glyph + category color. MapLibre clustering (`clusterRadius` 52, `clusterMaxZoom` 14). Labels from zoom 15. |
-| Place card | `src/hud/place-card.ts` | Bottom sheet: hologram slot, name, badge, open-now chip, hours, address, Call / Website / Directions, photo strip with credits, description. Empty-states every missing field. |
-| Hologram | `src/look/hologram.ts` | Slot above the selected pin **and** at the top of the card. Leon fills `registerHologramRenderer`. Honors `prefers-reduced-motion`. |
+| Store pins | `src/map/store-pins.ts`, `src/look/marks.ts` | Teardrop brand pin + original two-letter monogram (`monogramPair`). Unknown chains use the category glyph + category color. MapLibre clustering (`clusterRadius` 52, `clusterMaxZoom` 14). Labels from zoom 15. |
+| Place card | `src/hud/place-card.ts` | Bottom sheet: hologram stage, name, badge, open-now chip, formatted hours, address, icon actions, photo strip with credits, description. Empty-states every missing field. |
+| Hologram | `src/look/hologram.ts` | Slot above the selected pin **and** in `.look-holo-well` on the card. Leon fills `registerHologramRenderer` (unchanged). Honors `prefers-reduced-motion`. |
 | Ghost cars | `src/map/ghost-car.ts` | Color, name tag, heading arrow. Visual only. 3D via `mountGhostCar`. |
 
 Logos are **bundled monograms**, not hotlinked brand files or paid image APIs. Demo photos on `/look.html` are original SVG stills (`src/look/photos.ts`). Live cards credit Wikimedia when Wikidata has an image.
@@ -73,6 +73,8 @@ Fixture demo (`node tools/shoot-look.mjs docs/look <previewUrl>`):
 | `docs/look/pins-night.png` | Store pins + ghosts, Night |
 | `docs/look/card-full-night.png` | Walmart card with every field |
 | `docs/look/card-empty-night.png` | Corner Mart empty states |
+| `docs/look/card-loading-night.png` | Card shimmer + hologram well |
+| `docs/look/pins-skel-night.png` | Skeleton pins while stores load |
 | `docs/look/ghosts-night.png` | Ghost cars, closer |
 | `docs/look/clusters-night.png` | Clustered fuel pins |
 | `docs/look/pins-day.png` | Day theme |

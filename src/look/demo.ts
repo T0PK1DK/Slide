@@ -14,9 +14,11 @@ export type LookTheme = "night" | "day";
 
 type SlideLookApi = {
   showPlace: (id: string) => void;
+  showLoading: (id: string) => void;
   setLook: (look: LookTheme) => void;
   trigger: (kind: "stopped" | "destination" | "close") => void;
   zoom: (z: number) => void;
+  showSkel: (on: boolean) => void;
   ready: boolean;
 };
 
@@ -59,6 +61,20 @@ const map = new maplibregl.Map({
 const hud = document.getElementById("look-hud")!;
 const status = document.getElementById("look-status")!;
 
+const skel = document.createElement("div");
+skel.className = "look-skel-pins";
+skel.hidden = true;
+skel.setAttribute("aria-hidden", "true");
+skel.innerHTML = [
+  ["38%", "42%"],
+  ["58%", "36%"],
+  ["46%", "58%"],
+  ["64%", "52%"],
+]
+  .map(([l, t], i) => `<i class="look-skel-pin" style="left:${l};top:${t};animation-delay:${i * 0.16}s"></i>`)
+  .join("");
+hud.appendChild(skel);
+
 const card = mountPlaceCard({
   host: hud,
   onClose: () => {
@@ -100,6 +116,17 @@ const api: SlideLookApi = {
     const store = storeById(id);
     if (store) openStore(store, "pin");
   },
+  showLoading(id) {
+    const store = storeById(id) ?? LOOK_FIXTURES.stores[0];
+    if (!store) return;
+    pins.select(store.id ?? null);
+    card.show(store, undefined, { loading: true });
+    status.textContent = "Looking up this place…";
+  },
+  showSkel(on) {
+    skel.hidden = !on;
+    status.textContent = on ? "Looking for stores…" : "Fixtures · not live OSM";
+  },
   setLook(look) {
     const next = new URL(location.href);
     next.searchParams.set("look", look);
@@ -135,6 +162,8 @@ map.on("load", () => {
   const openId = params.get("place");
   if (openId) api.showPlace(openId);
   if (params.get("empty") === "1") api.showPlace("osm:node/corner-1");
+  if (params.get("loading") === "1") api.showLoading(params.get("place") || "osm:node/123");
+  if (params.get("skel") === "1") api.showSkel(true);
 });
 
 map.on("error", () => {

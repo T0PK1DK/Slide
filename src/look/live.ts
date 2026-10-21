@@ -83,7 +83,7 @@ export function mountLookLive(hooks: LookLiveHooks): LookLiveHandle {
   skel.hidden = true;
   skel.setAttribute("aria-hidden", "true");
   skel.innerHTML = SKEL_SPOTS.map(
-    ([l, t]) => `<i class="look-skel-pin" style="left:${l};top:${t}"></i>`,
+    ([l, t], i) => `<i class="look-skel-pin" style="left:${l};top:${t};animation-delay:${i * 0.16}s"></i>`,
   ).join("");
   hooks.host.appendChild(skel);
 

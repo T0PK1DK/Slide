@@ -89,6 +89,56 @@ export function monogramLetter(store: Pick<Store, "brand" | "brandKey" | "name">
   return (ch || "?").toUpperCase();
 }
 
+/**
+ * Original two-letter mark for known chains (not a trademark). Lead is the
+ * same character `monogramLetter` returns so existing pin ids stay stable.
+ */
+export const BRAND_MONOGRAM: Record<string, string> = {
+  walmart: "Wa",
+  target: "Ta",
+  costco: "Co",
+  kroger: "Kr",
+  publix: "Pu",
+  "whole-foods": "WF",
+  aldi: "Al",
+  "trader-joes": "TJ",
+  safeway: "Sw",
+  albertsons: "Ab",
+  cvs: "CV",
+  walgreens: "Wg",
+  "rite-aid": "RA",
+  shell: "Sh",
+  exxon: "Ex",
+  chevron: "Cv",
+  bp: "BP",
+  "circle-k": "CK",
+  wawa: "Ww",
+  "7-eleven": "7E",
+  mcdonalds: "Mc",
+  "burger-king": "BK",
+  wendys: "We",
+  "taco-bell": "TB",
+  "chick-fil-a": "CF",
+  subway: "Su",
+  chipotle: "Cp",
+  starbucks: "Sb",
+  dunkin: "Du",
+  "home-depot": "HD",
+  lowes: "Lo",
+  "best-buy": "BB",
+};
+
+export function monogramPair(store: Pick<Store, "brand" | "brandKey" | "name">): { lead: string; rest: string } {
+  const key = store.brandKey?.trim().toLowerCase();
+  const pair = key ? BRAND_MONOGRAM[key] : undefined;
+  const lead = monogramLetter(store);
+  if (pair && pair.charAt(0).toUpperCase() === lead) {
+    return { lead, rest: pair.slice(1) };
+  }
+  if (pair) return { lead: pair.charAt(0), rest: pair.slice(1) };
+  return { lead, rest: "" };
+}
+
 export function hasBundledMark(store: Pick<Store, "brandKey" | "logo" | "name" | "category">): boolean {
   const key = store.brandKey?.trim().toLowerCase();
   if (key && BRAND_COLOR[key]) return true;
@@ -97,22 +147,27 @@ export function hasBundledMark(store: Pick<Store, "brandKey" | "logo" | "name" |
 }
 
 /**
- * Original 24×24 monogram disc. Used on the card and as the map pin sprite.
- * Remote `logo` URLs are ignored on purpose (no paid/hotlink logos).
+ * Original 24×24 monogram disc. Used on the card. Map sprites use the
+ * teardrop canvas in `store-pins`. Remote `logo` URLs are ignored.
  */
 export function pinBadgeSvg(store: Pick<Store, "brand" | "brandKey" | "name" | "color" | "category" | "logo">): string {
   const color = pinColor(store);
   const ink = contrastInk(color);
-  const letter = monogramLetter(store);
+  const { lead, rest } = monogramPair(store);
   const known = hasBundledMark(store);
   const glyph = known
-    ? `<text x="12" y="16.2" text-anchor="middle" font-size="11" font-weight="700" font-family="system-ui,sans-serif" fill="${ink}">${letter}</text>`
+    ? `<text x="12" y="16.2" text-anchor="middle" font-size="${rest ? 10 : 11}" font-weight="700" font-family="system-ui,sans-serif" fill="${ink}"><tspan>${lead}</tspan>${rest ? `<tspan font-size="8" dy="0">${escSvg(rest)}</tspan>` : ""}</text>`
     : `<path d="${categoryIconPath(store.category)}" fill="none" stroke="${ink}" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>`;
   return `<svg viewBox="0 0 24 24" width="24" height="24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
   <circle cx="12" cy="12" r="11" fill="${color}"/>
   <circle cx="12" cy="12" r="10.2" fill="none" stroke="${ink}" stroke-opacity=".28" stroke-width="1"/>
+  <circle cx="8.2" cy="7.6" r="3.2" fill="${ink}" fill-opacity=".1"/>
   ${glyph}
 </svg>`;
+}
+
+function escSvg(s: string): string {
+  return s.replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]!);
 }
 
 export const CATEGORY_LABEL: Record<StoreCategory, string> = {
