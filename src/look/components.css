@@ -145,6 +145,8 @@
 .look-chip {
   display: inline-flex;
   align-items: center;
+  justify-self: start;
+  width: max-content;
   min-height: 28px;
   padding: 0 10px;
   border-radius: var(--radius-pill);
@@ -526,13 +528,23 @@
 
 .look-skel-pin {
   position: absolute;
-  width: 16px;
+  width: 22px;
   height: 22px;
-  margin: -20px 0 0 -8px;
-  background: var(--fill-11);
-  box-shadow: 0 0 0 4px var(--fill-06);
+  margin: -22px 0 0 -11px;
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--glow) 42%, var(--fill-11));
+  box-shadow: 0 0 0 6px var(--fill-08);
   animation: look-pulse var(--dur-ambient) var(--ease-out) infinite;
-  clip-path: path("M8 22 C8 22 1 14 1 9 A7 7 0 1 1 15 9 C15 14 8 22 8 22Z");
+}
+
+.look-skel-pin::after {
+  content: "";
+  position: absolute;
+  left: 5px;
+  top: 19px;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 8px solid color-mix(in srgb, var(--glow) 42%, var(--fill-11));
 }
 
 .look-skel-pin:nth-child(2) { animation-delay: 0.2s; }

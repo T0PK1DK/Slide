@@ -125,6 +125,7 @@ const api: SlideLookApi = {
   },
   showSkel(on) {
     skel.hidden = !on;
+    pins.setVisible(!on);
     status.textContent = on ? "Looking for stores…" : "Fixtures · not live OSM";
   },
   setLook(look) {

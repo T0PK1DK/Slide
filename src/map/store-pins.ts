@@ -120,11 +120,11 @@ function drawPinCanvas(
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     if (rest) {
-      ctx.font = "700 17px system-ui, sans-serif";
-      ctx.fillText(`${letter}${rest}`, 32, 27);
-    } else {
       ctx.font = "700 20px system-ui, sans-serif";
-      ctx.fillText(letter, 32, 27);
+      ctx.fillText(`${letter}${rest}`, 32, 26);
+    } else {
+      ctx.font = "700 22px system-ui, sans-serif";
+      ctx.fillText(letter, 32, 26);
     }
   }
   return c;
@@ -275,7 +275,7 @@ export function mountStorePins(hooks: StorePinsHooks): StorePinsHandle {
         filter: ["!", ["has", "point_count"]],
         layout: {
           "icon-image": ["get", "icon"],
-          "icon-size": ["interpolate", ["linear"], ["zoom"], 10, 0.7, 13, 0.9, 16, 1.08],
+          "icon-size": ["interpolate", ["linear"], ["zoom"], 10, 0.82, 13, 1.02, 16, 1.2],
           "icon-anchor": "bottom",
           "icon-allow-overlap": false,
           "icon-ignore-placement": false,
