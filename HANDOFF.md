@@ -80,6 +80,8 @@ src/look/store-feed.ts  client tile/place cache, debounce, status copy for /api/
 src/look/live.ts        HUD wire-up: pins, place sheet, hologram, watchLiveGhosts
 src/look/hours.ts       OSM opening_hours → short card line (look-only)
 src/look/hours.test.ts  daily / split / passthrough hours
+src/look/motion.ts      pin drop / select size / halo pulse math (look-only)
+src/look/motion.test.ts drop, selected size, cluster constants
 src/look/components.css shared sheet / hologram / ghost / skeleton styles (tokens)
 src/look/live.css       live HUD status pill, FAB lift, card shimmer
 src/hud/place-card.ts   bottom-sheet place card (empty states, hologram stage, loading shimmer)
@@ -445,6 +447,8 @@ Read `TASKS.md` top unchecked item. Do not rebase history. Do not rename the pro
 - 2026-10-18 Grim: **Look live data** (branch `grim/slide-look-live-data`). Wired store pins, `#look-place-card`, and Leon's hologram slot in the real HUD to Nard's `/api/stores` + `/api/places`. Debounce 600 ms, zoom ≥ 12, 8 min tile cache, 30 min place cache, skeleton pins + card shimmer, empty/error pills, never blocks the map. Fixtures stay on `/look.html` + tests. Live ghost cars subscribe to `watchLiveGhosts` when accounts are configured; otherwise none (rough friends presence unchanged). Vite stand-in for the two endpoints; did not rewrite `functions/**` or `src/lib/stores/**`. No scoring-contract change.
 
 - 2026-10-21 Grim: **Look polish** (branch `cursor/slide-look-polish-f924`). Additive HUD look only. Teardrop store pins + original two-letter monograms, category glyphs on unknown chains, hologram *stage* around Leon's slot (hook unchanged), place-card icons / formatted hours / photo well, tile + pin skeletons, sheet slide-up, phone gutters + `--look-sheet-lift` for FABs, richer empty states. Demo `?loading=1` / `?skel=1`. Did not touch `functions/**`, `src/lib/stores/**`, `src/lib/place-info.ts`, `src/lib/live-ghosts/**`, `src/models/**`, or `registerHologramRenderer`. 396 tests. No scoring-contract change.
+
+- 2026-10-22 Grim: **Look motion** (same branch). Pin drop + selected scale/halo pulse, place-card slide-and-expand, hologram reveal on the stage (hook unchanged), zoomed-out cluster glow + warmer count steps. Phone 390 uses `--look-sheet-max`. Demo `?motion=enter|reveal|drop`. No backend / models edits. Tests only added. No scoring-contract change.
 
 - 2026-10-12 Nard: **UI fix-up** (branch `nard/ui-fixup`). No backend, no new features, keys stay in Pages secrets.
   - **Broken buttons:** Save Home/Work from the menu with no dest now opens the search card so the error is visible. Report with no GPS opens a sheet instead of a silent no-op. Sign-in / Create / Profile sign-in / Leave-by disable the submit while the request runs. Primary/ghost `:disabled` is now faded.

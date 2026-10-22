@@ -57,9 +57,21 @@ try {
     window.slideLook.trigger("close");
     window.slideLook.showSkel(true);
   });
-  await new Promise((r) => setTimeout(r, 400));
+  await new Promise((r) => setTimeout(r, 700));
   await shot(night, "pins-skel-night");
   await night.evaluate(() => window.slideLook.showSkel(false));
+
+  await night.evaluate(() => window.slideLook.previewMotion("enter"));
+  await new Promise((r) => setTimeout(r, 250));
+  await shot(night, "motion-enter-night");
+
+  await night.evaluate(() => window.slideLook.previewMotion("reveal"));
+  await new Promise((r) => setTimeout(r, 250));
+  await shot(night, "motion-reveal-night");
+
+  await night.evaluate(() => window.slideLook.previewMotion("drop"));
+  await new Promise((r) => setTimeout(r, 350));
+  await shot(night, "motion-drop-night");
 
   await night.evaluate(() => {
     window.slideLook.trigger("close");
@@ -68,9 +80,16 @@ try {
   await new Promise((r) => setTimeout(r, 600));
   await shot(night, "ghosts-night");
 
-  await night.evaluate(() => window.slideLook.zoom(13.15));
+  await night.evaluate(() => {
+    window.slideLook.trigger("close");
+    window.slideLook.zoom(13.15);
+  });
   await new Promise((r) => setTimeout(r, 700));
   await shot(night, "clusters-night");
+
+  await night.evaluate(() => window.slideLook.zoom(12.25));
+  await new Promise((r) => setTimeout(r, 700));
+  await shot(night, "clusters-out-night");
   await night.close();
 
   const day = await openLook(browser, "day");

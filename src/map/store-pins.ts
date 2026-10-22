@@ -1,16 +1,27 @@
-import maplibregl from "maplibre-gl";
+import maplibregl, { type ExpressionSpecification } from "maplibre-gl";
 import type { FeatureCollection } from "geojson";
-import { mountHologram, type HologramDispose } from "../look/hologram";
+import { mountHologram, prefersReducedMotion, type HologramDispose } from "../look/hologram";
 import { categoryIconPath, contrastInk, hasBundledMark, monogramLetter, monogramPair, pinColor } from "../look/marks";
+import {
+  PIN_DROP_MS,
+  haloPulse,
+  haloRadiusExpr,
+  pinDropPaint,
+  pinSizeExpr,
+  storeIdsKey,
+} from "../look/motion";
 import { modelKeyOf, storeId, storeLngLat, type Store } from "../look/types";
 
 export const STORE_SOURCE = "slide-look-stores";
 export const STORE_LAYER_CLUSTERS = "slide-look-clusters";
+export const STORE_LAYER_CLUSTER_GLOW = "slide-look-cluster-glow";
 export const STORE_LAYER_COUNT = "slide-look-cluster-count";
 export const STORE_LAYER_PINS = "slide-look-pins";
+export const STORE_LAYER_SELECTED = "slide-look-pins-selected";
 export const STORE_LAYER_HALO = "slide-look-halo";
 export const CLUSTER_RADIUS = 52;
 export const CLUSTER_MAX_ZOOM = 14;
+export const CLUSTER_MIN_RADIUS = 18;
 
 export function storesToFeatureCollection(stores: Store[]): FeatureCollection {
   return {
@@ -136,6 +147,7 @@ export type StorePinsHandle = {
   selected(): string | null;
   storeById(id: string): Store | undefined;
   setVisible(on: boolean): void;
+  setDropProgress(progress: number): void;
   destroy(): void;
 };
 
@@ -159,8 +171,59 @@ export function mountStorePins(hooks: StorePinsHooks): StorePinsHandle {
   let holo: maplibregl.Marker | null = null;
   let disposeHolo: HologramDispose | null = null;
   let bound = false;
+  let idsKey = "";
+  let dropRaf = 0;
+  let haloRaf = 0;
 
   const images = new Set<string>();
+  const pinLayers = () => [STORE_LAYER_PINS, STORE_LAYER_SELECTED];
+
+  const paintDrop = (progress: number) => {
+    const { translate, opacity } = pinDropPaint(progress);
+    for (const id of pinLayers()) {
+      if (!map.getLayer(id)) continue;
+      map.setPaintProperty(id, "icon-translate", translate);
+      map.setPaintProperty(id, "icon-opacity", opacity);
+    }
+  };
+
+  const startDrop = () => {
+    cancelAnimationFrame(dropRaf);
+    if (prefersReducedMotion()) {
+      paintDrop(1);
+      return;
+    }
+    const t0 = performance.now();
+    const tick = (now: number) => {
+      const p = Math.min(1, (now - t0) / PIN_DROP_MS);
+      paintDrop(p);
+      if (p < 1) dropRaf = requestAnimationFrame(tick);
+    };
+    paintDrop(0);
+    dropRaf = requestAnimationFrame(tick);
+  };
+
+  const stopHalo = () => {
+    cancelAnimationFrame(haloRaf);
+    haloRaf = 0;
+    if (map.getLayer(STORE_LAYER_HALO)) {
+      map.setPaintProperty(STORE_LAYER_HALO, "circle-radius", haloRadiusExpr(0) as ExpressionSpecification);
+      map.setPaintProperty(STORE_LAYER_HALO, "circle-opacity", 0.2);
+    }
+  };
+
+  const startHalo = () => {
+    stopHalo();
+    if (!selected || !visible) return;
+    const tick = (now: number) => {
+      if (!selected || !visible || !map.getLayer(STORE_LAYER_HALO)) return;
+      const pulse = prefersReducedMotion() ? { radiusBoost: 3, opacity: 0.22 } : haloPulse(now);
+      map.setPaintProperty(STORE_LAYER_HALO, "circle-radius", haloRadiusExpr(pulse.radiusBoost) as ExpressionSpecification);
+      map.setPaintProperty(STORE_LAYER_HALO, "circle-opacity", pulse.opacity);
+      if (!prefersReducedMotion()) haloRaf = requestAnimationFrame(tick);
+    };
+    haloRaf = requestAnimationFrame(tick);
+  };
 
   const ensureImage = (store: Store) => {
     const id = pinImageId(store);
@@ -192,9 +255,9 @@ export function mountStorePins(hooks: StorePinsHooks): StorePinsHandle {
     const lngLat = store ? storeLngLat(store) : null;
     if (!store || !lngLat) return;
     const el = document.createElement("div");
-    el.className = "look-holo-float";
+    el.className = "look-holo-float is-in";
     disposeHolo = mountHologram(el, { modelKey: modelKeyOf(store), color: pinColor(store) });
-    holo = new maplibregl.Marker({ element: el, anchor: "bottom", offset: [0, -28] }).setLngLat(lngLat).addTo(map);
+    holo = new maplibregl.Marker({ element: el, anchor: "bottom", offset: [0, -30] }).setLngLat(lngLat).addTo(map);
   };
 
   const apply = () => {
@@ -204,13 +267,33 @@ export function mountStorePins(hooks: StorePinsHooks): StorePinsHandle {
     if (src) src.setData(fc);
     if (selected && !byId.has(selected)) selected = null;
     const vis = visible ? "visible" : "none";
-    for (const id of [STORE_LAYER_CLUSTERS, STORE_LAYER_COUNT, STORE_LAYER_PINS, STORE_LAYER_HALO]) {
+    for (const id of [
+      STORE_LAYER_CLUSTER_GLOW,
+      STORE_LAYER_CLUSTERS,
+      STORE_LAYER_COUNT,
+      STORE_LAYER_PINS,
+      STORE_LAYER_SELECTED,
+      STORE_LAYER_HALO,
+    ]) {
       if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", vis);
+    }
+    if (map.getLayer(STORE_LAYER_PINS)) {
+      map.setFilter(STORE_LAYER_PINS, [
+        "all",
+        ["!", ["has", "point_count"]],
+        ["!=", ["get", "id"], selected ?? ""],
+      ]);
+      map.setLayoutProperty(STORE_LAYER_PINS, "icon-size", pinSizeExpr(null) as ExpressionSpecification);
+    }
+    if (map.getLayer(STORE_LAYER_SELECTED)) {
+      map.setFilter(STORE_LAYER_SELECTED, ["==", ["get", "id"], selected ?? ""]);
     }
     if (map.getLayer(STORE_LAYER_HALO)) {
       map.setFilter(STORE_LAYER_HALO, ["==", ["get", "id"], selected ?? ""]);
     }
     paintHolo();
+    if (selected && visible) startHalo();
+    else stopHalo();
   };
 
   const bind = () => {
@@ -227,17 +310,36 @@ export function mountStorePins(hooks: StorePinsHooks): StorePinsHandle {
     }
     if (!map.getLayer(STORE_LAYER_CLUSTERS)) {
       map.addLayer({
+        id: STORE_LAYER_CLUSTER_GLOW,
+        type: "circle",
+        source: STORE_SOURCE,
+        filter: ["has", "point_count"],
+        paint: {
+          "circle-color": "rgba(240,160,75,0.28)",
+          "circle-radius": ["step", ["get", "point_count"], CLUSTER_MIN_RADIUS + 8, 4, 28, 10, 34, 22, 40],
+          "circle-blur": 0.55,
+          "circle-opacity": 0.9,
+        },
+      });
+      map.addLayer({
         id: STORE_LAYER_CLUSTERS,
         type: "circle",
         source: STORE_SOURCE,
         filter: ["has", "point_count"],
         paint: {
-          "circle-color": "rgba(240,160,75,0.88)",
-          "circle-stroke-color": "rgba(255,255,255,0.92)",
-          "circle-stroke-width": 2.4,
-          "circle-radius": ["step", ["get", "point_count"], 15, 6, 18, 14, 22],
-          "circle-opacity": 0.96,
-          "circle-blur": 0.05,
+          "circle-color": [
+            "step",
+            ["get", "point_count"],
+            "rgba(240,160,75,0.94)",
+            8,
+            "rgba(232,140,56,0.95)",
+            20,
+            "rgba(220,118,42,0.96)",
+          ],
+          "circle-stroke-color": "rgba(255,255,255,0.94)",
+          "circle-stroke-width": 2.6,
+          "circle-radius": ["step", ["get", "point_count"], CLUSTER_MIN_RADIUS, 4, 21, 10, 25, 22, 30],
+          "circle-opacity": 0.97,
         },
       });
       map.addLayer({
@@ -247,7 +349,7 @@ export function mountStorePins(hooks: StorePinsHooks): StorePinsHandle {
         filter: ["has", "point_count"],
         layout: {
           "text-field": ["to-string", ["get", "point_count_abbreviated"]],
-          "text-size": 12,
+          "text-size": ["step", ["get", "point_count"], 12, 10, 13, 22, 14],
           "text-font": ["Noto Sans Regular"],
           "text-allow-overlap": true,
         },
@@ -261,21 +363,22 @@ export function mountStorePins(hooks: StorePinsHooks): StorePinsHandle {
         source: STORE_SOURCE,
         filter: ["==", ["get", "id"], ""],
         paint: {
-          "circle-radius": ["interpolate", ["linear"], ["zoom"], 11, 12, 16, 26],
-          "circle-color": "rgba(240,160,75,0.18)",
+          "circle-radius": haloRadiusExpr(0) as ExpressionSpecification,
+          "circle-color": "rgba(240,160,75,0.2)",
+          "circle-opacity": 0.2,
           "circle-stroke-width": 2,
-          "circle-stroke-color": "rgba(240,160,75,0.9)",
-          "circle-blur": 0.15,
+          "circle-stroke-color": "rgba(240,160,75,0.92)",
+          "circle-blur": 0.12,
         },
       });
       map.addLayer({
         id: STORE_LAYER_PINS,
         type: "symbol",
         source: STORE_SOURCE,
-        filter: ["!", ["has", "point_count"]],
+        filter: ["all", ["!", ["has", "point_count"]], ["!=", ["get", "id"], ""]],
         layout: {
           "icon-image": ["get", "icon"],
-          "icon-size": ["interpolate", ["linear"], ["zoom"], 10, 0.82, 13, 1.02, 16, 1.2],
+          "icon-size": pinSizeExpr(null) as ExpressionSpecification,
           "icon-anchor": "bottom",
           "icon-allow-overlap": false,
           "icon-ignore-placement": false,
@@ -292,6 +395,36 @@ export function mountStorePins(hooks: StorePinsHooks): StorePinsHandle {
           "text-color": "#f4f3ef",
           "text-halo-color": "rgba(8,10,12,0.78)",
           "text-halo-width": 1.2,
+          "icon-translate": [0, 0],
+          "icon-opacity": 1,
+        },
+      });
+      map.addLayer({
+        id: STORE_LAYER_SELECTED,
+        type: "symbol",
+        source: STORE_SOURCE,
+        filter: ["==", ["get", "id"], ""],
+        layout: {
+          "icon-image": ["get", "icon"],
+          "icon-size": ["interpolate", ["linear"], ["zoom"], 10, 1.02, 13, 1.24, 16, 1.44],
+          "icon-anchor": "bottom",
+          "icon-allow-overlap": true,
+          "icon-ignore-placement": true,
+          "icon-padding": 2,
+          "text-field": ["get", "name"],
+          "text-size": 12,
+          "text-offset": [0, 0.42],
+          "text-anchor": "top",
+          "text-optional": true,
+          "text-font": ["Noto Sans Regular"],
+          "text-max-width": 8,
+        },
+        paint: {
+          "text-color": "#f4f3ef",
+          "text-halo-color": "rgba(8,10,12,0.82)",
+          "text-halo-width": 1.4,
+          "icon-translate": [0, 0],
+          "icon-opacity": 1,
         },
       });
     }
@@ -346,7 +479,17 @@ export function mountStorePins(hooks: StorePinsHooks): StorePinsHandle {
       stores = next;
       byId.clear();
       for (const s of next) byId.set(storeId(s), s);
-      whenStyle(map, apply);
+      const nextKey = storeIdsKey([...byId.keys()]);
+      const dropped = nextKey !== idsKey && next.length > 0;
+      idsKey = nextKey;
+      whenStyle(map, () => {
+        apply();
+        if (dropped && visible) startDrop();
+      });
+    },
+    setDropProgress(progress) {
+      cancelAnimationFrame(dropRaf);
+      whenStyle(map, () => paintDrop(progress));
     },
     select(id) {
       selected = id;
@@ -365,12 +508,20 @@ export function mountStorePins(hooks: StorePinsHooks): StorePinsHandle {
       whenStyle(map, apply);
     },
     destroy() {
+      cancelAnimationFrame(dropRaf);
+      stopHalo();
       disposeHolo?.();
       holo?.remove();
-      if (map.getLayer(STORE_LAYER_PINS)) map.removeLayer(STORE_LAYER_PINS);
-      if (map.getLayer(STORE_LAYER_HALO)) map.removeLayer(STORE_LAYER_HALO);
-      if (map.getLayer(STORE_LAYER_COUNT)) map.removeLayer(STORE_LAYER_COUNT);
-      if (map.getLayer(STORE_LAYER_CLUSTERS)) map.removeLayer(STORE_LAYER_CLUSTERS);
+      for (const id of [
+        STORE_LAYER_SELECTED,
+        STORE_LAYER_PINS,
+        STORE_LAYER_HALO,
+        STORE_LAYER_COUNT,
+        STORE_LAYER_CLUSTERS,
+        STORE_LAYER_CLUSTER_GLOW,
+      ]) {
+        if (map.getLayer(id)) map.removeLayer(id);
+      }
       if (map.getSource(STORE_SOURCE)) map.removeSource(STORE_SOURCE);
     },
   };

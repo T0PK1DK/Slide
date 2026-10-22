@@ -1,6 +1,7 @@
 import { PLACE_EMPTY } from "../look/empty";
 import { formatHours } from "../look/hours";
-import { mountHologram, type HologramDispose } from "../look/hologram";
+import { mountHologram, prefersReducedMotion, type HologramDispose } from "../look/hologram";
+import { CARD_ENTER_MS } from "../look/motion";
 import { CATEGORY_LABEL, pinBadgeSvg, pinColor } from "../look/marks";
 import {
   modelKeyOf,
@@ -194,16 +195,27 @@ export function mountPlaceCard(hooks: PlaceCardHooks): PlaceCardHandle {
 
   let current: Store | null = null;
   let disposeHolo: HologramDispose | null = null;
+  let closeTimer = 0;
 
-  const close = () => {
+  const finishClose = () => {
     disposeHolo?.();
     disposeHolo = null;
     current = null;
-    root.classList.remove("is-open");
     root.hidden = true;
+    root.classList.remove("is-open", "is-preview-enter", "is-expanded");
     root.replaceChildren();
     setSheetLift(root, false);
     hooks.onClose?.();
+  };
+
+  const close = () => {
+    clearTimeout(closeTimer);
+    root.classList.remove("is-open", "is-preview-enter", "is-expanded");
+    if (prefersReducedMotion() || root.hidden) {
+      finishClose();
+      return;
+    }
+    closeTimer = window.setTimeout(finishClose, CARD_ENTER_MS);
   };
 
   root.addEventListener("click", (ev) => {
@@ -223,21 +235,40 @@ export function mountPlaceCard(hooks: PlaceCardHooks): PlaceCardHandle {
   return {
     el: root,
     show(store, info, opts) {
+      clearTimeout(closeTimer);
+      const fresh = root.hidden || !root.classList.contains("is-open");
       const model = placeCardModel(store, info, opts);
       current = store;
       disposeHolo?.();
       root.innerHTML = placeCardHtml(model);
       root.hidden = false;
-      root.classList.add("is-open");
+      root.classList.remove("is-preview-enter");
       root.setAttribute("aria-label", model.name);
-      setSheetLift(root, true);
       const slot = root.querySelector<HTMLElement>("[data-hologram]");
+      const stage = root.querySelector<HTMLElement>(".look-holo-stage");
       if (slot) disposeHolo = mountHologram(slot, { modelKey: model.modelKey, color: model.color });
+      if (stage) {
+        stage.classList.remove("is-reveal");
+        void stage.offsetWidth;
+        stage.classList.add("is-reveal");
+      }
+      if (fresh && !prefersReducedMotion()) {
+        root.classList.remove("is-open", "is-expanded");
+        void root.offsetWidth;
+        requestAnimationFrame(() => {
+          root.classList.add("is-open", "is-expanded");
+          setSheetLift(root, true);
+        });
+      } else {
+        root.classList.add("is-open", "is-expanded");
+        setSheetLift(root, true);
+      }
     },
     hide: close,
     isOpen: () => !root.hidden,
     destroy() {
-      close();
+      clearTimeout(closeTimer);
+      finishClose();
       root.remove();
     },
   };

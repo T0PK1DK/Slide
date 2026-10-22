@@ -19,6 +19,7 @@ type SlideLookApi = {
   trigger: (kind: "stopped" | "destination" | "close") => void;
   zoom: (z: number) => void;
   showSkel: (on: boolean) => void;
+  previewMotion: (kind: "enter" | "reveal" | "drop") => void;
   ready: boolean;
 };
 
@@ -136,6 +137,31 @@ const api: SlideLookApi = {
   zoom(z) {
     map.jumpTo({ zoom: z, center: CENTER });
   },
+  previewMotion(kind) {
+    if (kind === "drop") {
+      card.hide();
+      pins.select(null);
+      pins.setVisible(true);
+      pins.setStores(LOOK_FIXTURES.stores);
+      pins.setDropProgress(0.32);
+      status.textContent = "Pin drop";
+      return;
+    }
+    const store = storeById("osm:node/123") ?? LOOK_FIXTURES.stores[0];
+    if (!store) return;
+    openStore(store, "pin");
+    requestAnimationFrame(() => {
+      if (kind === "enter") {
+        card.el.classList.remove("is-open", "is-expanded");
+        card.el.classList.add("is-preview-enter");
+        status.textContent = "Card enter";
+      }
+      if (kind === "reveal") {
+        card.el.querySelector(".look-holo-stage")?.classList.add("is-preview-reveal");
+        status.textContent = "Hologram reveal";
+      }
+    });
+  },
   trigger(kind) {
     if (kind === "close") {
       card.hide();
@@ -165,6 +191,8 @@ map.on("load", () => {
   if (params.get("empty") === "1") api.showPlace("osm:node/corner-1");
   if (params.get("loading") === "1") api.showLoading(params.get("place") || "osm:node/123");
   if (params.get("skel") === "1") api.showSkel(true);
+  const motion = params.get("motion");
+  if (motion === "enter" || motion === "reveal" || motion === "drop") api.previewMotion(motion);
 });
 
 map.on("error", () => {

@@ -60,7 +60,7 @@
 
 .hud .look-sheet {
   z-index: 7;
-  max-height: min(68dvh, 600px);
+  --look-sheet-max: min(68dvh, 600px);
 }
 
 .look-desc.is-loading {
@@ -117,7 +117,7 @@ body:has(#look-place-card:not([hidden])) .look-live-status { display: none; }
     top: calc(58px + env(safe-area-inset-top));
   }
   .hud .look-sheet {
-    max-height: min(64dvh, 560px);
+    --look-sheet-max: min(64dvh, 560px);
   }
 }
 

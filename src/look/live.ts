@@ -9,7 +9,7 @@ import { cloudConfigured } from "../lib/cloud";
 import { watchLiveGhosts, type GhostWatch } from "../lib/live-ghosts/client";
 import type { Ghost as LiveGhost } from "../lib/live-ghosts/types";
 import type { Store } from "../lib/stores";
-import { STORE_LAYER_CLUSTERS, STORE_LAYER_PINS, mountStorePins } from "../map/store-pins";
+import { STORE_LAYER_CLUSTERS, STORE_LAYER_PINS, STORE_LAYER_SELECTED, mountStorePins } from "../map/store-pins";
 import { mountGhostCars } from "../map/ghost-car";
 import { registerSlideModels } from "../models";
 import {
@@ -249,7 +249,7 @@ export function mountLookLive(hooks: LookLiveHooks): LookLiveHandle {
 
   map.on("click", (e) => {
     if (!card.isOpen()) return;
-    const layers = [STORE_LAYER_PINS, STORE_LAYER_CLUSTERS].filter((id) => map.getLayer(id));
+    const layers = [STORE_LAYER_PINS, STORE_LAYER_SELECTED, STORE_LAYER_CLUSTERS].filter((id) => map.getLayer(id));
     if (!layers.length) return;
     const hit = map.queryRenderedFeatures(e.point, { layers });
     if (hit.length) return;

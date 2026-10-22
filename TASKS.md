@@ -15,6 +15,7 @@ Work top-down. Check the box in the same PR.
 - [x] **Grim look live:** pins / place sheet / hologram on the real HUD via `/api/stores` + `/api/places` (debounce, tile cache, skeleton, empty/error). Fixtures stay on `/look.html`. Live ghosts via `watchLiveGhosts` when accounts are on.
 - [x] **Leon models:** store holograms (32 chains + generics + `*`) and ghost-car hulls — `src/models/`, `docs/MODELS.md`, registers on Grim's hologram hook (merge after #55 + #56)
 - [x] **Grim look polish:** store pins/logos, place cards, skeletons, hologram stage, phone layout, transitions, empty states (fixtures on `/look.html`; live HUD unchanged contract)
+- [x] **Grim look motion:** pin drop + select, card slide/expand, hologram reveal, zoomed-out clusters (390px)
 - [ ] Phase 4/5: 3D living map — garage car on Explore, "Miami driven %" (on-device), Effort icons on the route
 - [x] Presence design (friends' cars, opt-in) — King GO 2026-10-18: invite/accept live ghosts (`src/lib/live-ghosts`, Supabase RLS + Realtime). Rough ~1 km presence stays as-is.
 - [ ] Phase 3: `rankRoutes()` = least Effort within +10% of fastest (today it has no time bound)
