@@ -148,8 +148,10 @@ const api: SlideLookApi = {
       pins.setVisible(true);
       ghosts.setGhosts([]);
       map.jumpTo({ center: CENTER, zoom: 14.45 });
-      pins.setDropProgress(0.14);
-      status.textContent = "Pin drop";
+      requestAnimationFrame(() => {
+        pins.setDropProgress(0.14);
+        status.textContent = "Pin drop";
+      });
       return;
     }
     if (kind === "select") {
@@ -160,9 +162,11 @@ const api: SlideLookApi = {
       if (!store?.id) return;
       const at = store.lon && store.lat ? ([store.lon, store.lat] as [number, number]) : CENTER;
       map.jumpTo({ center: at, zoom: 16.1 });
-      pins.select(store.id);
-      pins.setSelectProgress(0.34);
-      status.textContent = "Pin select";
+      requestAnimationFrame(() => {
+        pins.select(store.id);
+        pins.setSelectProgress(0.34);
+        status.textContent = "Pin select";
+      });
       return;
     }
     const store = storeById("osm:node/123") ?? LOOK_FIXTURES.stores[0];

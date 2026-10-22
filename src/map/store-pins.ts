@@ -171,7 +171,7 @@ export type StorePinsHooks = {
 
 function whenStyle(map: maplibregl.Map, fn: () => void): void {
   if (map.isStyleLoaded()) fn();
-  else map.once("load", fn);
+  else map.once("idle", fn);
 }
 
 export function mountStorePins(hooks: StorePinsHooks): StorePinsHandle {
@@ -545,10 +545,12 @@ export function mountStorePins(hooks: StorePinsHooks): StorePinsHandle {
     },
     setDropProgress(progress) {
       cancelAnimationFrame(dropRaf);
+      paintDrop(progress);
       whenStyle(map, () => paintDrop(progress));
     },
     setSelectProgress(progress) {
       cancelAnimationFrame(selectRaf);
+      paintSelect(progress);
       whenStyle(map, () => paintSelect(progress));
     },
     select(id) {
