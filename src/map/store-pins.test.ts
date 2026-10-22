@@ -53,6 +53,12 @@ describe("store pins", () => {
     expect(shell?.properties?.fade).toBe(1);
     expect(Number(bp?.properties?.sortKey)).toBeGreaterThan(0);
     expect(Number(bp?.properties?.fade)).toBeLessThan(1);
+    const focused = storesToFeatureCollection(LOOK_FIXTURES.stores, {
+      center: { lon: -80.1362, lat: 26.1188 },
+      selected: "osm:node/shell-1",
+      collideM: 80,
+    });
+    expect(focused.features.find((f) => f.properties?.id === "osm:node/shell-1")?.properties?.fade).toBe(1);
   });
 
   it("uses darker pin labels and cluster strokes in day", () => {
@@ -61,13 +67,16 @@ describe("store pins", () => {
     expect(clusterStrokeColor(true)).not.toBe(clusterStrokeColor(false));
   });
 
-  it("expands a cluster without opening a place", () => {
+  it("expands a cluster first, then a second tap can select", () => {
     const src = readFileSync(new URL("./store-pins.ts", import.meta.url), "utf8");
     const expand = src.split("const expandCluster")[1]?.split("const onPinClick")[0] ?? "";
-    expect(expand).toContain("pickClusterWinner");
-    expect(expand).toContain("selected = null");
+    expect(expand).toContain("clusterTapPlan");
     expect(expand).toContain("Number.isFinite(clusterId)");
-    expect(expand).not.toContain("onSelect");
+    expect(expand).toContain("selected = null");
+    expect(expand).toContain('plan.action === "select"');
+    expect(expand).toContain("hooks.onSelect");
+    expect(src).toContain("PIN_COLLIDE_FOCUS_M");
+    expect(src).toContain("startFocusHalo");
     expect(src).toContain('map.on("click", STORE_LAYER_CLUSTER_GLOW, expandCluster)');
     expect(src).toContain('map.on("click", STORE_LAYER_CLUSTERS, expandCluster)');
   });

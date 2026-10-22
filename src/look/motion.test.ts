@@ -9,6 +9,8 @@ import {
   clusterGlowRadiusExpr,
 } from "../map/store-pins";
 import {
+  CLUSTER_EXPAND_PAD,
+  PIN_COLLIDE_FOCUS_M,
   PIN_COLLIDE_M,
   PIN_FADE_NEAR,
   PIN_SIZE_HOT,
@@ -19,6 +21,8 @@ import {
   pinDropPaint,
   pinSelectScale,
   pinSizeExpr,
+  clusterExpandZoom,
+  clusterTapPlan,
   pickClusterWinner,
   rankPins,
   selectedPinSizeExpr,
@@ -102,5 +106,58 @@ describe("look motion", () => {
     );
     expect(winner).toBe("shell");
     expect(pickClusterWinner([], { lon: 0, lat: 0 })).toBeNull();
+  });
+
+  it("fades a wider pack after a cluster expand focus", () => {
+    const mPerDeg = 111320;
+    const winner = { id: "w", lon: 0, lat: 0 };
+    const mid = { id: "m", lon: 0, lat: 70 / mPerDeg };
+    const far = { id: "f", lon: 0, lat: 200 / mPerDeg };
+    const tight = rankPins([winner, mid, far], { center: { lon: 0, lat: 0 }, selected: "w" });
+    const wide = rankPins([winner, mid, far], {
+      center: { lon: 0, lat: 0 },
+      selected: "w",
+      collideM: PIN_COLLIDE_FOCUS_M,
+    });
+    expect(tight.get("m")?.fade).toBe(1);
+    expect(wide.get("m")?.fade).toBe(PIN_FADE_NEAR);
+    expect(wide.get("f")?.fade).toBe(1);
+    expect(PIN_COLLIDE_FOCUS_M).toBeGreaterThan(PIN_COLLIDE_M);
+  });
+
+  it("expands on the first cluster tap and selects on a second when already open", () => {
+    const leaves = [
+      { id: "bp", lon: -80.1358, lat: 26.1186 },
+      { id: "shell", lon: -80.1362, lat: 26.1188 },
+    ];
+    const center = { lon: -80.1362, lat: 26.1188 };
+    const first = clusterTapPlan({
+      leaves,
+      center,
+      expansionZoom: 14,
+      currentZoom: 13.2,
+      focusId: null,
+    });
+    expect(first).toMatchObject({ action: "expand", focusId: "shell" });
+    if (first.action === "expand") {
+      expect(first.zoom).toBeGreaterThanOrEqual(clusterExpandZoom(14, 14));
+      expect(first.zoom).toBeGreaterThan(13.2 + CLUSTER_EXPAND_PAD - 0.001);
+    }
+    const second = clusterTapPlan({
+      leaves,
+      center,
+      expansionZoom: 14,
+      currentZoom: 15.2,
+      focusId: "shell",
+    });
+    expect(second).toEqual({ action: "select", id: "shell" });
+    const stillZooming = clusterTapPlan({
+      leaves,
+      center,
+      expansionZoom: 16,
+      currentZoom: 14.2,
+      focusId: "shell",
+    });
+    expect(stillZooming.action).toBe("expand");
   });
 });

@@ -120,6 +120,15 @@ try {
   });
   await new Promise((r) => setTimeout(r, 800));
   await shot(night, "pins-cluster-tap-night");
+
+  await night.evaluate(() => {
+    window.slideLook.trigger("close");
+    window.slideLook.showGhosts(false);
+    window.slideLook.zoom(15.15, [-80.1362, 26.1186]);
+    window.slideLook.focusPin("osm:node/shell-1");
+  });
+  await new Promise((r) => setTimeout(r, 800));
+  await shot(night, "pins-cluster-after-night");
   await night.close();
 
   const day = await openLook(browser, "day");

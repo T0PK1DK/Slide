@@ -82,8 +82,8 @@ src/look/hours.ts       OSM opening_hours → short card line + closes / opens h
 src/look/hours.test.ts  daily / split / passthrough hours + close / open chips
 src/look/photo-well.ts  Logo vs Photo classify, short credit, mark vs wordmark
 src/look/photo-well.test.ts  Wikimedia mark vs still, P154 logo, fallback well
-src/look/motion.ts      pin drop / select pop / halo pulse / collision rank / cluster winner (look-only)
-src/look/motion.test.ts drop, select pop, selected size, cluster glow, pin rank, cluster winner
+src/look/motion.ts      pin drop / select pop / halo pulse / collision rank / cluster tap plan (look-only)
+src/look/motion.test.ts drop, select pop, selected size, cluster glow, pin rank, cluster tap plan
 src/look/components.css shared sheet / hologram / ghost / skeleton styles (tokens)
 src/look/live.css       live HUD status pill, FAB lift, card shimmer
 src/hud/place-card.ts   bottom-sheet place card (empty states, hologram stage, loading shimmer)
@@ -464,6 +464,7 @@ Read `TASKS.md` top unchecked item. Do not rebase history. Do not rename the pro
 - 2026-10-22 Grim: **Look collide + search** (PR #59). Pin labels no longer overlap: `symbol-sort-key` prefers selected then nearest-to-center; stacked neighbors fade. Closed chip reads `Opens 8a` when OSM start parses; `Hours unknown` / `Closed` stay. Search bar + suggest rows match card type (handle, light title, mono address). No backend or hologram-hook edits. Tests only added. No scoring-contract change.
 - 2026-10-22 Grim: **Look recents + cluster tap** (PR #59). Home/Work/recents use the same two-line suggest row. Tapping a pin cluster zooms in and keeps the nearest leaf label (`focusId`) without opening the card. Edge pass: idle/empty/loading search copy, offline sheet chrome, long-name clamp, 44px taps, day skeleton contrast. `.recent-item { display: grid }` no longer unhides `#chip-saved`. No backend or hologram-hook edits. Tests only added. 421 tests. No scoring-contract change.
 - 2026-10-22 Grim: **Look live photo well + search extras** (PR #59). Real `/api/places` Wikimedia marks: P154 (`source: wikidata`) is Logo, short “Wikimedia” credit, mark vs wordmark well, `referrerpolicy=no-referrer`. Search `#place-card` paints hours / open chip / photo well only when a store within 90 m already has them. No backend or hologram-hook edits. Tests only added. No scoring-contract change.
+- 2026-10-22 Grim: **Look cluster after expand** (PR #59). First cluster tap expands past MapLibre’s break zoom (`CLUSTER_EXPAND_PAD`) and focuses the winner with a quiet halo + wider fade (`PIN_COLLIDE_FOCUS_M` 80). A second tap on the same already-open cluster selects that winner (card / hologram). No backend or hologram-hook edits. Tests only added. No scoring-contract change.
 
 - 2026-10-12 Nard: **UI fix-up** (branch `nard/ui-fixup`). No backend, no new features, keys stay in Pages secrets.
   - **Broken buttons:** Save Home/Work from the menu with no dest now opens the search card so the error is visible. Report with no GPS opens a sheet instead of a silent no-op. Sign-in / Create / Profile sign-in / Leave-by disable the submit while the request runs. Primary/ghost `:disabled` is now faded.

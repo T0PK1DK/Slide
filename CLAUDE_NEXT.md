@@ -6,11 +6,11 @@ Stay on PR **#59** (`cursor/slide-look-polish-f924`) unless the owner opens a ne
 
 ## What just shipped (do not redo)
 
-Eight look rounds on #59. Additive only. `registerHologramRenderer` unchanged. Nard's `/api/stores` + `/api/places` + live ghosts unchanged.
+Nine look rounds on #59. Additive only. `registerHologramRenderer` unchanged. Nard's `/api/stores` + `/api/places` + live ghosts unchanged.
 
 **Round 1 — chrome:** teardrop pins, two-letter monograms, hologram stage, card icons, `formatHours`, skeletons, phone FAB lift, empty icons.
 
-**Round 2–3 — motion:** pin drop / select pop / halo, card slide-expand, hologram reveal CSS, cluster glow. Demo `?motion=enter|reveal|drop|select`.
+**Round 2–3 — motion:** pin drop / select pop / halo, card slide-expand, hologram reveal CSS, cluster glow.
 
 **Round 4 — card daylight:** Logo vs Photo well, `Open · closes 11p`, day contrast.
 
@@ -20,11 +20,16 @@ Eight look rounds on #59. Additive only. `registerHologramRenderer` unchanged. N
 
 **Round 7 — recents + cluster tap + edges:** two-line Home/Work/recents, cluster tap zooms without selecting, empty/offline/long-name/44px.
 
-**Round 8 — live photo well + search extras:**
-- Real `/api/places` Wikimedia marks: P154 (`source: wikidata`) is Logo. Credit shortens to “Wikimedia”. Square marks vs wide wordmarks. `referrerpolicy=no-referrer`. Logos sort first.
-- Search `#place-card` extras (`src/hud/place-extras.ts`) only when a live store is within 90 m: hours if `store.hours`, open chip if `openNow` is boolean, photo well if photos exist. Never invent. Look CSS still does not target `#place-card`.
+**Round 8 — live photo well + search extras:** P154 Logo, short Wikimedia credit, search extras only when a store within 90 m already has them.
 
-Never weaken or delete a test. 424+ must keep passing.
+**Round 9 — cluster after expand:**
+- First tap: `clusterTapPlan` expands to `expansionZoom + CLUSTER_EXPAND_PAD` (0.45), focuses the winner, quiet halo, no card / hologram / select pop.
+- Stacked leaves fade with `PIN_COLLIDE_FOCUS_M` 80 (wider than the 56 m selected collide).
+- Focused pin uses the hot size on the rest layer. `focus()` now `apply()`s so halo + size paint.
+- Second tap on the same already-open cluster (`focusId` matches winner and zoom would barely move) selects that winner (`onSelect`).
+- If the child cluster still needs zoom, the second tap expands again.
+
+Never weaken or delete a test. 426+ must keep passing.
 
 ## Do not
 
@@ -39,21 +44,20 @@ Never weaken or delete a test. 424+ must keep passing.
 
 Phone-first at 390×844. `node tools/shoot-look.mjs docs/look http://127.0.0.1:4173/`. Live: `node tools/shoot-look-live.mjs docs/look http://127.0.0.1:4173/`.
 
-1. **Cluster after expand.** If leaves are still stacked at the expansion zoom, keep fading non-winners and consider a second tap-to-select (today cluster tap never selects).
-2. **Day search sheet.** `#search-card` / recents / fail sheets / extras under `html[data-look=day]` if the live HUD ever uses the look-day tokens.
-3. **Photo strip overflow.** More than two live Commons stills on a 390px card — peek, snap, and credit that stay readable.
-4. **Search extras empty.** When extrasFor misses, keep the card as name + address only (already). A dest that *is* a store but tiles have not landed yet could retry once after `refresh`.
+1. **Day search sheet.** `#search-card` / recents / fail sheets / extras under `html[data-look=day]` if the live HUD ever uses the look-day tokens.
+2. **Photo strip overflow.** More than two live Commons stills on a 390px card — peek, snap, and credit that stay readable.
+3. **Search extras empty.** When extrasFor misses, keep the card as name + address only (already). A dest that *is* a store but tiles have not landed yet could retry once after `refresh`.
+4. **Focus halo day stroke.** The quiet focus ring should read on cream as well as night.
 
 ## How to verify
 
 ```bash
-npm test          # must stay ≥424
+npm test          # must stay ≥426
 npm run build
 npm run preview
 node tools/shoot-look.mjs docs/look http://127.0.0.1:4173/
-node tools/shoot-look-live.mjs docs/look http://127.0.0.1:4173/
 ```
 
-Demo: `/look.html`, `?place=`, `?empty=1`, `?loading=1`, `?skel=1`, `?motion=enter|reveal|drop|select`, `?look=day`. Live HUD: pin a Publix / Walmart — Wikimedia logo well. Search `#place-card` extras: Directions from a store pin, or a dest within 90 m of a loaded store.
+Demo: `/look.html` zoom ~13.4, tap a fuel disc — expands, Shell (or nearest) keeps the label, neighbors fade. Tap the same disc again after the camera settles — card opens. `focusPin(id)` paints the quiet halo. `?look=day`.
 
 Update `HANDOFF.md` + this file, push #59, list changes with phone screenshots. Do not merge.

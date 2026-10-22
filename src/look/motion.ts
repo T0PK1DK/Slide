@@ -79,7 +79,12 @@ export function storeIdsKey(ids: string[]): string {
 
 /** Street-zoom teardrops closer than this fade so the selected / nearer pin wins. */
 export const PIN_COLLIDE_M = 56;
+/** After a cluster expands, fade a wider pack so stacked leaves stay readable. */
+export const PIN_COLLIDE_FOCUS_M = 80;
 export const PIN_FADE_NEAR = 0.38;
+/** Past MapLibre's expansion zoom so the leaves actually uncluster. */
+export const CLUSTER_EXPAND_PAD = 0.45;
+export const CLUSTER_SELECT_ZOOM_EPS = 0.18;
 
 export type PinPoint = { id: string; lon: number; lat: number };
 export type PinRank = { sortKey: number; fade: number };
@@ -100,9 +105,10 @@ function distM(a: { lon: number; lat: number }, b: { lon: number; lat: number })
  */
 export function rankPins(
   points: PinPoint[],
-  opts: { center: { lon: number; lat: number }; selected: string | null },
+  opts: { center: { lon: number; lat: number }; selected: string | null; collideM?: number },
 ): Map<string, PinRank> {
   const selected = opts.selected;
+  const collideM = opts.collideM ?? PIN_COLLIDE_M;
   const ranked = points.map((p) => {
     const toCenter = distM(opts.center, p);
     const sortKey = p.id === selected ? 0 : Math.max(1, Math.round(toCenter));
@@ -114,7 +120,7 @@ export function rankPins(
     const p = ranked[i]!;
     let fade = 1;
     if (p.id !== selected) {
-      const hit = ranked.slice(0, i).some((other) => distM(p, other) < PIN_COLLIDE_M);
+      const hit = ranked.slice(0, i).some((other) => distM(p, other) < collideM);
       if (hit) fade = PIN_FADE_NEAR;
     }
     out.set(p.id, { sortKey: p.sortKey, fade });
@@ -138,4 +144,33 @@ export function pickClusterWinner(
     }
   }
   return best.id || null;
+}
+
+export function clusterExpandZoom(expansionZoom: number, clusterMaxZoom: number): number {
+  return Math.max(expansionZoom + CLUSTER_EXPAND_PAD, clusterMaxZoom + CLUSTER_EXPAND_PAD);
+}
+
+export type ClusterTapPlan =
+  | { action: "expand"; focusId: string | null; zoom: number }
+  | { action: "select"; id: string };
+
+/**
+ * First tap expands and focuses the winner. A second tap on the same
+ * already-open cluster selects that winner instead of zooming again.
+ */
+export function clusterTapPlan(opts: {
+  leaves: PinPoint[];
+  center: { lon: number; lat: number };
+  expansionZoom: number;
+  currentZoom: number;
+  focusId: string | null;
+  clusterMaxZoom?: number;
+}): ClusterTapPlan {
+  const winner = pickClusterWinner(opts.leaves, opts.center);
+  const target = clusterExpandZoom(opts.expansionZoom, opts.clusterMaxZoom ?? 14);
+  const zoom = Math.max(target, opts.currentZoom + CLUSTER_EXPAND_PAD);
+  if (winner && winner === opts.focusId && target <= opts.currentZoom + CLUSTER_SELECT_ZOOM_EPS) {
+    return { action: "select", id: winner };
+  }
+  return { action: "expand", focusId: winner, zoom };
 }

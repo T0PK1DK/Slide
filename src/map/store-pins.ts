@@ -3,13 +3,15 @@ import type { FeatureCollection } from "geojson";
 import { mountHologram, prefersReducedMotion, type HologramDispose } from "../look/hologram";
 import { categoryIconPath, contrastInk, hasBundledMark, monogramLetter, monogramPair, pinColor } from "../look/marks";
 import {
+  PIN_COLLIDE_FOCUS_M,
+  PIN_COLLIDE_M,
   PIN_DROP_MS,
   PIN_SELECT_MS,
+  clusterTapPlan,
   haloPulse,
   haloRadiusExpr,
   pinDropPaint,
   pinSelectScale,
-  pickClusterWinner,
   pinSizeExpr,
   rankPins,
   selectedPinSizeExpr,
@@ -56,7 +58,7 @@ export function clusterStrokeColor(day: boolean): string {
 
 export function storesToFeatureCollection(
   stores: Store[],
-  rank?: { center: { lon: number; lat: number }; selected: string | null },
+  rank?: { center: { lon: number; lat: number }; selected: string | null; collideM?: number },
 ): FeatureCollection {
   const points = stores.flatMap((store) => {
     const lngLat = storeLngLat(store);
@@ -312,6 +314,13 @@ export function mountStorePins(hooks: StorePinsHooks): StorePinsHandle {
     haloRaf = requestAnimationFrame(tick);
   };
 
+  const startFocusHalo = () => {
+    stopHalo();
+    if (!focusId || selected || !visible || !map.getLayer(STORE_LAYER_HALO)) return;
+    map.setPaintProperty(STORE_LAYER_HALO, "circle-radius", haloRadiusExpr(4) as ExpressionSpecification);
+    map.setPaintProperty(STORE_LAYER_HALO, "circle-opacity", prefersReducedMotion() ? 0.2 : 0.26);
+  };
+
   const ensureImage = (store: Store) => {
     const id = pinImageId(store);
     if (images.has(id) || map.hasImage(id)) {
@@ -349,7 +358,11 @@ export function mountStorePins(hooks: StorePinsHooks): StorePinsHandle {
 
   const rankedCollection = () => {
     const c = map.getCenter();
-    return storesToFeatureCollection(stores, { center: { lon: c.lng, lat: c.lat }, selected: selected ?? focusId });
+    return storesToFeatureCollection(stores, {
+      center: { lon: c.lng, lat: c.lat },
+      selected: selected ?? focusId,
+      collideM: !selected && focusId ? PIN_COLLIDE_FOCUS_M : PIN_COLLIDE_M,
+    });
   };
 
   const paintData = () => {
@@ -380,16 +393,17 @@ export function mountStorePins(hooks: StorePinsHooks): StorePinsHandle {
         ["!", ["has", "point_count"]],
         ["!=", ["get", "id"], selected ?? ""],
       ]);
-      map.setLayoutProperty(STORE_LAYER_PINS, "icon-size", pinSizeExpr(null) as ExpressionSpecification);
+      map.setLayoutProperty(STORE_LAYER_PINS, "icon-size", pinSizeExpr(selected ? null : focusId) as ExpressionSpecification);
     }
     if (map.getLayer(STORE_LAYER_SELECTED)) {
       map.setFilter(STORE_LAYER_SELECTED, ["==", ["get", "id"], selected ?? ""]);
     }
     if (map.getLayer(STORE_LAYER_HALO)) {
-      map.setFilter(STORE_LAYER_HALO, ["==", ["get", "id"], selected ?? ""]);
+      map.setFilter(STORE_LAYER_HALO, ["==", ["get", "id"], selected ?? focusId ?? ""]);
     }
     paintHolo();
     if (selected && visible) startHalo();
+    else if (focusId && visible) startFocusHalo();
     else stopHalo();
   };
 
@@ -557,24 +571,42 @@ export function mountStorePins(hooks: StorePinsHooks): StorePinsHandle {
       const clusterId = Number(f.properties?.cluster_id);
       const src = map.getSource(STORE_SOURCE) as maplibregl.GeoJSONSource | undefined;
       if (!src || !Number.isFinite(clusterId)) return;
-      void src.getClusterLeaves(clusterId, 24, 0).then((leaves) => {
-        const pts = leaves.flatMap((leaf) => {
-          if (leaf.geometry.type !== "Point") return [];
-          const [lon, lat] = leaf.geometry.coordinates as [number, number];
-          const id = String(leaf.properties?.id ?? "");
-          return id ? [{ id, lon, lat }] : [];
-        });
-        focusId = pickClusterWinner(pts, { lon: coords[0], lat: coords[1] });
-        selected = null;
-        apply();
-      }).catch(() => undefined);
-      void src.getClusterExpansionZoom(clusterId).then((zoom) => {
-        map.easeTo({
-          center: coords,
-          zoom: Math.max(zoom, CLUSTER_MAX_ZOOM + 0.35),
-          duration: prefersReducedMotion() ? 0 : 480,
-        });
-      }).catch(() => undefined);
+      void Promise.all([src.getClusterLeaves(clusterId, 24, 0), src.getClusterExpansionZoom(clusterId)])
+        .then(([leaves, expansionZoom]) => {
+          const pts = leaves.flatMap((leaf) => {
+            if (leaf.geometry.type !== "Point") return [];
+            const [lon, lat] = leaf.geometry.coordinates as [number, number];
+            const id = String(leaf.properties?.id ?? "");
+            return id ? [{ id, lon, lat }] : [];
+          });
+          const plan = clusterTapPlan({
+            leaves: pts,
+            center: { lon: coords[0], lat: coords[1] },
+            expansionZoom,
+            currentZoom: map.getZoom(),
+            focusId,
+            clusterMaxZoom: CLUSTER_MAX_ZOOM,
+          });
+          if (plan.action === "select") {
+            const store = byId.get(plan.id);
+            if (!store) return;
+            selected = plan.id;
+            focusId = null;
+            apply();
+            startSelect();
+            hooks.onSelect?.(store);
+            return;
+          }
+          focusId = plan.focusId;
+          selected = null;
+          apply();
+          map.easeTo({
+            center: coords,
+            zoom: plan.zoom,
+            duration: prefersReducedMotion() ? 0 : 480,
+          });
+        })
+        .catch(() => undefined);
     };
     map.on("click", STORE_LAYER_CLUSTERS, expandCluster);
     map.on("click", STORE_LAYER_CLUSTER_GLOW, expandCluster);
@@ -649,7 +681,7 @@ export function mountStorePins(hooks: StorePinsHooks): StorePinsHandle {
     },
     focus(id) {
       focusId = id;
-      whenStyle(map, () => paintData());
+      whenStyle(map, apply);
     },
     selected: () => selected,
     storeById: (id) => byId.get(id),

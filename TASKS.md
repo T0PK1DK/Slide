@@ -21,6 +21,7 @@ Work top-down. Check the box in the same PR.
 - [x] **Grim look collide + search:** pin label collision (selected/nearest), Opens-8a chip, search bar/results match cards (390px)
 - [x] **Grim look recents + cluster tap:** Home/Work/recents as two-line rows, cluster tap zooms + keeps winner label, edge-case polish (390px)
 - [x] **Grim look live photo well:** Wikimedia logo well on live HUD + search `#place-card` extras only when Nard already has them (390px)
+- [x] **Grim look cluster after expand:** first tap expands + fades stacked leaves; second tap selects the winner (390px)
 - [ ] Phase 4/5: 3D living map — garage car on Explore, "Miami driven %" (on-device), Effort icons on the route
 - [x] Presence design (friends' cars, opt-in) — King GO 2026-10-18: invite/accept live ghosts (`src/lib/live-ghosts`, Supabase RLS + Realtime). Rough ~1 km presence stays as-is.
 - [ ] Phase 3: `rankRoutes()` = least Effort within +10% of fastest (today it has no time bound)
