@@ -17,7 +17,8 @@ type SlideLookApi = {
   showLoading: (id: string) => void;
   setLook: (look: LookTheme) => void;
   trigger: (kind: "stopped" | "destination" | "close") => void;
-  zoom: (z: number) => void;
+  zoom: (z: number, lonlat?: [number, number]) => void;
+  selectPin: (id: string | null) => void;
   showSkel: (on: boolean) => void;
   showGhosts: (on: boolean) => void;
   previewMotion: (kind: "enter" | "reveal" | "drop" | "select") => void;
@@ -135,8 +136,11 @@ const api: SlideLookApi = {
     next.searchParams.set("look", look);
     location.replace(next.toString());
   },
-  zoom(z) {
-    map.jumpTo({ zoom: z, center: CENTER });
+  zoom(z, lonlat) {
+    map.jumpTo({ zoom: z, center: lonlat ?? CENTER });
+  },
+  selectPin(id) {
+    pins.select(id);
   },
   showGhosts(on) {
     ghosts.setGhosts(on ? LOOK_FIXTURES.ghosts : []);

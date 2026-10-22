@@ -23,7 +23,7 @@ Local `npm run dev` / `preview` serve `/api/stores` and `/api/places` through th
 
 | Piece | Files | Behavior |
 |---|---|---|
-| Store pins | `src/map/store-pins.ts`, `src/look/marks.ts`, `src/look/motion.ts` | Teardrop brand pin + original two-letter monogram. Pins drop in when a tile lands; the selected one scales up with a pulsing halo. Unknown chains use the category glyph. Clusters get a glow disc when zoomed out (`clusterRadius` 52, `clusterMaxZoom` 14). Labels from zoom 15. |
+| Store pins | `src/map/store-pins.ts`, `src/look/marks.ts`, `src/look/motion.ts` | Teardrop brand pin + original two-letter monogram. Pins drop in when a tile lands; the selected one scales up with a pulsing halo. Unknown chains use the category glyph. Clusters get a glow disc when zoomed out (`clusterRadius` 52, `clusterMaxZoom` 14). Labels from zoom 15 — no overlap; selected then nearest-to-center win, stacked neighbors fade. |
 | Place card | `src/hud/place-card.ts` | Bottom sheet slides up and expands. Hologram stage, name, badge, open-now chip, formatted hours, address, icon actions, photo strip, description. Empty-states every missing field. |
 | Hologram | `src/look/hologram.ts` | Slot above the selected pin **and** in `.look-holo-well` on the card. Reveal animation is CSS on the stage. Leon fills `registerHologramRenderer` (unchanged). Honors `prefers-reduced-motion`. |
 | Ghost cars | `src/map/ghost-car.ts` | Color, name tag, heading arrow. Visual only. 3D via `mountGhostCar`. |
@@ -87,6 +87,9 @@ Fixture demo (`node tools/shoot-look.mjs docs/look <previewUrl>`):
 | `docs/look/card-empty-day.png` | Empty card, Day |
 | `docs/look/clusters-day.png` | Clusters, Day |
 | `docs/look/search-card-night.png` | Search `#place-card` chrome, Night |
+| `docs/look/search-results-night.png` | Search bar + results list, Night |
+| `docs/look/card-closed-night.png` | Closed chip `Opens 5a` (Dunkin) |
+| `docs/look/pins-collide-night.png` | Street-zoom pins, selected label wins |
 
 Live OSM (`node tools/shoot-look-live.mjs docs/look <previewUrl>`):
 

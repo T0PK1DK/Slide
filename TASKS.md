@@ -18,6 +18,7 @@ Work top-down. Check the box in the same PR.
 - [x] **Grim look motion:** pin drop + select, card slide/expand, hologram reveal, zoomed-out clusters (390px)
 - [x] **Grim look card daylight:** photo well (Logo vs Photo + fallback), closes-11p chip, day-mode pin/card contrast (390px)
 - [x] **Grim look card unify:** search `#place-card` + look sheet chrome, reduced-motion audit, 128px store pins (390px)
+- [x] **Grim look collide + search:** pin label collision (selected/nearest), Opens-8a chip, search bar/results match cards (390px)
 - [ ] Phase 4/5: 3D living map — garage car on Explore, "Miami driven %" (on-device), Effort icons on the route
 - [x] Presence design (friends' cars, opt-in) — King GO 2026-10-18: invite/accept live ghosts (`src/lib/live-ghosts`, Supabase RLS + Realtime). Rough ~1 km presence stays as-is.
 - [ ] Phase 3: `rankRoutes()` = least Effort within +10% of fastest (today it has no time bound)

@@ -10,6 +10,7 @@ import {
   pinDropPaint,
   pinSelectScale,
   pinSizeExpr,
+  rankPins,
   selectedPinSizeExpr,
   storeIdsKey,
 } from "../look/motion";
@@ -52,13 +53,25 @@ export function clusterStrokeColor(day: boolean): string {
   return day ? "rgba(40, 28, 12, 0.55)" : "rgba(255,255,255,0.96)";
 }
 
-export function storesToFeatureCollection(stores: Store[]): FeatureCollection {
+export function storesToFeatureCollection(
+  stores: Store[],
+  rank?: { center: { lon: number; lat: number }; selected: string | null },
+): FeatureCollection {
+  const points = stores.flatMap((store) => {
+    const lngLat = storeLngLat(store);
+    if (!lngLat) return [];
+    return [{ id: storeId(store), lon: lngLat[0], lat: lngLat[1] }];
+  });
+  const ranks = rank
+    ? rankPins(points, rank)
+    : new Map(points.map((p) => [p.id, { sortKey: 1, fade: 1 }]));
   return {
     type: "FeatureCollection",
     features: stores.flatMap((store) => {
       const lngLat = storeLngLat(store);
       if (!lngLat) return [];
       const id = storeId(store);
+      const r = ranks.get(id) ?? { sortKey: 1, fade: 1 };
       return [
         {
           type: "Feature" as const,
@@ -72,6 +85,8 @@ export function storesToFeatureCollection(stores: Store[]): FeatureCollection {
             color: pinColor(store),
             letter: monogramLetter(store),
             icon: pinImageId(store),
+            sortKey: r.sortKey,
+            fade: r.fade,
           },
         },
       ];
@@ -209,6 +224,8 @@ export function mountStorePins(hooks: StorePinsHooks): StorePinsHandle {
 
   const images = new Set<string>();
   const pinLayers = () => [STORE_LAYER_PINS, STORE_LAYER_SELECTED];
+  const fadeIconExpr = ["case", ["has", "fade"], ["get", "fade"], 1];
+  const fadeTextExpr = ["case", ["<", ["coalesce", ["get", "fade"], 1], 1], 0, 1];
 
   const paintDrop = (progress: number) => {
     const { translate, opacity } = pinDropPaint(progress);
@@ -218,8 +235,13 @@ export function mountStorePins(hooks: StorePinsHooks): StorePinsHandle {
       map.setPaintProperty(id, "text-translate-anchor", "viewport");
       map.setPaintProperty(id, "icon-translate", translate);
       map.setPaintProperty(id, "text-translate", translate);
-      map.setPaintProperty(id, "icon-opacity", opacity);
-      map.setPaintProperty(id, "text-opacity", opacity);
+      if (progress >= 1) {
+        map.setPaintProperty(id, "icon-opacity", fadeIconExpr as ExpressionSpecification);
+        map.setPaintProperty(id, "text-opacity", fadeTextExpr as ExpressionSpecification);
+      } else {
+        map.setPaintProperty(id, "icon-opacity", opacity);
+        map.setPaintProperty(id, "text-opacity", opacity);
+      }
     }
   };
 
@@ -322,8 +344,18 @@ export function mountStorePins(hooks: StorePinsHooks): StorePinsHandle {
     holo = new maplibregl.Marker({ element: el, anchor: "bottom", offset: [0, -30] }).setLngLat(lngLat).addTo(map);
   };
 
+  const rankedCollection = () => {
+    const c = map.getCenter();
+    return storesToFeatureCollection(stores, { center: { lon: c.lng, lat: c.lat }, selected });
+  };
+
+  const paintData = () => {
+    const src = map.getSource(STORE_SOURCE) as maplibregl.GeoJSONSource | undefined;
+    if (src) src.setData(rankedCollection());
+  };
+
   const apply = () => {
-    const fc = storesToFeatureCollection(stores);
+    const fc = rankedCollection();
     for (const s of stores) ensureImage(s);
     const src = map.getSource(STORE_SOURCE) as maplibregl.GeoJSONSource | undefined;
     if (src) src.setData(fc);
@@ -450,16 +482,19 @@ export function mountStorePins(hooks: StorePinsHooks): StorePinsHandle {
           "icon-image": ["get", "icon"],
           "icon-size": pinSizeExpr(null) as ExpressionSpecification,
           "icon-anchor": "bottom",
-          "icon-allow-overlap": false,
+          "icon-allow-overlap": true,
           "icon-ignore-placement": false,
-          "icon-padding": 4,
+          "icon-padding": 6,
           "text-field": ["step", ["zoom"], "", 15, ["get", "name"]],
           "text-size": 11,
           "text-offset": [0, 0.35],
           "text-anchor": "top",
           "text-optional": true,
+          "text-allow-overlap": false,
+          "text-padding": 4,
           "text-font": ["Noto Sans Regular"],
           "text-max-width": 8,
+          "symbol-sort-key": ["get", "sortKey"],
         },
         paint: {
           "text-color": label.color,
@@ -467,10 +502,10 @@ export function mountStorePins(hooks: StorePinsHooks): StorePinsHandle {
           "text-halo-width": day ? 1.6 : 1.2,
           "icon-translate": [0, 0],
           "icon-translate-anchor": "viewport",
-          "icon-opacity": 1,
+          "icon-opacity": fadeIconExpr as ExpressionSpecification,
           "text-translate": [0, 0],
           "text-translate-anchor": "viewport",
-          "text-opacity": 1,
+          "text-opacity": fadeTextExpr as ExpressionSpecification,
         },
       });
       map.addLayer({
@@ -489,9 +524,12 @@ export function mountStorePins(hooks: StorePinsHooks): StorePinsHandle {
           "text-size": 12,
           "text-offset": [0, 0.42],
           "text-anchor": "top",
-          "text-optional": true,
+          "text-optional": false,
+          "text-allow-overlap": true,
+          "text-ignore-placement": true,
           "text-font": ["Noto Sans Regular"],
           "text-max-width": 8,
+          "symbol-sort-key": 0,
         },
         paint: {
           "text-color": label.color,
@@ -540,6 +578,9 @@ export function mountStorePins(hooks: StorePinsHooks): StorePinsHandle {
     }
 
     apply();
+    map.on("moveend", () => {
+      if (bound && visible) paintData();
+    });
   };
 
   whenStyle(map, bind);

@@ -15,6 +15,7 @@ export const HUD_HTML = `
     </button>
     <button class="map-fab locate-fab plan-only" id="locate-fab" type="button" aria-label="Locate">⌖</button>
     <div class="panel search-card plan-only" id="search-card">
+      <div class="place-card-handle search-card-handle" aria-hidden="true"></div>
       <div class="brand desktop-only"><h1>Slide</h1><span class="chip" id="rank-chip">GARAGE</span><button class="icon" id="help" type="button" aria-label="How to Slide">?</button></div>
       <div class="where-row">
         <svg class="where-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M16 16l5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>

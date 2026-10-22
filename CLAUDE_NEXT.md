@@ -6,7 +6,7 @@ Stay on PR **#59** (`cursor/slide-look-polish-f924`) unless the owner opens a ne
 
 ## What just shipped (do not redo)
 
-Five look rounds on #59. Additive only. `registerHologramRenderer` unchanged. Nard's `/api/stores` + `/api/places` + live ghosts unchanged.
+Six look rounds on #59. Additive only. `registerHologramRenderer` unchanged. Nard's `/api/stores` + `/api/places` + live ghosts unchanged.
 
 **Round 1 — chrome:** teardrop pins, two-letter monograms, hologram stage, card icons, `formatHours`, skeletons, phone FAB lift, empty icons.
 
@@ -14,12 +14,14 @@ Five look rounds on #59. Additive only. `registerHologramRenderer` unchanged. Na
 
 **Round 4 — card daylight:** Logo vs Photo well, `Open · closes 11p`, day contrast.
 
-**Round 5 — unify + pins:**
-- Search `#place-card` now shares the look sheet handle, title stack, circular close, and action tiles. Styled in `src/styles.css` only — look CSS still must not target `#place-card`.
-- Reduced-motion: pin drop/select/halo already JS-gated; CSS now stills card enter, hologram reveal/scan/ring, skeletons, FAB lift, button press.
-- Store pins: 128px sprites, `PIN_PIXEL_RATIO` 2, nearly flat `icon-size` (0.50–0.52 rest) so they stay sharp at every zoom.
+**Round 5 — unify + pins:** search `#place-card` shares look-sheet chrome; reduced-motion stills; 128px sprites.
 
-Never weaken or delete a test. 410+ must keep passing.
+**Round 6 — collide + search:**
+- Pin labels do not overlap. `symbol-sort-key` prefers selected, then nearest-to-center. Stacked neighbors fade (`rankPins`, `PIN_COLLIDE_M` 56).
+- Closed chip: `Opens 8a` when `openNow === false` and OSM start parses. `Hours unknown` and bare `Closed` stay.
+- Search `#search-card` handle + suggest rows use the same type as the cards (light title, mono uppercase address, distance pill). Styled in `src/styles.css` only.
+
+Never weaken or delete a test. 410+ must keep passing (this round adds tests).
 
 ## Do not
 
@@ -35,9 +37,9 @@ Never weaken or delete a test. 410+ must keep passing.
 Phone-first at 390×844. `node tools/shoot-look.mjs docs/look http://127.0.0.1:4173/`.
 
 1. **Live photo well.** A real `/api/places` Wikimedia logo on the HUD (no fixture). Keep Nard's Function unchanged.
-2. **Closed chip.** “Opens 8a” when `openNow === false` + a parseable start time. Keep `Hours unknown`.
-3. **Search card extras.** Optional hours/open chip on `#place-card` only when Nard already has them on the hit — do not invent.
-4. **Pin collision.** When two teardrops overlap at street zoom, prefer the selected layer (already allow-overlap) and fade the rest.
+2. **Search card extras.** Optional hours/open chip on `#place-card` only when Nard already has them on the hit — do not invent.
+3. **Recents as rows.** Saved Home/Work/recents in the open search sheet should use the same two-line row as suggest (already started).
+4. **Cluster tap.** After expanding a fuel cluster, keep the winner label and fade the rest without a second select.
 
 ## How to verify
 
@@ -48,6 +50,6 @@ npm run preview
 node tools/shoot-look.mjs docs/look http://127.0.0.1:4173/
 ```
 
-Demo: `/look.html`, `?place=`, `?empty=1`, `?loading=1`, `?skel=1`, `?motion=enter|reveal|drop|select`, `?look=day`. Search card: main HUD `#place-card`.
+Demo: `/look.html`, `?place=`, `?empty=1`, `?loading=1`, `?skel=1`, `?motion=enter|reveal|drop|select`, `?look=day`. Closed chip: Dunkin fixture. Search: main HUD `#search-card` + `#to-suggest`.
 
 Update `HANDOFF.md` + this file, push #59, list changes with phone screenshots. Do not merge.

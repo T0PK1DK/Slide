@@ -37,6 +37,19 @@ describe("store pins", () => {
     expect(PIN_PIXEL_RATIO).toBe(2);
   });
 
+  it("ranks collision onto features when a center is given", () => {
+    const fc = storesToFeatureCollection(LOOK_FIXTURES.stores, {
+      center: { lon: -80.1362, lat: 26.1188 },
+      selected: "osm:node/shell-1",
+    });
+    const shell = fc.features.find((f) => f.properties?.id === "osm:node/shell-1");
+    const bp = fc.features.find((f) => f.properties?.id === "osm:node/bp-1");
+    expect(shell?.properties?.sortKey).toBe(0);
+    expect(shell?.properties?.fade).toBe(1);
+    expect(Number(bp?.properties?.sortKey)).toBeGreaterThan(0);
+    expect(Number(bp?.properties?.fade)).toBeLessThan(1);
+  });
+
   it("uses darker pin labels and cluster strokes in day", () => {
     expect(pinLabelPaint(true).color).toBe("#1c1812");
     expect(pinLabelPaint(false).color).toBe("#f4f3ef");

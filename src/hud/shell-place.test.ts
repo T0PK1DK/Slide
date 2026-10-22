@@ -21,6 +21,18 @@ describe("search place card chrome", () => {
     expect(look).toContain(".look-sheet-handle");
   });
 
+  it("gives the search bar the same handle and list type as the card", () => {
+    expect(HUD_HTML).toContain("search-card-handle");
+    expect(HUD_HTML).toContain('id="to-suggest"');
+    const css = readFileSync(new URL("../styles.css", import.meta.url), "utf8");
+    expect(css).toContain(".suggest-name");
+    expect(css).toContain(".suggest-addr");
+    const addr = css.split(".suggest-addr")[1]?.slice(0, 280) ?? "";
+    expect(addr).toContain("font-family: var(--font-mono)");
+    expect(addr).toContain("text-transform: uppercase");
+    expect(css).not.toMatch(/#search-card\s*\{[^}]*#[0-9a-fA-F]{3,8}/);
+  });
+
   it("circles the search close to match the look sheet", () => {
     const css = readFileSync(new URL("../styles.css", import.meta.url), "utf8");
     expect(css).toContain(".place-card #place-close");

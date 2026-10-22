@@ -10,7 +10,7 @@ export {
   type HologramOpts,
   type HologramRenderer,
 } from "./hologram";
-export { formatHours } from "./hours";
+export { formatCloseHint, formatHours, formatOpenHint } from "./hours";
 export { haloPulse, pinDropPaint, pinSizeExpr } from "./motion";
 export { BRAND_COLOR, CATEGORY_COLOR, contrastInk, monogramPair, pinBadgeSvg, pinColor } from "./marks";
 export {

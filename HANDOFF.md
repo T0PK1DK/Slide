@@ -78,16 +78,16 @@ src/look/               store/place/hologram look (types, fixtures, marks, holog
 src/look/types.ts       defensive Store / PlaceInfo / Ghost (fixtures); live code uses src/lib
 src/look/store-feed.ts  client tile/place cache, debounce, status copy for /api/stores + /api/places
 src/look/live.ts        HUD wire-up: pins, place sheet, hologram, watchLiveGhosts
-src/look/hours.ts       OSM opening_hours → short card line + closes hint (look-only)
-src/look/hours.test.ts  daily / split / passthrough hours + close chip
+src/look/hours.ts       OSM opening_hours → short card line + closes / opens hints (look-only)
+src/look/hours.test.ts  daily / split / passthrough hours + close / open chips
 src/look/photo-well.ts  Logo vs Photo classify + broken-image fallback
 src/look/photo-well.test.ts  Wikimedia mark vs still, fallback well
-src/look/motion.ts      pin drop / select pop / halo pulse math (look-only)
-src/look/motion.test.ts drop, select pop, selected size, cluster glow vs disc
+src/look/motion.ts      pin drop / select pop / halo pulse / collision rank (look-only)
+src/look/motion.test.ts drop, select pop, selected size, cluster glow, pin rank
 src/look/components.css shared sheet / hologram / ghost / skeleton styles (tokens)
 src/look/live.css       live HUD status pill, FAB lift, card shimmer
 src/hud/place-card.ts   bottom-sheet place card (empty states, hologram stage, loading shimmer)
-src/hud/shell.ts        HUD markup; search `#place-card` shares look-sheet chrome
+src/hud/shell.ts        HUD markup; search `#place-card` + `#search-card` share look-sheet chrome
 src/hud/shell-place.test.ts  search card handle/ids; look CSS does not target `#place-card`
 src/look/reduced-motion.test.ts  pin/card/hologram/skeleton reduce gates
 src/map/store-pins.ts   clustered brand teardrop pins + two-letter monograms (128px sprites)
@@ -457,6 +457,7 @@ Read `TASKS.md` top unchecked item. Do not rebase history. Do not rename the pro
 - 2026-10-22 Grim: **Look motion refine** (PR #59). Pin drop lift 28px / 560ms; selected pin overshoot pop (`pinSelectScale` + `setSelectProgress`); hologram reveal bloom + scan on the stage only; zoomed-out clusters use larger glow than disc, map-aligned, ghosts hidden in cluster shots. Demo `?motion=select`. Did not touch Nard backend or Leon `registerHologramRenderer`. Tests only added. No scoring-contract change.
 - 2026-10-22 Grim: **Look card daylight** (PR #59). Photo well captions Logo vs Photo (square / Wikimedia mark / `.svg`); broken image → empty well. Open chip adds `closes 11p` when OSM hours parse. Day theme: darker pin labels, darker cluster stroke, stronger hologram well / empty photo / badge. No backend or hologram-hook edits. Tests only added. No scoring-contract change.
 - 2026-10-22 Grim: **Look card unify + pins** (PR #59). Search `#place-card` gets the look-sheet handle, title stack, circular close, and action tiles in `styles.css` (look CSS still does not target `#place-card`). Reduced-motion audit covers pin drop/select/halo, card, hologram reveal/scan/ring, skeletons, FAB lift — skeleton pulse stills after the pulse rule so it actually wins. Store pins redrawn at 128px with flat zoom size. No backend or hologram-hook edits. Tests only added. No scoring-contract change.
+- 2026-10-22 Grim: **Look collide + search** (PR #59). Pin labels no longer overlap: `symbol-sort-key` prefers selected then nearest-to-center; stacked neighbors fade. Closed chip reads `Opens 8a` when OSM start parses; `Hours unknown` / `Closed` stay. Search bar + suggest rows match card type (handle, light title, mono address). No backend or hologram-hook edits. Tests only added. No scoring-contract change.
 
 - 2026-10-12 Nard: **UI fix-up** (branch `nard/ui-fixup`). No backend, no new features, keys stay in Pages secrets.
   - **Broken buttons:** Save Home/Work from the menu with no dest now opens the search card so the error is visible. Report with no GPS opens a sheet instead of a silent no-op. Sign-in / Create / Profile sign-in / Leave-by disable the submit while the request runs. Primary/ghost `:disabled` is now faded.

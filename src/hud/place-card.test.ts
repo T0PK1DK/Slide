@@ -33,6 +33,20 @@ describe("place card", () => {
     expect(html).toContain("look-photo is-photo");
   });
 
+  it("says Opens 8a when closed with a posted start", () => {
+    const dunkin = LOOK_FIXTURES.stores.find((s) => s.brandKey === "dunkin")!;
+    const tue = new Date("2026-10-20T15:00:00");
+    const model = placeCardModel(dunkin, placeFor(dunkin), { at: tue });
+    expect(model.openKind).toBe("closed");
+    expect(model.openLabel).toBe("Opens 5a");
+    expect(placeCardHtml(model)).toContain("Opens 5a");
+    expect(placeCardHtml(model)).toContain("look-chip-closed");
+    const cvs = LOOK_FIXTURES.stores.find((s) => s.brandKey === "cvs")!;
+    const closed = placeCardModel(cvs, placeFor(cvs), { at: tue });
+    expect(closed.openKind).toBe("closed");
+    expect(closed.openLabel).toBe("Closed");
+  });
+
   it("empty-states every missing field", () => {
     const store = LOOK_FIXTURES.stores.find((s) => s.id === "osm:node/corner-1")!;
     const model = placeCardModel(store);

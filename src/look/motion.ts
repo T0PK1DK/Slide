@@ -76,3 +76,48 @@ export function haloRadiusExpr(boost: number): unknown[] {
 export function storeIdsKey(ids: string[]): string {
   return [...ids].sort().join("|");
 }
+
+/** Street-zoom teardrops closer than this fade so the selected / nearer pin wins. */
+export const PIN_COLLIDE_M = 56;
+export const PIN_FADE_NEAR = 0.38;
+
+export type PinPoint = { id: string; lon: number; lat: number };
+export type PinRank = { sortKey: number; fade: number };
+
+function distM(a: { lon: number; lat: number }, b: { lon: number; lat: number }): number {
+  const toRad = Math.PI / 180;
+  const dLat = (b.lat - a.lat) * toRad;
+  const dLon = (b.lon - a.lon) * toRad;
+  const x =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(a.lat * toRad) * Math.cos(b.lat * toRad) * Math.sin(dLon / 2) ** 2;
+  return 2 * 6371000 * Math.asin(Math.sqrt(x));
+}
+
+/**
+ * Lower sortKey is placed first (keeps the label). Selected is 0.
+ * Pins stacked on the selected / a nearer neighbor fade.
+ */
+export function rankPins(
+  points: PinPoint[],
+  opts: { center: { lon: number; lat: number }; selected: string | null },
+): Map<string, PinRank> {
+  const selected = opts.selected;
+  const ranked = points.map((p) => {
+    const toCenter = distM(opts.center, p);
+    const sortKey = p.id === selected ? 0 : Math.max(1, Math.round(toCenter));
+    return { ...p, sortKey, toCenter };
+  });
+  ranked.sort((a, b) => a.sortKey - b.sortKey || a.toCenter - b.toCenter);
+  const out = new Map<string, PinRank>();
+  for (let i = 0; i < ranked.length; i++) {
+    const p = ranked[i]!;
+    let fade = 1;
+    if (p.id !== selected) {
+      const hit = ranked.slice(0, i).some((other) => distM(p, other) < PIN_COLLIDE_M);
+      if (hit) fade = PIN_FADE_NEAR;
+    }
+    out.set(p.id, { sortKey: p.sortKey, fade });
+  }
+  return out;
+}

@@ -98,6 +98,19 @@ try {
   await night.evaluate(() => window.slideLook.zoom(13.05));
   await new Promise((r) => setTimeout(r, 800));
   await shot(night, "clusters-out-night");
+
+  await night.evaluate(() => window.slideLook.showPlace("osm:node/dunkin-1"));
+  await new Promise((r) => setTimeout(r, 700));
+  await shot(night, "card-closed-night");
+
+  await night.evaluate(() => {
+    window.slideLook.trigger("close");
+    window.slideLook.showGhosts(false);
+    window.slideLook.zoom(16.45, [-80.1362, 26.1186]);
+    window.slideLook.selectPin("osm:node/shell-1");
+  });
+  await new Promise((r) => setTimeout(r, 900));
+  await shot(night, "pins-collide-night");
   await night.close();
 
   const day = await openLook(browser, "day");
@@ -125,6 +138,35 @@ try {
   await hud.evaluate(() => {
     document.querySelector(".login")?.remove();
     document.body.dataset.mode = "plan";
+    document.getElementById("place-card")?.setAttribute("hidden", "");
+    const card = document.getElementById("search-card");
+    card?.classList.add("open");
+    card?.removeAttribute("hidden");
+    const box = document.getElementById("to-suggest");
+    if (!box) return;
+    box.hidden = false;
+    box.innerHTML = `
+      <button type="button">
+        <span class="suggest-name">Bayside Marketplace</span>
+        <span class="suggest-dist">0.4 mi</span>
+        <span class="suggest-addr">401 Biscayne Blvd, Miami</span>
+      </button>
+      <button type="button" class="active">
+        <span class="suggest-name">Mary Brickell Village</span>
+        <span class="suggest-dist">1.1 mi</span>
+        <span class="suggest-addr">901 S Miami Ave, Miami</span>
+      </button>
+      <button type="button">
+        <span class="suggest-name">Brickell City Centre</span>
+        <span class="suggest-addr">701 S Miami Ave, Miami</span>
+      </button>`;
+  });
+  await new Promise((r) => setTimeout(r, 400));
+  await shot(hud, "search-results-night");
+
+  await hud.evaluate(() => {
+    document.getElementById("to-suggest")?.setAttribute("hidden", "");
+    document.getElementById("search-card")?.classList.remove("open");
     const p = document.getElementById("place-card");
     if (!p) return;
     p.hidden = false;

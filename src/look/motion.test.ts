@@ -9,6 +9,8 @@ import {
   clusterGlowRadiusExpr,
 } from "../map/store-pins";
 import {
+  PIN_COLLIDE_M,
+  PIN_FADE_NEAR,
   PIN_SIZE_HOT,
   PIN_SIZE_REST,
   easeOutCubic,
@@ -17,6 +19,7 @@ import {
   pinDropPaint,
   pinSelectScale,
   pinSizeExpr,
+  rankPins,
   selectedPinSizeExpr,
   storeIdsKey,
 } from "./motion";
@@ -71,5 +74,19 @@ describe("look motion", () => {
     const glow = clusterGlowRadiusExpr();
     expect(glow[2]).toBeGreaterThan(Number(disc[2]));
     expect(JSON.stringify(glow)).toContain("point_count");
+  });
+
+  it("ranks selected then nearest pins and fades stacked neighbors", () => {
+    const shell = { id: "shell", lon: -80.1362, lat: 26.1188 };
+    const bp = { id: "bp", lon: -80.1358, lat: 26.1186 };
+    const far = { id: "far", lon: -80.14, lat: 26.125 };
+    const ranks = rankPins([shell, bp, far], { center: { lon: -80.1362, lat: 26.1188 }, selected: "shell" });
+    expect(ranks.get("shell")?.sortKey).toBe(0);
+    expect(ranks.get("shell")?.fade).toBe(1);
+    expect(ranks.get("bp")!.sortKey).toBeGreaterThan(0);
+    expect(ranks.get("bp")!.sortKey).toBeLessThan(ranks.get("far")!.sortKey);
+    expect(ranks.get("bp")?.fade).toBe(PIN_FADE_NEAR);
+    expect(ranks.get("far")?.fade).toBe(1);
+    expect(PIN_COLLIDE_M).toBeGreaterThan(30);
   });
 });

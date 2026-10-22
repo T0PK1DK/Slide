@@ -1,5 +1,5 @@
 import { PLACE_EMPTY } from "../look/empty";
-import { formatCloseHint, formatHours } from "../look/hours";
+import { formatCloseHint, formatHours, formatOpenHint } from "../look/hours";
 import { mountHologram, prefersReducedMotion, type HologramDispose } from "../look/hologram";
 import { CARD_ENTER_MS } from "../look/motion";
 import { CATEGORY_LABEL, pinBadgeSvg, pinColor } from "../look/marks";
@@ -62,14 +62,15 @@ const ICO = {
   pin: `<svg class="look-meta-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-6-6.2-6-10a6 6 0 1 1 12 0c0 3.8-6 10-6 10z" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="11" r="2" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>`,
 } as const;
 
-export function placeCardModel(store: Store, info?: PlaceInfo, opts?: { loading?: boolean }): PlaceCardModel {
+export function placeCardModel(store: Store, info?: PlaceInfo, opts?: { loading?: boolean; at?: Date }): PlaceCardModel {
   const name = storeName(store);
   const cat = store.category ? CATEGORY_LABEL[store.category] : PLACE_EMPTY.brand;
   const brand = store.brand?.trim() || store.brandKey?.trim();
   const brandLine = [brand, cat].filter(Boolean).join(" · ") || PLACE_EMPTY.brand;
   const openNow = info?.openNow;
   const hoursRaw = store.hours?.trim();
-  const closeHint = formatCloseHint(hoursRaw, openNow);
+  const closeHint = opts?.at ? formatCloseHint(hoursRaw, openNow, opts.at) : formatCloseHint(hoursRaw, openNow);
+  const openHint = opts?.at ? formatOpenHint(hoursRaw, openNow, opts.at) : formatOpenHint(hoursRaw, openNow);
   const address = store.address?.trim();
   const description = info?.description?.trim();
   const photos = (info?.photos ?? []).filter((p): p is PlacePhoto & { url: string } => Boolean(p.url));
@@ -85,7 +86,13 @@ export function placeCardModel(store: Store, info?: PlaceInfo, opts?: { loading?
     brandLine,
     badgeSvg: pinBadgeSvg(store),
     openLabel:
-      openNow === true ? (closeHint ? `Open · ${closeHint}` : "Open now") : openNow === false ? "Closed" : PLACE_EMPTY.open,
+      openNow === true
+        ? closeHint
+          ? `Open · ${closeHint}`
+          : "Open now"
+        : openNow === false
+          ? openHint ?? "Closed"
+          : PLACE_EMPTY.open,
     openKind: openNow === true ? "open" : openNow === false ? "closed" : "unknown",
     hours: hoursRaw ? formatHours(hoursRaw) : PLACE_EMPTY.hours,
     hoursEmpty: !hoursRaw,
