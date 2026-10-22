@@ -36,12 +36,14 @@ export function defaultHologramMarkup(opts: HologramOpts): string {
   const key = escapeAttr(opts.modelKey);
   return `<div class="look-holo${spin}" data-model-key="${key}" style="--holo-color:${escapeAttr(color)}" role="img" aria-label="3D model slot for ${key}">
   <svg class="look-holo-outline" viewBox="0 0 64 64" aria-hidden="true">
+    <ellipse cx="32" cy="56" rx="16" ry="3.2" fill="none" stroke="currentColor" stroke-width="1" opacity=".35"/>
     <path d="M10 28 L32 12 L54 28 V52 H10 Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
     <path d="M22 52 V36 H42 V52" fill="none" stroke="currentColor" stroke-width="1.4"/>
     <path d="M10 28 H54" fill="none" stroke="currentColor" stroke-width="1.2" opacity=".7"/>
     <circle cx="32" cy="24" r="3.2" fill="none" stroke="currentColor" stroke-width="1.3"/>
   </svg>
   <i class="look-holo-glow" aria-hidden="true"></i>
+  <i class="look-holo-scan" aria-hidden="true"></i>
 </div>`;
 }
 

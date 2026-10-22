@@ -39,5 +39,7 @@ describe("empty value styling", () => {
     expect(suggestStatusText("loading")).toBe(SEARCH.loading);
     expect(suggestStatusText("empty")).toBe(SEARCH.empty);
     expect(SEARCH.empty).toBe("No match, try adding the city");
+    expect(suggestStatusText("idle")).toBe(SEARCH.idle);
+    expect(SEARCH.idle).toContain("Places you pick");
   });
 });

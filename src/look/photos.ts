@@ -21,6 +21,20 @@ function escapeXml(s: string): string {
   return s.replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]!);
 }
 
+/** Square transparent mark — Wikimedia-style logo for the photo well. */
+export function sampleLogo(title: string, color: string): PlacePhoto {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <circle cx="100" cy="100" r="72" fill="${color}" fill-opacity=".92"/>
+  <circle cx="100" cy="100" r="58" fill="none" stroke="#fff" stroke-width="4" stroke-opacity=".88"/>
+  <text x="100" y="112" text-anchor="middle" font-size="36" font-family="system-ui,sans-serif" font-weight="700" fill="#fff">${escapeXml(title.slice(0, 2))}</text>
+</svg>`;
+  return {
+    url: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`,
+    credit: PHOTO_CREDIT,
+    source: "osm",
+  };
+}
+
 export function samplePhoto(kind: "aisle" | "facade" | "lot" | "pump", title: string): PlacePhoto {
   const palettes: Record<typeof kind, [string, string, string]> = {
     aisle: ["#1a2430", "#141c24", "#2a3a48"],

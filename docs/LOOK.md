@@ -2,7 +2,7 @@
 
 Look HUD for King’s wishlist. **Nard owns the data** (`/api/stores`, `/api/places`, live ghosts). **Leon owns 3D models**. The real app (`index.html`) paints pins and the place sheet from those endpoints. Fixtures stay on **`/look.html`** and in tests.
 
-Demo: **`/look.html`** (`?look=day`, `?place=osm:node/123`, `?empty=1`). Phone-first. Night is default; Day is a warm light preview.
+Demo: **`/look.html`** (`?look=day`, `?place=osm:node/123`, `?empty=1`, `?loading=1`, `?skel=1`, `?motion=enter|reveal|drop|select`). Phone-first. Night is default; Day is a warm light preview.
 
 ## Live HUD (real app)
 
@@ -11,7 +11,7 @@ Demo: **`/look.html`** (`?look=day`, `?place=osm:node/123`, `?empty=1`). Phone-f
 | Piece | Source | Behaviour |
 |---|---|---|
 | Store pins | `GET /api/stores?tiles=` | Debounced 600 ms on map move. Skip below zoom 12. Client tile cache 8 min. Skeleton pins while the first Overpass call is in flight. Never blocks the map. |
-| Place card | `GET /api/places` | Sheet opens on pin tap (and at a destination within 90 m). Store fields paint immediately; photos/copy shimmer until Wikidata returns. Client place cache 30 min. |
+| Place card | `GET /api/places` | Sheet opens on pin tap (and at a destination within 90 m). Store fields paint immediately; photos/copy shimmer until Wikidata returns. P154 marks are Logo (contain, mark/wordmark well); P18 stills stay Photo. Client place cache 30 min. Search `#place-card` can reuse the same extras when a store is within 90 m. |
 | Hologram | Leon `registerSlideModels()` | Slot above the selected pin and at the top of the card. |
 | Ghost cars | `watchLiveGhosts` | Only when `cloudConfigured()` (Supabase). Off otherwise — no fixture ghosts in the real app. Hidden in Drive. Garage **Ghosts** still toggles them. Rough ~1 km friend presence is unchanged. |
 
@@ -23,9 +23,9 @@ Local `npm run dev` / `preview` serve `/api/stores` and `/api/places` through th
 
 | Piece | Files | Behavior |
 |---|---|---|
-| Store pins | `src/map/store-pins.ts`, `src/look/marks.ts` | Brand-colored monogram badge. Unknown chains use the category glyph + category color. MapLibre clustering (`clusterRadius` 52, `clusterMaxZoom` 14). Labels from zoom 15. |
-| Place card | `src/hud/place-card.ts` | Bottom sheet: hologram slot, name, badge, open-now chip, hours, address, Call / Website / Directions, photo strip with credits, description. Empty-states every missing field. |
-| Hologram | `src/look/hologram.ts` | Slot above the selected pin **and** at the top of the card. Leon fills `registerHologramRenderer`. Honors `prefers-reduced-motion`. |
+| Store pins | `src/map/store-pins.ts`, `src/look/marks.ts`, `src/look/motion.ts` | Teardrop brand pin + original two-letter monogram. Pins drop in when a tile lands; the selected one scales up with a pulsing halo. Unknown chains use the category glyph. Clusters get a glow disc when zoomed out (`clusterRadius` 52, `clusterMaxZoom` 14). Tap a cluster to zoom in past the break zoom; the nearest leaf keeps the label (`focusId`) without opening the card. Stacked leaves fade in a wider pack. A second tap on the same open cluster selects the winner. Labels from zoom 15 — no overlap; selected / focused then nearest-to-center win, stacked neighbors fade. |
+| Place card | `src/hud/place-card.ts` | Bottom sheet slides up and expands. Hologram stage, name, badge, open-now chip, formatted hours, address, icon actions, photo strip, description. Empty-states every missing field. |
+| Hologram | `src/look/hologram.ts` | Slot above the selected pin **and** in `.look-holo-well` on the card. Reveal animation is CSS on the stage. Leon fills `registerHologramRenderer` (unchanged). Honors `prefers-reduced-motion`. |
 | Ghost cars | `src/map/ghost-car.ts` | Color, name tag, heading arrow. Visual only. 3D via `mountGhostCar`. |
 
 Logos are **bundled monograms**, not hotlinked brand files or paid image APIs. Demo photos on `/look.html` are original SVG stills (`src/look/photos.ts`). Live cards credit Wikimedia when Wikidata has an image.
@@ -73,10 +73,30 @@ Fixture demo (`node tools/shoot-look.mjs docs/look <previewUrl>`):
 | `docs/look/pins-night.png` | Store pins + ghosts, Night |
 | `docs/look/card-full-night.png` | Walmart card with every field |
 | `docs/look/card-empty-night.png` | Corner Mart empty states |
+| `docs/look/card-loading-night.png` | Card shimmer + hologram well |
+| `docs/look/pins-skel-night.png` | Skeleton pins while stores load |
 | `docs/look/ghosts-night.png` | Ghost cars, closer |
 | `docs/look/clusters-night.png` | Clustered fuel pins |
-| `docs/look/pins-day.png` | Day theme |
-| `docs/look/card-full-day.png` | Full card, Day |
+| `docs/look/clusters-out-night.png` | Zoomed-out cluster glow |
+| `docs/look/motion-enter-night.png` | Card slide / expand mid-pose |
+| `docs/look/motion-reveal-night.png` | Hologram reveal mid-pose |
+| `docs/look/motion-drop-night.png` | Pin drop mid-pose |
+| `docs/look/motion-select-night.png` | Selected pin pop + halo |
+| `docs/look/pins-day.png` | Day theme pins |
+| `docs/look/card-full-day.png` | Full card + logo well, Day |
+| `docs/look/card-empty-day.png` | Empty card, Day |
+| `docs/look/clusters-day.png` | Clusters, Day |
+| `docs/look/search-card-night.png` | Search `#place-card` chrome, Night |
+| `docs/look/search-results-night.png` | Search bar + results list, Night |
+| `docs/look/card-closed-night.png` | Closed chip `Opens 5a` (Dunkin) |
+| `docs/look/pins-collide-night.png` | Street-zoom pins, selected label wins |
+| `docs/look/pins-cluster-tap-night.png` | After a cluster tap: winner label, no card |
+| `docs/look/pins-cluster-after-night.png` | After expand: stacked leaves faded, quiet focus halo |
+| `docs/look/pins-skel-day.png` | Skeleton pins, Day contrast |
+| `docs/look/search-empty-night.png` | Empty search: Home/Work + idle recents |
+| `docs/look/search-no-results-night.png` | No-match suggest status |
+| `docs/look/search-offline-night.png` | Offline fail sheet |
+| `docs/look/search-card-extras-night.png` | Search `#place-card` hours + logo well |
 
 Live OSM (`node tools/shoot-look-live.mjs docs/look <previewUrl>`):
 

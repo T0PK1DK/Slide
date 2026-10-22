@@ -14,6 +14,9 @@ export const PLACE_EMPTY = {
   photos: "Photos will show when this place has them",
   credit: "Credit coming with the photo",
   hologram: "Model slot",
+  photoCaption: "Photo",
+  logoCaption: "Logo",
+  photoFailed: "Photo didn’t load",
 } as const;
 
 export type PlaceEmptyKey = keyof typeof PLACE_EMPTY;

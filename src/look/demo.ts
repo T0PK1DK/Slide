@@ -14,9 +14,15 @@ export type LookTheme = "night" | "day";
 
 type SlideLookApi = {
   showPlace: (id: string) => void;
+  showLoading: (id: string) => void;
   setLook: (look: LookTheme) => void;
   trigger: (kind: "stopped" | "destination" | "close") => void;
-  zoom: (z: number) => void;
+  zoom: (z: number, lonlat?: [number, number]) => void;
+  selectPin: (id: string | null) => void;
+  focusPin: (id: string | null) => void;
+  showSkel: (on: boolean) => void;
+  showGhosts: (on: boolean) => void;
+  previewMotion: (kind: "enter" | "reveal" | "drop" | "select") => void;
   ready: boolean;
 };
 
@@ -59,6 +65,20 @@ const map = new maplibregl.Map({
 const hud = document.getElementById("look-hud")!;
 const status = document.getElementById("look-status")!;
 
+const skel = document.createElement("div");
+skel.className = "look-skel-pins";
+skel.hidden = true;
+skel.setAttribute("aria-hidden", "true");
+skel.innerHTML = [
+  ["38%", "42%"],
+  ["58%", "36%"],
+  ["46%", "58%"],
+  ["64%", "52%"],
+]
+  .map(([l, t], i) => `<i class="look-skel-pin" style="left:${l};top:${t};animation-delay:${i * 0.16}s"></i>`)
+  .join("");
+hud.appendChild(skel);
+
 const card = mountPlaceCard({
   host: hud,
   onClose: () => {
@@ -100,13 +120,78 @@ const api: SlideLookApi = {
     const store = storeById(id);
     if (store) openStore(store, "pin");
   },
+  showLoading(id) {
+    const store = storeById(id) ?? LOOK_FIXTURES.stores[0];
+    if (!store) return;
+    pins.select(store.id ?? null);
+    card.show(store, undefined, { loading: true });
+    status.textContent = "Looking up this place…";
+  },
+  showSkel(on) {
+    skel.hidden = !on;
+    pins.setVisible(!on);
+    status.textContent = on ? "Looking for stores…" : "Fixtures · not live OSM";
+  },
   setLook(look) {
     const next = new URL(location.href);
     next.searchParams.set("look", look);
     location.replace(next.toString());
   },
-  zoom(z) {
-    map.jumpTo({ zoom: z, center: CENTER });
+  zoom(z, lonlat) {
+    map.jumpTo({ zoom: z, center: lonlat ?? CENTER });
+  },
+  selectPin(id) {
+    pins.select(id);
+  },
+  focusPin(id) {
+    pins.focus(id);
+  },
+  showGhosts(on) {
+    ghosts.setGhosts(on ? LOOK_FIXTURES.ghosts : []);
+  },
+  previewMotion(kind) {
+    if (kind === "drop") {
+      card.hide();
+      pins.select(null);
+      pins.setVisible(true);
+      ghosts.setGhosts([]);
+      map.jumpTo({ center: CENTER, zoom: 14.45 });
+      requestAnimationFrame(() => {
+        pins.setDropProgress(0.14);
+        status.textContent = "Pin drop";
+      });
+      return;
+    }
+    if (kind === "select") {
+      card.hide();
+      pins.setVisible(true);
+      ghosts.setGhosts([]);
+      const store = storeById("osm:node/123") ?? LOOK_FIXTURES.stores[0];
+      const id = store?.id;
+      if (!store || !id) return;
+      const at = store.lon && store.lat ? ([store.lon, store.lat] as [number, number]) : CENTER;
+      map.jumpTo({ center: at, zoom: 16.1 });
+      requestAnimationFrame(() => {
+        pins.select(id);
+        pins.setSelectProgress(0.34);
+        status.textContent = "Pin select";
+      });
+      return;
+    }
+    const store = storeById("osm:node/123") ?? LOOK_FIXTURES.stores[0];
+    if (!store) return;
+    openStore(store, "pin");
+    requestAnimationFrame(() => {
+      if (kind === "enter") {
+        card.el.classList.remove("is-open", "is-expanded");
+        card.el.classList.add("is-preview-enter");
+        status.textContent = "Card enter";
+      }
+      if (kind === "reveal") {
+        card.el.querySelector(".look-holo-stage")?.classList.add("is-preview-reveal");
+        status.textContent = "Hologram reveal";
+      }
+    });
   },
   trigger(kind) {
     if (kind === "close") {
@@ -135,6 +220,12 @@ map.on("load", () => {
   const openId = params.get("place");
   if (openId) api.showPlace(openId);
   if (params.get("empty") === "1") api.showPlace("osm:node/corner-1");
+  if (params.get("loading") === "1") api.showLoading(params.get("place") || "osm:node/123");
+  if (params.get("skel") === "1") api.showSkel(true);
+  const motion = params.get("motion");
+  if (motion === "enter" || motion === "reveal" || motion === "drop" || motion === "select") {
+    api.previewMotion(motion);
+  }
 });
 
 map.on("error", () => {

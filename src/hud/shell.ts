@@ -15,6 +15,7 @@ export const HUD_HTML = `
     </button>
     <button class="map-fab locate-fab plan-only" id="locate-fab" type="button" aria-label="Locate">⌖</button>
     <div class="panel search-card plan-only" id="search-card">
+      <div class="place-card-handle search-card-handle" aria-hidden="true"></div>
       <div class="brand desktop-only"><h1>Slide</h1><span class="chip" id="rank-chip">GARAGE</span><button class="icon" id="help" type="button" aria-label="How to Slide">?</button></div>
       <div class="where-row">
         <svg class="where-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M16 16l5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
@@ -26,9 +27,9 @@ export const HUD_HTML = `
           <div class="field"><label>From</label><input id="from" value="Current location" placeholder="Current location or address" autocomplete="off" /><button type="button" class="use-gps" id="from-gps" aria-label="Start from my current location"><svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true"><path d="M21 3L3 10.5l7.5 2.9L13.4 21z" fill="currentColor"/></svg>Me</button><div class="suggest" id="from-suggest" hidden></div></div>
         </div>
         <div class="place-chips" id="place-chips">
-          <button type="button" class="place-chip" id="chip-home">Home</button>
-          <button type="button" class="place-chip" id="chip-work">Work</button>
-          <button type="button" class="place-chip" id="chip-saved" hidden></button>
+          <button type="button" class="recent-item place-chip" id="chip-home">Home</button>
+          <button type="button" class="recent-item place-chip" id="chip-work">Work</button>
+          <button type="button" class="recent-item place-chip" id="chip-saved" hidden></button>
         </div>
         <div class="recents" id="recents" hidden></div>
         <div class="actions">
@@ -42,6 +43,7 @@ export const HUD_HTML = `
     </div>
     <div class="panel status-pill" id="status">Locking a 3D line…</div>
     <div class="panel loc-banner fail-sheet" id="loc-banner" role="alert" hidden>
+      <div class="place-card-handle" aria-hidden="true"></div>
       <b class="net-title" id="loc-title"></b>
       <p id="loc-msg"></p>
       <div class="loc-actions">
@@ -51,6 +53,7 @@ export const HUD_HTML = `
       </div>
     </div>
     <div class="panel loc-banner net-sheet fail-sheet" id="net-sheet" role="alert" hidden>
+      <div class="place-card-handle" aria-hidden="true"></div>
       <b class="net-title" id="net-title"></b>
       <p id="net-msg"></p>
       <div class="loc-actions">
@@ -59,13 +62,19 @@ export const HUD_HTML = `
       </div>
     </div>
     <div class="panel place-card plan-only" id="place-card" hidden>
-      <button class="icon loc-close" id="place-close" type="button" aria-label="Close place">×</button>
-      <h2 id="place-name"></h2>
-      <p id="place-addr"></p>
-      <p class="place-saved" id="place-saved" hidden>Saved on this phone.</p>
+      <div class="place-card-handle" aria-hidden="true"></div>
+      <header class="place-card-head">
+        <div class="place-card-titles">
+          <h2 id="place-name"></h2>
+          <p id="place-addr"></p>
+          <p class="place-saved" id="place-saved" hidden>Saved on this phone.</p>
+        </div>
+        <button class="icon loc-close" id="place-close" type="button" aria-label="Close place">×</button>
+      </header>
+      <div class="place-extras" id="place-extras" hidden></div>
       <div class="place-actions">
-        <button class="ghost" id="place-save" type="button">Save</button>
-        <button class="primary" id="place-go" type="button">Go</button>
+        <button class="ghost" id="place-save" type="button">Save<small>On this phone</small></button>
+        <button class="primary" id="place-go" type="button">Go<small>Drop the line</small></button>
       </div>
     </div>
     <div class="drive-guide drive-only" id="drive-guide">
