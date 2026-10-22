@@ -2,7 +2,7 @@
 
 Look HUD for King’s wishlist. **Nard owns the data** (`/api/stores`, `/api/places`, live ghosts). **Leon owns 3D models**. The real app (`index.html`) paints pins and the place sheet from those endpoints. Fixtures stay on **`/look.html`** and in tests.
 
-Demo: **`/look.html`** (`?look=day`, `?place=osm:node/123`, `?empty=1`, `?loading=1`, `?skel=1`, `?motion=enter|reveal|drop`). Phone-first. Night is default; Day is a warm light preview.
+Demo: **`/look.html`** (`?look=day`, `?place=osm:node/123`, `?empty=1`, `?loading=1`, `?skel=1`, `?motion=enter|reveal|drop|select`). Phone-first. Night is default; Day is a warm light preview.
 
 ## Live HUD (real app)
 
@@ -81,6 +81,7 @@ Fixture demo (`node tools/shoot-look.mjs docs/look <previewUrl>`):
 | `docs/look/motion-enter-night.png` | Card slide / expand mid-pose |
 | `docs/look/motion-reveal-night.png` | Hologram reveal mid-pose |
 | `docs/look/motion-drop-night.png` | Pin drop mid-pose |
+| `docs/look/motion-select-night.png` | Selected pin pop + halo |
 | `docs/look/pins-day.png` | Day theme |
 | `docs/look/card-full-day.png` | Full card, Day |
 

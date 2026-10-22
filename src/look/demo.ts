@@ -19,7 +19,8 @@ type SlideLookApi = {
   trigger: (kind: "stopped" | "destination" | "close") => void;
   zoom: (z: number) => void;
   showSkel: (on: boolean) => void;
-  previewMotion: (kind: "enter" | "reveal" | "drop") => void;
+  showGhosts: (on: boolean) => void;
+  previewMotion: (kind: "enter" | "reveal" | "drop" | "select") => void;
   ready: boolean;
 };
 
@@ -137,14 +138,28 @@ const api: SlideLookApi = {
   zoom(z) {
     map.jumpTo({ zoom: z, center: CENTER });
   },
+  showGhosts(on) {
+    ghosts.setGhosts(on ? LOOK_FIXTURES.ghosts : []);
+  },
   previewMotion(kind) {
     if (kind === "drop") {
       card.hide();
       pins.select(null);
       pins.setVisible(true);
-      pins.setStores(LOOK_FIXTURES.stores);
-      pins.setDropProgress(0.32);
+      ghosts.setGhosts([]);
+      pins.setDropProgress(0.28);
       status.textContent = "Pin drop";
+      return;
+    }
+    if (kind === "select") {
+      card.hide();
+      pins.setVisible(true);
+      ghosts.setGhosts([]);
+      const store = storeById("osm:node/123") ?? LOOK_FIXTURES.stores[0];
+      if (!store?.id) return;
+      pins.select(store.id);
+      pins.setSelectProgress(0.38);
+      status.textContent = "Pin select";
       return;
     }
     const store = storeById("osm:node/123") ?? LOOK_FIXTURES.stores[0];
@@ -192,7 +207,9 @@ map.on("load", () => {
   if (params.get("loading") === "1") api.showLoading(params.get("place") || "osm:node/123");
   if (params.get("skel") === "1") api.showSkel(true);
   const motion = params.get("motion");
-  if (motion === "enter" || motion === "reveal" || motion === "drop") api.previewMotion(motion);
+  if (motion === "enter" || motion === "reveal" || motion === "drop" || motion === "select") {
+    api.previewMotion(motion);
+  }
 });
 
 map.on("error", () => {

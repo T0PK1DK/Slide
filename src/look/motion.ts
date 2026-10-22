@@ -3,8 +3,11 @@
  * no hologram register hook.
  */
 
-export const PIN_DROP_MS = 520;
-export const PIN_DROP_LIFT = 20;
+export const PIN_DROP_MS = 560;
+export const PIN_DROP_LIFT = 28;
+export const PIN_SELECT_MS = 300;
+export const PIN_SELECT_START = 0.82;
+export const PIN_SELECT_PEAK = 1.08;
 export const CARD_ENTER_MS = 420;
 export const HALO_PULSE_MS = 2400;
 
@@ -27,6 +30,22 @@ export function pinDropPaint(progress: number): { translate: [number, number]; o
     translate: [0, lift === 0 ? 0 : lift],
     opacity: Math.round(e * 1000) / 1000,
   };
+}
+
+/** Selected pin pops from rest size, overshoots, then lands. */
+export function pinSelectScale(progress: number): number {
+  const e = easeOutCubic(progress);
+  if (progress >= 1) return 1;
+  if (e < 0.72) {
+    const t = e / 0.72;
+    return Math.round((PIN_SELECT_START + (PIN_SELECT_PEAK - PIN_SELECT_START) * t) * 1000) / 1000;
+  }
+  const t = (e - 0.72) / 0.28;
+  return Math.round((PIN_SELECT_PEAK + (1 - PIN_SELECT_PEAK) * t) * 1000) / 1000;
+}
+
+export function selectedPinSizeExpr(scale = 1): unknown[] {
+  return ["*", ["interpolate", ["linear"], ["zoom"], 10, 1.02, 13, 1.24, 16, 1.44], scale];
 }
 
 /** Soft breathe for the selected-pin halo. */

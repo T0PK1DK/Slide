@@ -5,13 +5,17 @@ import {
   CLUSTER_RADIUS,
   STORE_LAYER_CLUSTER_GLOW,
   STORE_LAYER_SELECTED,
+  clusterDiscRadiusExpr,
+  clusterGlowRadiusExpr,
 } from "../map/store-pins";
 import {
   easeOutCubic,
   haloPulse,
   haloRadiusExpr,
   pinDropPaint,
+  pinSelectScale,
   pinSizeExpr,
+  selectedPinSizeExpr,
   storeIdsKey,
 } from "./motion";
 
@@ -40,6 +44,17 @@ describe("look motion", () => {
     expect(haloPulse(1200).opacity).not.toBe(haloPulse(0).opacity);
   });
 
+  it("pops the selected pin from rest size then lands", () => {
+    const start = pinSelectScale(0);
+    const mid = pinSelectScale(0.4);
+    const end = pinSelectScale(1);
+    expect(start).toBeLessThan(1);
+    expect(mid).toBeGreaterThan(start);
+    expect(end).toBe(1);
+    expect(selectedPinSizeExpr(0.9)[0]).toBe("*");
+    expect(JSON.stringify(selectedPinSizeExpr(1.08))).toContain("1.08");
+  });
+
   it("keeps cluster constants phone-readable when zoomed out", () => {
     expect(CLUSTER_RADIUS).toBeGreaterThan(30);
     expect(CLUSTER_MAX_ZOOM).toBeGreaterThanOrEqual(12);
@@ -47,5 +62,9 @@ describe("look motion", () => {
     expect(STORE_LAYER_CLUSTER_GLOW).toContain("cluster");
     expect(STORE_LAYER_SELECTED).toContain("selected");
     expect(storeIdsKey(["b", "a"])).toBe("a|b");
+    const disc = clusterDiscRadiusExpr();
+    const glow = clusterGlowRadiusExpr();
+    expect(glow[2]).toBeGreaterThan(Number(disc[2]));
+    expect(JSON.stringify(glow)).toContain("point_count");
   });
 });

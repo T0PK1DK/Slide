@@ -129,23 +129,48 @@
 
 .look-holo-stage.is-reveal .look-holo-well {
   animation: look-well-in var(--dur-slow) var(--ease-out) both;
+  box-shadow:
+    var(--lift),
+    inset 0 0 0 1px var(--line),
+    0 0 36px color-mix(in srgb, var(--glow) 42%, transparent);
 }
 
 .look-holo-stage.is-reveal .look-holo-slot > * {
   animation: look-holo-rise var(--dur-slow) var(--ease-out) both;
 }
 
+.look-holo-stage.is-reveal .look-holo-ring {
+  border-color: color-mix(in srgb, var(--glow) 62%, transparent);
+}
+
+.look-holo-stage.is-reveal .look-holo-scan {
+  opacity: 0.86;
+}
+
 .look-holo-stage.is-preview-reveal .look-holo-well {
   animation: none;
-  transform: scale(0.9);
-  opacity: 0.72;
+  transform: scale(0.94);
+  opacity: 0.88;
+  box-shadow:
+    var(--lift),
+    inset 0 0 0 1px var(--line),
+    0 0 32px color-mix(in srgb, var(--glow) 50%, transparent);
 }
 
 .look-holo-stage.is-preview-reveal .look-holo-slot > * {
   animation: none;
-  opacity: 0.55;
-  transform: translateY(8px) scale(0.88);
-  filter: blur(2px);
+  opacity: 0.7;
+  transform: translateY(6px) scale(0.92);
+  filter: blur(1.5px);
+}
+
+.look-holo-stage.is-preview-reveal .look-holo-scan {
+  opacity: 0.92;
+}
+
+.look-holo-stage.is-preview-reveal .look-holo-ring {
+  border-color: color-mix(in srgb, var(--glow) 70%, transparent);
+  transform: scale(1.04);
 }
 
 .look-sheet-head {
@@ -558,8 +583,9 @@
 }
 
 @keyframes look-well-in {
-  from { transform: scale(0.86); opacity: 0.35; }
-  to { transform: none; opacity: 1; }
+  from { transform: scale(0.86); opacity: 0.35; filter: blur(4px); }
+  55% { transform: scale(1.04); opacity: 1; filter: none; }
+  to { transform: none; opacity: 1; filter: none; }
 }
 
 @keyframes look-float-in {
@@ -587,6 +613,7 @@
   .look-holo-stage.is-reveal .look-holo-slot > *,
   .look-holo-float.is-in {
     animation: none;
+    filter: none;
   }
   .look-holo-stage.is-loading .look-holo-well::after,
   .look-photos.is-loading i::after { animation: none; }

@@ -4,10 +4,13 @@ import { mountHologram, prefersReducedMotion, type HologramDispose } from "../lo
 import { categoryIconPath, contrastInk, hasBundledMark, monogramLetter, monogramPair, pinColor } from "../look/marks";
 import {
   PIN_DROP_MS,
+  PIN_SELECT_MS,
   haloPulse,
   haloRadiusExpr,
   pinDropPaint,
+  pinSelectScale,
   pinSizeExpr,
+  selectedPinSizeExpr,
   storeIdsKey,
 } from "../look/motion";
 import { modelKeyOf, storeId, storeLngLat, type Store } from "../look/types";
@@ -22,6 +25,14 @@ export const STORE_LAYER_HALO = "slide-look-halo";
 export const CLUSTER_RADIUS = 52;
 export const CLUSTER_MAX_ZOOM = 14;
 export const CLUSTER_MIN_RADIUS = 18;
+
+export function clusterDiscRadiusExpr(): unknown[] {
+  return ["step", ["get", "point_count"], CLUSTER_MIN_RADIUS, 3, 22, 8, 26, 18, 32];
+}
+
+export function clusterGlowRadiusExpr(): unknown[] {
+  return ["step", ["get", "point_count"], CLUSTER_MIN_RADIUS + 12, 3, 34, 8, 40, 18, 48];
+}
 
 export function storesToFeatureCollection(stores: Store[]): FeatureCollection {
   return {
@@ -148,6 +159,7 @@ export type StorePinsHandle = {
   storeById(id: string): Store | undefined;
   setVisible(on: boolean): void;
   setDropProgress(progress: number): void;
+  setSelectProgress(progress: number): void;
   destroy(): void;
 };
 
@@ -173,6 +185,7 @@ export function mountStorePins(hooks: StorePinsHooks): StorePinsHandle {
   let bound = false;
   let idsKey = "";
   let dropRaf = 0;
+  let selectRaf = 0;
   let haloRaf = 0;
 
   const images = new Set<string>();
@@ -201,6 +214,32 @@ export function mountStorePins(hooks: StorePinsHooks): StorePinsHandle {
     };
     paintDrop(0);
     dropRaf = requestAnimationFrame(tick);
+  };
+
+  const paintSelect = (progress: number) => {
+    if (!map.getLayer(STORE_LAYER_SELECTED)) return;
+    map.setLayoutProperty(
+      STORE_LAYER_SELECTED,
+      "icon-size",
+      selectedPinSizeExpr(pinSelectScale(progress)) as ExpressionSpecification,
+    );
+  };
+
+  const startSelect = () => {
+    cancelAnimationFrame(selectRaf);
+    if (!selected) return;
+    if (prefersReducedMotion()) {
+      paintSelect(1);
+      return;
+    }
+    const t0 = performance.now();
+    const tick = (now: number) => {
+      const p = Math.min(1, (now - t0) / PIN_SELECT_MS);
+      paintSelect(p);
+      if (p < 1) selectRaf = requestAnimationFrame(tick);
+    };
+    paintSelect(0);
+    selectRaf = requestAnimationFrame(tick);
   };
 
   const stopHalo = () => {
@@ -315,10 +354,11 @@ export function mountStorePins(hooks: StorePinsHooks): StorePinsHandle {
         source: STORE_SOURCE,
         filter: ["has", "point_count"],
         paint: {
-          "circle-color": "rgba(240,160,75,0.28)",
-          "circle-radius": ["step", ["get", "point_count"], CLUSTER_MIN_RADIUS + 8, 4, 28, 10, 34, 22, 40],
-          "circle-blur": 0.55,
-          "circle-opacity": 0.9,
+          "circle-color": "rgba(240,160,75,0.4)",
+          "circle-radius": clusterGlowRadiusExpr() as ExpressionSpecification,
+          "circle-blur": 0.72,
+          "circle-opacity": 1,
+          "circle-pitch-alignment": "map",
         },
       });
       map.addLayer({
@@ -330,16 +370,17 @@ export function mountStorePins(hooks: StorePinsHooks): StorePinsHandle {
           "circle-color": [
             "step",
             ["get", "point_count"],
-            "rgba(240,160,75,0.94)",
-            8,
-            "rgba(232,140,56,0.95)",
-            20,
-            "rgba(220,118,42,0.96)",
+            "rgba(240,160,75,0.96)",
+            6,
+            "rgba(232,140,56,0.97)",
+            14,
+            "rgba(220,118,42,0.98)",
           ],
-          "circle-stroke-color": "rgba(255,255,255,0.94)",
-          "circle-stroke-width": 2.6,
-          "circle-radius": ["step", ["get", "point_count"], CLUSTER_MIN_RADIUS, 4, 21, 10, 25, 22, 30],
-          "circle-opacity": 0.97,
+          "circle-stroke-color": "rgba(255,255,255,0.96)",
+          "circle-stroke-width": 3,
+          "circle-radius": clusterDiscRadiusExpr() as ExpressionSpecification,
+          "circle-opacity": 0.98,
+          "circle-pitch-alignment": "map",
         },
       });
       map.addLayer({
@@ -349,12 +390,15 @@ export function mountStorePins(hooks: StorePinsHooks): StorePinsHandle {
         filter: ["has", "point_count"],
         layout: {
           "text-field": ["to-string", ["get", "point_count_abbreviated"]],
-          "text-size": ["step", ["get", "point_count"], 12, 10, 13, 22, 14],
+          "text-size": ["step", ["get", "point_count"], 13, 8, 14, 16, 15],
           "text-font": ["Noto Sans Regular"],
           "text-allow-overlap": true,
+          "text-ignore-placement": true,
         },
         paint: {
           "text-color": "#1a140c",
+          "text-halo-color": "rgba(255,244,220,0.55)",
+          "text-halo-width": 0.6,
         },
       });
       map.addLayer({
@@ -406,7 +450,7 @@ export function mountStorePins(hooks: StorePinsHooks): StorePinsHandle {
         filter: ["==", ["get", "id"], ""],
         layout: {
           "icon-image": ["get", "icon"],
-          "icon-size": ["interpolate", ["linear"], ["zoom"], 10, 1.02, 13, 1.24, 16, 1.44],
+          "icon-size": selectedPinSizeExpr(1) as ExpressionSpecification,
           "icon-anchor": "bottom",
           "icon-allow-overlap": true,
           "icon-ignore-placement": true,
@@ -440,27 +484,26 @@ export function mountStorePins(hooks: StorePinsHooks): StorePinsHandle {
       });
     });
 
-    map.on("click", STORE_LAYER_PINS, (e) => {
+    const onPinClick = (e: { features?: { properties?: { id?: unknown } }[] }) => {
       const id = String(e.features?.[0]?.properties?.id ?? "");
       const store = byId.get(id);
       if (!store) return;
       selected = id;
       apply();
+      startSelect();
       hooks.onSelect?.(store);
-    });
+    };
+    map.on("click", STORE_LAYER_PINS, onPinClick);
+    map.on("click", STORE_LAYER_SELECTED, onPinClick);
 
-    map.on("mouseenter", STORE_LAYER_PINS, () => {
-      map.getCanvas().style.cursor = "pointer";
-    });
-    map.on("mouseleave", STORE_LAYER_PINS, () => {
-      map.getCanvas().style.cursor = "";
-    });
-    map.on("mouseenter", STORE_LAYER_CLUSTERS, () => {
-      map.getCanvas().style.cursor = "pointer";
-    });
-    map.on("mouseleave", STORE_LAYER_CLUSTERS, () => {
-      map.getCanvas().style.cursor = "";
-    });
+    for (const id of [STORE_LAYER_PINS, STORE_LAYER_SELECTED, STORE_LAYER_CLUSTERS]) {
+      map.on("mouseenter", id, () => {
+        map.getCanvas().style.cursor = "pointer";
+      });
+      map.on("mouseleave", id, () => {
+        map.getCanvas().style.cursor = "";
+      });
+    }
 
     apply();
   };
@@ -491,9 +534,16 @@ export function mountStorePins(hooks: StorePinsHooks): StorePinsHandle {
       cancelAnimationFrame(dropRaf);
       whenStyle(map, () => paintDrop(progress));
     },
+    setSelectProgress(progress) {
+      cancelAnimationFrame(selectRaf);
+      whenStyle(map, () => paintSelect(progress));
+    },
     select(id) {
       selected = id;
-      whenStyle(map, apply);
+      whenStyle(map, () => {
+        apply();
+        if (id) startSelect();
+      });
     },
     selected: () => selected,
     storeById: (id) => byId.get(id),
@@ -509,6 +559,7 @@ export function mountStorePins(hooks: StorePinsHooks): StorePinsHandle {
     },
     destroy() {
       cancelAnimationFrame(dropRaf);
+      cancelAnimationFrame(selectRaf);
       stopHalo();
       disposeHolo?.();
       holo?.remove();
