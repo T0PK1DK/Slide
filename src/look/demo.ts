@@ -159,11 +159,12 @@ const api: SlideLookApi = {
       pins.setVisible(true);
       ghosts.setGhosts([]);
       const store = storeById("osm:node/123") ?? LOOK_FIXTURES.stores[0];
-      if (!store?.id) return;
+      const id = store?.id;
+      if (!store || !id) return;
       const at = store.lon && store.lat ? ([store.lon, store.lat] as [number, number]) : CENTER;
       map.jumpTo({ center: at, zoom: 16.1 });
       requestAnimationFrame(() => {
-        pins.select(store.id);
+        pins.select(id);
         pins.setSelectProgress(0.34);
         status.textContent = "Pin select";
       });

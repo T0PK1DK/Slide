@@ -72,11 +72,11 @@ try {
   await night.evaluate(() => window.slideLook.trigger("close"));
   await new Promise((r) => setTimeout(r, 520));
   await night.evaluate(() => window.slideLook.previewMotion("drop"));
-  await new Promise((r) => setTimeout(r, 180));
+  await new Promise((r) => setTimeout(r, 260));
   await shot(night, "motion-drop-night");
 
   await night.evaluate(() => window.slideLook.previewMotion("select"));
-  await new Promise((r) => setTimeout(r, 180));
+  await new Promise((r) => setTimeout(r, 260));
   await shot(night, "motion-select-night");
 
   await night.evaluate(() => {
