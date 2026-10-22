@@ -416,6 +416,10 @@ button.ghost.on { color: var(--glow); }
   min-height: var(--touch);
   align-content: center;
 }
+.recent-item[hidden],
+.place-chip[hidden] {
+  display: none;
+}
 .recent-item .suggest-name { font-size: var(--fs-lg); }
 .recent-item small {
   display: block;

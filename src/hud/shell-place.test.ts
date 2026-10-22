@@ -32,6 +32,8 @@ describe("search place card chrome", () => {
     expect(css).toContain(".recent-item");
     const recent = css.split(".recent-item {")[1]?.slice(0, 360) ?? "";
     expect(recent).toContain("min-height: var(--touch)");
+    expect(css).toContain(".recent-item[hidden]");
+    expect(css.split(".recent-item[hidden]")[1]?.slice(0, 80) ?? "").toContain("display: none");
     expect(css).toContain(".suggest-status.is-empty");
     expect(css).toContain(".suggest-status.is-loading");
     const name = css.split(".suggest-name {")[1]?.slice(0, 280) ?? "";

@@ -167,6 +167,7 @@ try {
     const work = document.getElementById("chip-work");
     if (home) home.innerHTML = `<span class="suggest-name">Home</span><span class="suggest-addr">Save a place on this phone</span>`;
     if (work) work.innerHTML = `<span class="suggest-name">Work</span><span class="suggest-addr">Save a place on this phone</span>`;
+    document.getElementById("chip-saved")?.setAttribute("hidden", "");
   });
   await new Promise((r) => setTimeout(r, 350));
   await shot(hud, "search-empty-night");

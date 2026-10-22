@@ -26,7 +26,7 @@ Seven look rounds on #59. Additive only. `registerHologramRenderer` unchanged. N
 - Cluster tap on the disc **and** glow: `getClusterLeaves` → `pickClusterWinner` → `focusId` (label priority, no `onSelect`, no card / hologram / select pop). `easeTo` at least `CLUSTER_MAX_ZOOM + 0.35`. Reduced-motion duration 0. Invalid `cluster_id` is ignored.
 - Edge pass: search loading shimmer + empty/no-results copy, offline/loc fail-sheet handle + light title + 44px filled close, long names ellipsis/2-line clamp, `--touch` taps on recents/chips/status/fail actions, day skeleton + live-status contrast.
 
-Never weaken or delete a test. 420+ must keep passing.
+Never weaken or delete a test. 421+ must keep passing.
 
 ## Do not
 
