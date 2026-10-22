@@ -501,6 +501,11 @@
   white-space: nowrap;
   max-width: 58%;
 }
+.look-photo.is-mark figcaption {
+  flex-direction: column;
+  gap: 2px;
+}
+.look-photo.is-mark .look-photo-credit { max-width: 100%; }
 
 /* ---------- Hologram ---------- */
 .look-holo {
