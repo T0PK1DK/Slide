@@ -25,6 +25,11 @@ describe("look reduced-motion audit", () => {
     expect(reduce).toContain(".look-holo-stage.is-preview-reveal");
     expect(reduce).toContain(".look-holo-scan");
     expect(reduce).toContain("animation: none");
+    const pulseAt = components.lastIndexOf("animation: look-pulse");
+    const stillAt = components.lastIndexOf(".look-skel-pin");
+    expect(pulseAt).toBeGreaterThan(0);
+    expect(stillAt).toBeGreaterThan(pulseAt);
+    expect(components.slice(stillAt, stillAt + 160)).toContain("animation: none");
   });
 
   it("still-gates the live HUD lift and load pulse", () => {

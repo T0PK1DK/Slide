@@ -766,3 +766,11 @@
   filter: drop-shadow(0 0 4px var(--ghost-color, var(--glow)));
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .look-skel-pin,
+  .look-skel-pin:nth-child(n) {
+    animation: none;
+    opacity: 0.55;
+  }
+}
+

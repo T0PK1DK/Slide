@@ -19,7 +19,7 @@ Five look rounds on #59. Additive only. `registerHologramRenderer` unchanged. Na
 - Reduced-motion: pin drop/select/halo already JS-gated; CSS now stills card enter, hologram reveal/scan/ring, skeletons, FAB lift, button press.
 - Store pins: 128px sprites, `PIN_PIXEL_RATIO` 2, nearly flat `icon-size` (0.50–0.52 rest) so they stay sharp at every zoom.
 
-Never weaken or delete a test. 407+ must keep passing.
+Never weaken or delete a test. 410+ must keep passing.
 
 ## Do not
 
@@ -42,7 +42,7 @@ Phone-first at 390×844. `node tools/shoot-look.mjs docs/look http://127.0.0.1:4
 ## How to verify
 
 ```bash
-npm test          # must stay ≥407
+npm test          # must stay ≥410
 npm run build
 npm run preview
 node tools/shoot-look.mjs docs/look http://127.0.0.1:4173/

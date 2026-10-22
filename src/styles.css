@@ -1359,9 +1359,16 @@ body[data-mode="drive"] .live-chips {
 }
 .place-card #place-close {
   position: static;
+  width: var(--touch);
+  height: var(--touch);
   margin: -8px -8px 0 0;
-  background: var(--fill-07);
+  padding: 0;
+  display: grid;
+  place-items: center;
+  background: var(--fill-10);
   color: var(--text);
+  border-radius: var(--radius-full);
+  line-height: 1;
 }
 .place-saved { margin: 4px 0 0; font-size: var(--fs-sm); color: var(--glow); }
 .place-actions { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); }

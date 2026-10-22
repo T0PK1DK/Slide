@@ -20,4 +20,14 @@ describe("search place card chrome", () => {
     expect(look).not.toContain("#place-card");
     expect(look).toContain(".look-sheet-handle");
   });
+
+  it("circles the search close to match the look sheet", () => {
+    const css = readFileSync(new URL("../styles.css", import.meta.url), "utf8");
+    expect(css).toContain(".place-card #place-close");
+    expect(css).toContain(".place-card-handle");
+    const close = css.split(".place-card #place-close")[1]?.slice(0, 280) ?? "";
+    expect(close).toContain("padding: 0");
+    expect(close).toContain("border-radius: var(--radius-full)");
+    expect(close).toContain("place-items: center");
+  });
 });
