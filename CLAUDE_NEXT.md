@@ -21,7 +21,7 @@ Six look rounds on #59. Additive only. `registerHologramRenderer` unchanged. Nar
 - Closed chip: `Opens 8a` when `openNow === false` and OSM start parses. `Hours unknown` and bare `Closed` stay.
 - Search `#search-card` handle + suggest rows use the same type as the cards (light title, mono uppercase address, distance pill). Styled in `src/styles.css` only.
 
-Never weaken or delete a test. 410+ must keep passing (this round adds tests).
+Never weaken or delete a test. 415+ must keep passing.
 
 ## Do not
 
@@ -44,7 +44,7 @@ Phone-first at 390×844. `node tools/shoot-look.mjs docs/look http://127.0.0.1:4
 ## How to verify
 
 ```bash
-npm test          # must stay ≥410
+npm test          # must stay ≥415
 npm run build
 npm run preview
 node tools/shoot-look.mjs docs/look http://127.0.0.1:4173/
