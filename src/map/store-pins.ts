@@ -548,10 +548,12 @@ export function mountStorePins(hooks: StorePinsHooks): StorePinsHandle {
       });
     }
 
-    const expandCluster = (e: { features?: { geometry?: { type?: string; coordinates?: number[] }; properties?: { cluster_id?: unknown; id?: unknown } }[] }) => {
+    const expandCluster = (e: { features?: { geometry?: { type?: string; coordinates?: unknown }; properties?: { cluster_id?: unknown; id?: unknown } }[] }) => {
       const f = e.features?.[0];
-      if (!f || f.geometry?.type !== "Point" || !f.geometry.coordinates) return;
-      const coords = f.geometry.coordinates as [number, number];
+      const raw = f?.geometry?.coordinates;
+      if (!f || f.geometry?.type !== "Point" || !Array.isArray(raw)) return;
+      const coords = raw as [number, number];
+      if (typeof coords[0] !== "number" || typeof coords[1] !== "number") return;
       const clusterId = Number(f.properties?.cluster_id);
       const src = map.getSource(STORE_SOURCE) as maplibregl.GeoJSONSource | undefined;
       if (!src || !Number.isFinite(clusterId)) return;

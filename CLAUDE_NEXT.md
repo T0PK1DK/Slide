@@ -49,7 +49,7 @@ Phone-first at 390×844. `node tools/shoot-look.mjs docs/look http://127.0.0.1:4
 ## How to verify
 
 ```bash
-npm test          # must stay ≥420
+npm test          # must stay ≥421
 npm run build
 npm run preview
 node tools/shoot-look.mjs docs/look http://127.0.0.1:4173/

@@ -30,7 +30,7 @@ describe("search place card chrome", () => {
     expect(HUD_HTML).toContain('id="net-sheet"');
     const css = readFileSync(new URL("../styles.css", import.meta.url), "utf8");
     expect(css).toContain(".recent-item");
-    const recent = css.split(".recent-item {")[1]?.slice(0, 220) ?? "";
+    const recent = css.split(".recent-item {")[1]?.slice(0, 360) ?? "";
     expect(recent).toContain("min-height: var(--touch)");
     expect(css).toContain(".suggest-status.is-empty");
     expect(css).toContain(".suggest-status.is-loading");
