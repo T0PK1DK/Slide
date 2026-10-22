@@ -86,6 +86,7 @@ Fixture demo (`node tools/shoot-look.mjs docs/look <previewUrl>`):
 | `docs/look/card-full-day.png` | Full card + logo well, Day |
 | `docs/look/card-empty-day.png` | Empty card, Day |
 | `docs/look/clusters-day.png` | Clusters, Day |
+| `docs/look/search-card-night.png` | Search `#place-card` chrome, Night |
 
 Live OSM (`node tools/shoot-look-live.mjs docs/look <previewUrl>`):
 

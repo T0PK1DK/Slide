@@ -3,6 +3,8 @@ import { LOOK_FIXTURES } from "../look/fixtures";
 import {
   CLUSTER_MAX_ZOOM,
   CLUSTER_RADIUS,
+  PIN_PIXEL_RATIO,
+  PIN_SPRITE_SIZE,
   clusterStrokeColor,
   pinImageId,
   pinLabelPaint,
@@ -28,6 +30,11 @@ describe("store pins", () => {
   it("clusters at street-ish zoom", () => {
     expect(CLUSTER_RADIUS).toBeGreaterThan(30);
     expect(CLUSTER_MAX_ZOOM).toBeGreaterThanOrEqual(12);
+  });
+
+  it("draws a 128px sprite so downsample stays sharp", () => {
+    expect(PIN_SPRITE_SIZE).toBe(128);
+    expect(PIN_PIXEL_RATIO).toBe(2);
   });
 
   it("uses darker pin labels and cluster strokes in day", () => {

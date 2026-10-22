@@ -9,6 +9,8 @@ import {
   clusterGlowRadiusExpr,
 } from "../map/store-pins";
 import {
+  PIN_SIZE_HOT,
+  PIN_SIZE_REST,
   easeOutCubic,
   haloPulse,
   haloRadiusExpr,
@@ -40,6 +42,8 @@ describe("look motion", () => {
     expect(rest[0]).toBe("interpolate");
     expect(hot[0]).toBe("case");
     expect(JSON.stringify(hot)).toContain("osm:node/123");
+    expect(PIN_SIZE_HOT).toBeGreaterThan(PIN_SIZE_REST);
+    expect(Number(rest[6]) - Number(rest[4])).toBeLessThan(0.05);
     expect(haloRadiusExpr(3)[0]).toBe("+");
     expect(haloPulse(0).radiusBoost).toBeGreaterThan(0);
     expect(haloPulse(1200).opacity).not.toBe(haloPulse(0).opacity);

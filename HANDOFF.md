@@ -87,7 +87,10 @@ src/look/motion.test.ts drop, select pop, selected size, cluster glow vs disc
 src/look/components.css shared sheet / hologram / ghost / skeleton styles (tokens)
 src/look/live.css       live HUD status pill, FAB lift, card shimmer
 src/hud/place-card.ts   bottom-sheet place card (empty states, hologram stage, loading shimmer)
-src/map/store-pins.ts   clustered brand teardrop pins + two-letter monograms
+src/hud/shell.ts        HUD markup; search `#place-card` shares look-sheet chrome
+src/hud/shell-place.test.ts  search card handle/ids; look CSS does not target `#place-card`
+src/look/reduced-motion.test.ts  pin/card/hologram/skeleton reduce gates
+src/map/store-pins.ts   clustered brand teardrop pins + two-letter monograms (128px sprites)
 src/map/ghost-car.ts    friend ghost-car markers (visual only; 3D via `mountGhostCar`)
 src/models/             procedural store holograms + ghost-car hulls (Leon)
 src/models/keys.ts      Nard's 32 brand keys + generics + car aliases
@@ -453,6 +456,7 @@ Read `TASKS.md` top unchecked item. Do not rebase history. Do not rename the pro
 - 2026-10-22 Grim: **Look motion** (same branch). Pin drop + selected scale/halo pulse, place-card slide-and-expand, hologram reveal on the stage (hook unchanged), zoomed-out cluster glow + warmer count steps. Phone 390 uses `--look-sheet-max`. Demo `?motion=enter|reveal|drop`. No backend / models edits. Tests only added. No scoring-contract change.
 - 2026-10-22 Grim: **Look motion refine** (PR #59). Pin drop lift 28px / 560ms; selected pin overshoot pop (`pinSelectScale` + `setSelectProgress`); hologram reveal bloom + scan on the stage only; zoomed-out clusters use larger glow than disc, map-aligned, ghosts hidden in cluster shots. Demo `?motion=select`. Did not touch Nard backend or Leon `registerHologramRenderer`. Tests only added. No scoring-contract change.
 - 2026-10-22 Grim: **Look card daylight** (PR #59). Photo well captions Logo vs Photo (square / Wikimedia mark / `.svg`); broken image → empty well. Open chip adds `closes 11p` when OSM hours parse. Day theme: darker pin labels, darker cluster stroke, stronger hologram well / empty photo / badge. No backend or hologram-hook edits. Tests only added. No scoring-contract change.
+- 2026-10-22 Grim: **Look card unify + pins** (PR #59). Search `#place-card` gets the look-sheet handle, title stack, and action tiles in `styles.css` (look CSS still does not target `#place-card`). Reduced-motion audit covers pin drop/select/halo, card, hologram reveal/scan/ring, skeletons, FAB lift. Store pins redrawn at 128px with flat zoom size. No backend or hologram-hook edits. Tests only added. No scoring-contract change.
 
 - 2026-10-12 Nard: **UI fix-up** (branch `nard/ui-fixup`). No backend, no new features, keys stay in Pages secrets.
   - **Broken buttons:** Save Home/Work from the menu with no dest now opens the search card so the error is visible. Report with no GPS opens a sheet instead of a silent no-op. Sign-in / Create / Profile sign-in / Leave-by disable the submit while the request runs. Primary/ghost `:disabled` is now faded.

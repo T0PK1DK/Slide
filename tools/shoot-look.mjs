@@ -116,6 +116,26 @@ try {
   await new Promise((r) => setTimeout(r, 800));
   await shot(day, "clusters-day");
   await day.close();
+
+  const hud = await browser.newPage();
+  await hud.setViewport({ width: 390, height: 844, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+  await hud.goto(`${baseUrl}`, { waitUntil: "domcontentloaded", timeout: 60000 });
+  await hud.waitForSelector("#search-card, .login-card, #place-card", { timeout: 20000 }).catch(() => undefined);
+  await new Promise((r) => setTimeout(r, 800));
+  await hud.evaluate(() => {
+    document.querySelector(".login")?.remove();
+    document.body.dataset.mode = "plan";
+    const p = document.getElementById("place-card");
+    if (!p) return;
+    p.hidden = false;
+    const n = document.getElementById("place-name");
+    const a = document.getElementById("place-addr");
+    if (n) n.textContent = "Bayside Marketplace";
+    if (a) a.textContent = "401 Biscayne Blvd, Miami";
+  });
+  await new Promise((r) => setTimeout(r, 400));
+  await shot(hud, "search-card-night");
+  await hud.close();
 } finally {
   await browser.close();
 }

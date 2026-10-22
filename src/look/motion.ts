@@ -44,8 +44,12 @@ export function pinSelectScale(progress: number): number {
   return Math.round((PIN_SELECT_PEAK + (1 - PIN_SELECT_PEAK) * t) * 1000) / 1000;
 }
 
+/** Sprite CSS px is 64; these stay near 0.5 so the pin does not grow with zoom. */
+export const PIN_SIZE_REST = 0.5;
+export const PIN_SIZE_HOT = 0.58;
+
 export function selectedPinSizeExpr(scale = 1): unknown[] {
-  return ["*", ["interpolate", ["linear"], ["zoom"], 10, 1.02, 13, 1.24, 16, 1.44], scale];
+  return ["*", ["interpolate", ["linear"], ["zoom"], 10, PIN_SIZE_HOT, 18, PIN_SIZE_HOT + 0.02], scale];
 }
 
 /** Soft breathe for the selected-pin halo. */
@@ -59,8 +63,8 @@ export function haloPulse(nowMs: number): { radiusBoost: number; opacity: number
 }
 
 export function pinSizeExpr(selected: string | null): unknown[] {
-  const rest: unknown[] = ["interpolate", ["linear"], ["zoom"], 10, 0.82, 13, 1.02, 16, 1.2];
-  const hot: unknown[] = ["interpolate", ["linear"], ["zoom"], 10, 1.02, 13, 1.24, 16, 1.44];
+  const rest: unknown[] = ["interpolate", ["linear"], ["zoom"], 10, PIN_SIZE_REST, 18, PIN_SIZE_REST + 0.02];
+  const hot: unknown[] = ["interpolate", ["linear"], ["zoom"], 10, PIN_SIZE_HOT, 18, PIN_SIZE_HOT + 0.02];
   if (!selected) return rest;
   return ["case", ["==", ["get", "id"], selected], hot, rest];
 }

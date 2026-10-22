@@ -99,6 +99,11 @@
     opacity: 0.6;
   }
   .look-desc.is-loading::after { animation: none; }
+  .hud .look-sheet { transition: none; }
+  body:has(#look-place-card:not([hidden])) .compass-fab,
+  body:has(#look-place-card:not([hidden])) .locate-fab {
+    transition: none;
+  }
 }
 
 body:has(#look-place-card:not([hidden])) .search-card { display: none; }

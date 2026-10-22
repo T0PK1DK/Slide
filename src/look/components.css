@@ -619,7 +619,9 @@
   .look-holo-spin .look-holo-outline { animation: none; }
   .look-holo-scan { animation: none; opacity: 0.22; }
   .look-holo-ring { animation: none; }
-  .look-sheet {
+  .look-skel-pin { animation: none; opacity: 0.55; }
+  .look-sheet,
+  .look-sheet.is-preview-enter {
     transition: none;
     transform: none;
     opacity: 1;
@@ -633,19 +635,24 @@
   .look-sheet.is-open .look-desc,
   .look-holo-stage.is-reveal .look-holo-well,
   .look-holo-stage.is-reveal .look-holo-slot > *,
+  .look-holo-stage.is-preview-reveal .look-holo-well,
+  .look-holo-stage.is-preview-reveal .look-holo-slot > *,
   .look-holo-float.is-in {
     animation: none;
     filter: none;
+    transform: none;
+    opacity: 1;
   }
   .look-holo-stage.is-loading .look-holo-well::after,
-  .look-photos.is-loading i::after { animation: none; }
+  .look-photos.is-loading i::after,
+  .look-desc.is-loading::after { animation: none; }
 }
 
 @media (max-width: 430px) {
   .look-sheet {
     --look-sheet-max: min(64dvh, 560px);
-    left: 8px;
-    right: 8px;
+    left: var(--space-2);
+    right: var(--space-2);
     padding: var(--space-2) var(--space-3) var(--space-3);
   }
   .look-sheet:not(.is-open) {

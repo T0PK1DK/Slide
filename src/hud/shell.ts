@@ -59,13 +59,18 @@ export const HUD_HTML = `
       </div>
     </div>
     <div class="panel place-card plan-only" id="place-card" hidden>
-      <button class="icon loc-close" id="place-close" type="button" aria-label="Close place">×</button>
-      <h2 id="place-name"></h2>
-      <p id="place-addr"></p>
-      <p class="place-saved" id="place-saved" hidden>Saved on this phone.</p>
+      <div class="place-card-handle" aria-hidden="true"></div>
+      <header class="place-card-head">
+        <div class="place-card-titles">
+          <h2 id="place-name"></h2>
+          <p id="place-addr"></p>
+          <p class="place-saved" id="place-saved" hidden>Saved on this phone.</p>
+        </div>
+        <button class="icon loc-close" id="place-close" type="button" aria-label="Close place">×</button>
+      </header>
       <div class="place-actions">
-        <button class="ghost" id="place-save" type="button">Save</button>
-        <button class="primary" id="place-go" type="button">Go</button>
+        <button class="ghost" id="place-save" type="button">Save<small>On this phone</small></button>
+        <button class="primary" id="place-go" type="button">Go<small>Drop the line</small></button>
       </div>
     </div>
     <div class="drive-guide drive-only" id="drive-guide">

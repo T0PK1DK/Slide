@@ -86,10 +86,13 @@ export function pinImageId(store: Pick<Store, "brandKey" | "category" | "color" 
   return `look-pin-${kind}-${letter}-${color}`;
 }
 
+export const PIN_SPRITE_SIZE = 128;
+export const PIN_PIXEL_RATIO = 2;
+
 function drawCategoryGlyph(ctx: CanvasRenderingContext2D, category: Store["category"], ink: string): void {
   ctx.save();
-  ctx.translate(16, 8);
-  ctx.scale(32 / 24, 32 / 24);
+  ctx.translate(32, 16);
+  ctx.scale(64 / 24, 64 / 24);
   ctx.strokeStyle = ink;
   ctx.lineWidth = 1.7;
   ctx.lineCap = "round";
@@ -115,41 +118,44 @@ function drawPinCanvas(
   rest = "",
   category?: Store["category"],
 ): HTMLCanvasElement {
-  const size = 64;
+  const size = PIN_SPRITE_SIZE;
   const c = document.createElement("canvas");
   c.width = size;
   c.height = size;
   const ctx = c.getContext("2d");
   if (!ctx) return c;
   ctx.clearRect(0, 0, size, size);
+  ctx.imageSmoothingEnabled = true;
+  if ("imageSmoothingQuality" in ctx) ctx.imageSmoothingQuality = "high";
 
   ctx.save();
-  ctx.shadowColor = "rgba(8,10,12,0.42)";
-  ctx.shadowBlur = 6;
-  ctx.shadowOffsetY = 3;
+  ctx.shadowColor = "rgba(8,10,12,0.22)";
+  ctx.shadowBlur = 2;
+  ctx.shadowOffsetY = 1;
   ctx.beginPath();
-  ctx.moveTo(32, 60);
-  ctx.quadraticCurveTo(14, 42, 14, 28);
-  ctx.arc(32, 26, 20, Math.PI * 0.82, Math.PI * 0.18);
-  ctx.quadraticCurveTo(50, 42, 32, 60);
+  ctx.moveTo(64, 122);
+  ctx.quadraticCurveTo(28, 84, 28, 54);
+  ctx.arc(64, 50, 40, Math.PI * 0.82, Math.PI * 0.18);
+  ctx.quadraticCurveTo(100, 84, 64, 122);
   ctx.closePath();
   ctx.fillStyle = color;
   ctx.fill();
   ctx.restore();
 
   ctx.beginPath();
-  ctx.moveTo(32, 58);
-  ctx.quadraticCurveTo(16, 42, 16, 28);
-  ctx.arc(32, 26, 18, Math.PI * 0.82, Math.PI * 0.18);
-  ctx.quadraticCurveTo(48, 42, 32, 58);
+  ctx.moveTo(64, 118);
+  ctx.quadraticCurveTo(32, 82, 32, 54);
+  ctx.arc(64, 50, 36, Math.PI * 0.82, Math.PI * 0.18);
+  ctx.quadraticCurveTo(96, 82, 64, 118);
   ctx.closePath();
+  ctx.lineJoin = "round";
   ctx.lineWidth = 3;
-  ctx.strokeStyle = "rgba(255,255,255,0.92)";
+  ctx.strokeStyle = "rgba(255,255,255,0.94)";
   ctx.stroke();
 
   ctx.beginPath();
-  ctx.arc(24, 18, 5.5, 0, Math.PI * 2);
-  ctx.fillStyle = "rgba(255,255,255,0.16)";
+  ctx.arc(48, 36, 10, 0, Math.PI * 2);
+  ctx.fillStyle = "rgba(255,255,255,0.14)";
   ctx.fill();
 
   const ink = contrastInk(color);
@@ -159,13 +165,8 @@ function drawPinCanvas(
     ctx.fillStyle = ink;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    if (rest) {
-      ctx.font = "700 20px system-ui, sans-serif";
-      ctx.fillText(`${letter}${rest}`, 32, 26);
-    } else {
-      ctx.font = "700 22px system-ui, sans-serif";
-      ctx.fillText(letter, 32, 26);
-    }
+    ctx.font = rest ? "700 38px system-ui, sans-serif" : "700 42px system-ui, sans-serif";
+    ctx.fillText(rest ? `${letter}${rest}` : letter, 64, 50);
   }
   return c;
 }
@@ -302,7 +303,7 @@ export function mountStorePins(hooks: StorePinsHooks): StorePinsHandle {
     );
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    map.addImage(id, ctx.getImageData(0, 0, canvas.width, canvas.height), { pixelRatio: 2 });
+    map.addImage(id, ctx.getImageData(0, 0, canvas.width, canvas.height), { pixelRatio: PIN_PIXEL_RATIO });
     images.add(id);
   };
 

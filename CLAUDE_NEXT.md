@@ -6,24 +6,27 @@ Stay on PR **#59** (`cursor/slide-look-polish-f924`) unless the owner opens a ne
 
 ## What just shipped (do not redo)
 
-Four look rounds on #59. Additive only. `registerHologramRenderer` unchanged. Nard's `/api/stores` + `/api/places` + live ghosts unchanged.
+Five look rounds on #59. Additive only. `registerHologramRenderer` unchanged. Nard's `/api/stores` + `/api/places` + live ghosts unchanged.
 
 **Round 1 — chrome:** teardrop pins, two-letter monograms, hologram stage, card icons, `formatHours`, skeletons, phone FAB lift, empty icons.
 
 **Round 2–3 — motion:** pin drop / select pop / halo, card slide-expand, hologram reveal CSS, cluster glow. Demo `?motion=enter|reveal|drop|select`.
 
-**Round 4 — card daylight:**
-- Photo well: `classifyPhoto` captions **Logo** vs **Photo** (square, `.svg`, Wikimedia filename). Broken image → `PLACE_EMPTY.photoFailed` well. No new image API.
-- Open chip: `Open · closes 11p` when `openNow` + a parseable OSM end time. `Hours unknown` and `24/7` stay as they are.
-- Day (`?look=day`): darker pin labels, darker cluster stroke, stronger hologram well / empty photos / badge / chip.
+**Round 4 — card daylight:** Logo vs Photo well, `Open · closes 11p`, day contrast.
 
-Never weaken or delete a test. 403+ must keep passing.
+**Round 5 — unify + pins:**
+- Search `#place-card` now shares the look sheet handle, title stack, circular close, and action tiles. Styled in `src/styles.css` only — look CSS still must not target `#place-card`.
+- Reduced-motion: pin drop/select/halo already JS-gated; CSS now stills card enter, hologram reveal/scan/ring, skeletons, FAB lift, button press.
+- Store pins: 128px sprites, `PIN_PIXEL_RATIO` 2, nearly flat `icon-size` (0.50–0.52 rest) so they stay sharp at every zoom.
+
+Never weaken or delete a test. 407+ must keep passing.
 
 ## Do not
 
 - Do not edit `functions/**`, `src/lib/stores/**`, `src/lib/place-info.ts`, `src/lib/live-ghosts/**`, or `supabase/**`.
 - Do not change `registerHologramRenderer` / `registerGhostCarRenderer` signatures or `src/models/**`.
 - Do not put fixtures on the live HUD.
+- Do not restyle `#place-card` from `src/look/*.css`.
 - Do not add React/Vue. Do not add another CSS layer. Do not add hex to `src/styles.css`.
 - Do not merge or deploy.
 
@@ -31,20 +34,20 @@ Never weaken or delete a test. 403+ must keep passing.
 
 Phone-first at 390×844. `node tools/shoot-look.mjs docs/look http://127.0.0.1:4173/`.
 
-1. **Search `#place-card` vs `#look-place-card`.** Do not restyle the search sheet from look CSS.
-2. **Reduced-motion audit.** Pin drop, select pop, halo, card expand, hologram reveal, cluster glow, photo well — walk the live HUD too.
-3. **Live photo well.** A real `/api/places` Wikimedia logo on the HUD (no fixture). Keep Nard's Function unchanged.
-4. **Closed chip.** “Opens 8a” when `openNow === false` + a parseable start time. Keep `Hours unknown`.
+1. **Live photo well.** A real `/api/places` Wikimedia logo on the HUD (no fixture). Keep Nard's Function unchanged.
+2. **Closed chip.** “Opens 8a” when `openNow === false` + a parseable start time. Keep `Hours unknown`.
+3. **Search card extras.** Optional hours/open chip on `#place-card` only when Nard already has them on the hit — do not invent.
+4. **Pin collision.** When two teardrops overlap at street zoom, prefer the selected layer (already allow-overlap) and fade the rest.
 
 ## How to verify
 
 ```bash
-npm test          # must stay ≥403
+npm test          # must stay ≥407
 npm run build
 npm run preview
 node tools/shoot-look.mjs docs/look http://127.0.0.1:4173/
 ```
 
-Demo: `/look.html`, `?place=`, `?empty=1`, `?loading=1`, `?skel=1`, `?motion=enter|reveal|drop|select`, `?look=day`.
+Demo: `/look.html`, `?place=`, `?empty=1`, `?loading=1`, `?skel=1`, `?motion=enter|reveal|drop|select`, `?look=day`. Search card: main HUD `#place-card`.
 
 Update `HANDOFF.md` + this file, push #59, list changes with phone screenshots. Do not merge.
