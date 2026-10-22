@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { LOOK_FIXTURES } from "../look/fixtures";
-import { CLUSTER_MAX_ZOOM, CLUSTER_RADIUS, pinImageId, storesToFeatureCollection } from "./store-pins";
+import {
+  CLUSTER_MAX_ZOOM,
+  CLUSTER_RADIUS,
+  clusterStrokeColor,
+  pinImageId,
+  pinLabelPaint,
+  storesToFeatureCollection,
+} from "./store-pins";
 
 describe("store pins", () => {
   it("drops stores without a point and keeps Nard's ids", () => {
@@ -21,5 +28,11 @@ describe("store pins", () => {
   it("clusters at street-ish zoom", () => {
     expect(CLUSTER_RADIUS).toBeGreaterThan(30);
     expect(CLUSTER_MAX_ZOOM).toBeGreaterThanOrEqual(12);
+  });
+
+  it("uses darker pin labels and cluster strokes in day", () => {
+    expect(pinLabelPaint(true).color).toBe("#1c1812");
+    expect(pinLabelPaint(false).color).toBe("#f4f3ef");
+    expect(clusterStrokeColor(true)).not.toBe(clusterStrokeColor(false));
   });
 });

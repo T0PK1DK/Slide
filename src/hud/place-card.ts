@@ -1,8 +1,9 @@
 import { PLACE_EMPTY } from "../look/empty";
-import { formatHours } from "../look/hours";
+import { formatCloseHint, formatHours } from "../look/hours";
 import { mountHologram, prefersReducedMotion, type HologramDispose } from "../look/hologram";
 import { CARD_ENTER_MS } from "../look/motion";
 import { CATEGORY_LABEL, pinBadgeSvg, pinColor } from "../look/marks";
+import { bindPhotoWell, classifyPhoto, photoCaption, type PhotoKind } from "../look/photo-well";
 import {
   modelKeyOf,
   storeName,
@@ -29,7 +30,7 @@ export type PlaceCardModel = {
   addressLoading: boolean;
   description: string;
   descriptionEmpty: boolean;
-  photos: Array<{ url: string; credit: string }>;
+  photos: Array<{ url: string; credit: string; kind: PhotoKind; caption: string }>;
   photosEmpty: boolean;
   photosEmptyLabel: string;
   photosLoading: boolean;
@@ -68,6 +69,7 @@ export function placeCardModel(store: Store, info?: PlaceInfo, opts?: { loading?
   const brandLine = [brand, cat].filter(Boolean).join(" · ") || PLACE_EMPTY.brand;
   const openNow = info?.openNow;
   const hoursRaw = store.hours?.trim();
+  const closeHint = formatCloseHint(hoursRaw, openNow);
   const address = store.address?.trim();
   const description = info?.description?.trim();
   const photos = (info?.photos ?? []).filter((p): p is PlacePhoto & { url: string } => Boolean(p.url));
@@ -82,7 +84,8 @@ export function placeCardModel(store: Store, info?: PlaceInfo, opts?: { loading?
     nameEmpty: !name,
     brandLine,
     badgeSvg: pinBadgeSvg(store),
-    openLabel: openNow === true ? "Open now" : openNow === false ? "Closed" : PLACE_EMPTY.open,
+    openLabel:
+      openNow === true ? (closeHint ? `Open · ${closeHint}` : "Open now") : openNow === false ? "Closed" : PLACE_EMPTY.open,
     openKind: openNow === true ? "open" : openNow === false ? "closed" : "unknown",
     hours: hoursRaw ? formatHours(hoursRaw) : PLACE_EMPTY.hours,
     hoursEmpty: !hoursRaw,
@@ -92,7 +95,15 @@ export function placeCardModel(store: Store, info?: PlaceInfo, opts?: { loading?
     addressLoading: loading && !address,
     description: description ?? PLACE_EMPTY.description,
     descriptionEmpty: !description,
-    photos: photos.map((p) => ({ url: p.url, credit: p.credit?.trim() || PLACE_EMPTY.credit })),
+    photos: photos.map((p) => {
+      const kind = classifyPhoto({ url: p.url, credit: p.credit });
+      return {
+        url: p.url,
+        credit: p.credit?.trim() || PLACE_EMPTY.credit,
+        kind,
+        caption: photoCaption(kind),
+      };
+    }),
     photosEmpty: photos.length === 0,
     photosEmptyLabel: PLACE_EMPTY.photos,
     photosLoading: loading && photos.length === 0,
@@ -120,9 +131,9 @@ export function placeCardHtml(model: PlaceCardModel): string {
     ? `<div class="look-photos is-empty" data-empty="photos">${ICO.photo}<span>${esc(model.photosEmptyLabel)}</span></div>`
     : `<div class="look-photos" role="list">${model.photos
         .map(
-          (p) => `<figure class="look-photo" role="listitem">
+          (p) => `<figure class="look-photo is-${p.kind}" role="listitem" title="${esc(p.credit)}">
         <img src="${esc(p.url)}" alt="" />
-        <figcaption>${esc(p.credit)}</figcaption>
+        <figcaption>${esc(p.caption)}</figcaption>
       </figure>`,
         )
         .join("")}</div>`;
@@ -241,6 +252,7 @@ export function mountPlaceCard(hooks: PlaceCardHooks): PlaceCardHandle {
       current = store;
       disposeHolo?.();
       root.innerHTML = placeCardHtml(model);
+      bindPhotoWell(root);
       root.hidden = false;
       root.classList.remove("is-preview-enter");
       root.setAttribute("aria-label", model.name);

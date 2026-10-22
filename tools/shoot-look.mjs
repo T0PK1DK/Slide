@@ -105,6 +105,16 @@ try {
   await day.evaluate(() => window.slideLook.showPlace("osm:node/123"));
   await new Promise((r) => setTimeout(r, 700));
   await shot(day, "card-full-day");
+  await day.evaluate(() => window.slideLook.showPlace("osm:node/corner-1"));
+  await new Promise((r) => setTimeout(r, 500));
+  await shot(day, "card-empty-day");
+  await day.evaluate(() => {
+    window.slideLook.trigger("close");
+    window.slideLook.showGhosts(false);
+    window.slideLook.zoom(13.45);
+  });
+  await new Promise((r) => setTimeout(r, 800));
+  await shot(day, "clusters-day");
   await day.close();
 } finally {
   await browser.close();

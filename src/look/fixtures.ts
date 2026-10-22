@@ -1,4 +1,4 @@
-import { samplePhoto } from "./photos";
+import { sampleLogo, samplePhoto } from "./photos";
 import type { Ghost, PlaceInfo, Store } from "./types";
 
 /**
@@ -199,6 +199,7 @@ export const LOOK_PLACES: Record<string, PlaceInfo> = {
     storeId: walmart.id,
     description: "A full-line grocery and general store. Sample copy for the look pass — Nard will swap in Wikidata.",
     photos: [
+      sampleLogo("Wa", "#0071ce"),
       samplePhoto("facade", "Front lot"),
       samplePhoto("aisle", "Aisles"),
       samplePhoto("lot", "Evening lot"),

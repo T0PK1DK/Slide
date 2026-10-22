@@ -432,13 +432,35 @@
 .look-photo img {
   width: 168px;
   height: 110px;
-  object-fit: contain;
+  object-fit: cover;
   object-position: center;
   border-radius: var(--radius-lg);
   display: block;
   background: var(--surface-1, var(--surface));
   box-shadow: inset 0 0 0 1px var(--line);
 }
+
+.look-photo.is-logo img {
+  object-fit: contain;
+  padding: 18px;
+  background:
+    radial-gradient(circle at 50% 46%, var(--fill-08), transparent 64%),
+    var(--fill-05);
+}
+
+.look-photo.is-fallback {
+  display: grid;
+  place-items: center;
+  width: 168px;
+  min-height: 110px;
+  padding: var(--space-3);
+  border-radius: var(--radius-lg);
+  background: var(--fill-05);
+  border: 1px dashed var(--line);
+  text-align: center;
+}
+
+.look-photo.is-fallback figcaption { color: var(--muted); }
 
 .look-photo figcaption {
   margin-top: 6px;

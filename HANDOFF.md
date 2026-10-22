@@ -78,8 +78,10 @@ src/look/               store/place/hologram look (types, fixtures, marks, holog
 src/look/types.ts       defensive Store / PlaceInfo / Ghost (fixtures); live code uses src/lib
 src/look/store-feed.ts  client tile/place cache, debounce, status copy for /api/stores + /api/places
 src/look/live.ts        HUD wire-up: pins, place sheet, hologram, watchLiveGhosts
-src/look/hours.ts       OSM opening_hours → short card line (look-only)
-src/look/hours.test.ts  daily / split / passthrough hours
+src/look/hours.ts       OSM opening_hours → short card line + closes hint (look-only)
+src/look/hours.test.ts  daily / split / passthrough hours + close chip
+src/look/photo-well.ts  Logo vs Photo classify + broken-image fallback
+src/look/photo-well.test.ts  Wikimedia mark vs still, fallback well
 src/look/motion.ts      pin drop / select pop / halo pulse math (look-only)
 src/look/motion.test.ts drop, select pop, selected size, cluster glow vs disc
 src/look/components.css shared sheet / hologram / ghost / skeleton styles (tokens)
@@ -450,6 +452,7 @@ Read `TASKS.md` top unchecked item. Do not rebase history. Do not rename the pro
 
 - 2026-10-22 Grim: **Look motion** (same branch). Pin drop + selected scale/halo pulse, place-card slide-and-expand, hologram reveal on the stage (hook unchanged), zoomed-out cluster glow + warmer count steps. Phone 390 uses `--look-sheet-max`. Demo `?motion=enter|reveal|drop`. No backend / models edits. Tests only added. No scoring-contract change.
 - 2026-10-22 Grim: **Look motion refine** (PR #59). Pin drop lift 28px / 560ms; selected pin overshoot pop (`pinSelectScale` + `setSelectProgress`); hologram reveal bloom + scan on the stage only; zoomed-out clusters use larger glow than disc, map-aligned, ghosts hidden in cluster shots. Demo `?motion=select`. Did not touch Nard backend or Leon `registerHologramRenderer`. Tests only added. No scoring-contract change.
+- 2026-10-22 Grim: **Look card daylight** (PR #59). Photo well captions Logo vs Photo (square / Wikimedia mark / `.svg`); broken image → empty well. Open chip adds `closes 11p` when OSM hours parse. Day theme: darker pin labels, darker cluster stroke, stronger hologram well / empty photo / badge. No backend or hologram-hook edits. Tests only added. No scoring-contract change.
 
 - 2026-10-12 Nard: **UI fix-up** (branch `nard/ui-fixup`). No backend, no new features, keys stay in Pages secrets.
   - **Broken buttons:** Save Home/Work from the menu with no dest now opens the search card so the error is visible. Report with no GPS opens a sheet instead of a silent no-op. Sign-in / Create / Profile sign-in / Leave-by disable the submit while the request runs. Primary/ghost `:disabled` is now faded.

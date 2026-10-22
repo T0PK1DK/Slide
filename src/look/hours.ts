@@ -39,6 +39,49 @@ function days(raw: string): string {
   return b ? `${a}–${b}` : a;
 }
 
+const OSM_DAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"] as const;
+
+function coversDay(part: string, day: string): boolean {
+  if (/\bMo-Su\b/.test(part)) return true;
+  const range = part.match(/\b(Mo|Tu|We|Th|Fr|Sa|Su)-(Mo|Tu|We|Th|Fr|Sa|Su)\b/);
+  if (range) {
+    const a = OSM_DAYS.indexOf(range[1] as (typeof OSM_DAYS)[number]);
+    const b = OSM_DAYS.indexOf(range[2] as (typeof OSM_DAYS)[number]);
+    const d = OSM_DAYS.indexOf(day as (typeof OSM_DAYS)[number]);
+    if (a < 0 || b < 0 || d < 0) return false;
+    if (a <= b) return d >= a && d <= b;
+    return d >= a || d <= b;
+  }
+  return new RegExp(`\\b${day}\\b`).test(part);
+}
+
+function endAmpm(part: string): string | null {
+  const m = part.match(SPAN);
+  if (!m) return null;
+  const startH = Number(m[1]);
+  const endH = Number(m[3]);
+  const endM = Number(m[4]);
+  if (startH === 0 && endH === 24 && endM === 0) return null;
+  if (startH === 0 && endH === 0 && endM === 0) return null;
+  return ampm(m[3]!, m[4]!);
+}
+
+/**
+ * Chip extra when the place is open and today's OSM span has an end time.
+ * `24/7` and all-day `00:00-24:00` stay just “Open now”.
+ */
+export function formatCloseHint(raw: string | undefined, openNow: boolean | undefined, at: Date = new Date()): string | null {
+  if (openNow !== true) return null;
+  const s = raw?.trim() ?? "";
+  if (!s || /24\/7/i.test(s)) return null;
+  const day = OSM_DAYS[at.getDay()] ?? "Mo";
+  const parts = s.split(";").map((p) => p.trim()).filter(Boolean);
+  const today = parts.find((p) => coversDay(p, day)) ?? parts[0];
+  if (!today) return null;
+  const end = endAmpm(today);
+  return end ? `closes ${end}` : null;
+}
+
 /** One OSM rule (`Mo-Su 06:00-23:00` or `Mo-Sa 08:00-22:00; Su 08:00-21:00`). */
 export function formatHours(raw: string): string {
   const s = raw.trim();

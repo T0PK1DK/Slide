@@ -34,6 +34,24 @@ export function clusterGlowRadiusExpr(): unknown[] {
   return ["step", ["get", "point_count"], CLUSTER_MIN_RADIUS + 16, 3, 38, 8, 46, 18, 56];
 }
 
+export function lookThemeIsDay(): boolean {
+  try {
+    return typeof document !== "undefined" && document.documentElement.dataset.look === "day";
+  } catch {
+    return false;
+  }
+}
+
+export function pinLabelPaint(day: boolean): { color: string; halo: string } {
+  return day
+    ? { color: "#1c1812", halo: "rgba(255, 250, 241, 0.9)" }
+    : { color: "#f4f3ef", halo: "rgba(8,10,12,0.78)" };
+}
+
+export function clusterStrokeColor(day: boolean): string {
+  return day ? "rgba(40, 28, 12, 0.55)" : "rgba(255,255,255,0.96)";
+}
+
 export function storesToFeatureCollection(stores: Store[]): FeatureCollection {
   return {
     type: "FeatureCollection",
@@ -352,6 +370,8 @@ export function mountStorePins(hooks: StorePinsHooks): StorePinsHandle {
       });
     }
     if (!map.getLayer(STORE_LAYER_CLUSTERS)) {
+      const day = lookThemeIsDay();
+      const label = pinLabelPaint(day);
       map.addLayer({
         id: STORE_LAYER_CLUSTER_GLOW,
         type: "circle",
@@ -380,7 +400,7 @@ export function mountStorePins(hooks: StorePinsHooks): StorePinsHandle {
             14,
             "rgba(220,118,42,0.98)",
           ],
-          "circle-stroke-color": "rgba(255,255,255,0.96)",
+          "circle-stroke-color": clusterStrokeColor(day),
           "circle-stroke-width": 3,
           "circle-radius": clusterDiscRadiusExpr() as ExpressionSpecification,
           "circle-opacity": 0.98,
@@ -441,9 +461,9 @@ export function mountStorePins(hooks: StorePinsHooks): StorePinsHandle {
           "text-max-width": 8,
         },
         paint: {
-          "text-color": "#f4f3ef",
-          "text-halo-color": "rgba(8,10,12,0.78)",
-          "text-halo-width": 1.2,
+          "text-color": label.color,
+          "text-halo-color": label.halo,
+          "text-halo-width": day ? 1.6 : 1.2,
           "icon-translate": [0, 0],
           "icon-translate-anchor": "viewport",
           "icon-opacity": 1,
@@ -473,9 +493,9 @@ export function mountStorePins(hooks: StorePinsHooks): StorePinsHandle {
           "text-max-width": 8,
         },
         paint: {
-          "text-color": "#f4f3ef",
-          "text-halo-color": "rgba(8,10,12,0.82)",
-          "text-halo-width": 1.4,
+          "text-color": label.color,
+          "text-halo-color": label.halo,
+          "text-halo-width": day ? 1.8 : 1.4,
           "icon-translate": [0, 0],
           "icon-translate-anchor": "viewport",
           "icon-opacity": 1,

@@ -82,8 +82,10 @@ Fixture demo (`node tools/shoot-look.mjs docs/look <previewUrl>`):
 | `docs/look/motion-reveal-night.png` | Hologram reveal mid-pose |
 | `docs/look/motion-drop-night.png` | Pin drop mid-pose |
 | `docs/look/motion-select-night.png` | Selected pin pop + halo |
-| `docs/look/pins-day.png` | Day theme |
-| `docs/look/card-full-day.png` | Full card, Day |
+| `docs/look/pins-day.png` | Day theme pins |
+| `docs/look/card-full-day.png` | Full card + logo well, Day |
+| `docs/look/card-empty-day.png` | Empty card, Day |
+| `docs/look/clusters-day.png` | Clusters, Day |
 
 Live OSM (`node tools/shoot-look-live.mjs docs/look <previewUrl>`):
 

@@ -25,6 +25,12 @@ describe("place card", () => {
     const html = placeCardHtml(model);
     expect(html).toContain("data-hologram");
     expect(html).toContain(model.photos[0]!.credit);
+    expect(model.openLabel).toContain("closes 11p");
+    expect(html).toContain("closes 11p");
+    expect(model.photos[0]!.kind).toBe("logo");
+    expect(html).toContain("look-photo is-logo");
+    expect(html).toContain(PLACE_EMPTY.logoCaption);
+    expect(html).toContain("look-photo is-photo");
   });
 
   it("empty-states every missing field", () => {
