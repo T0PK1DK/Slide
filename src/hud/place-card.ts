@@ -3,7 +3,14 @@ import { formatCloseHint, formatHours, formatOpenHint } from "../look/hours";
 import { mountHologram, prefersReducedMotion, type HologramDispose } from "../look/hologram";
 import { CARD_ENTER_MS } from "../look/motion";
 import { CATEGORY_LABEL, pinBadgeSvg, pinColor } from "../look/marks";
-import { bindPhotoWell, classifyPhoto, photoCaption, type PhotoKind } from "../look/photo-well";
+import {
+  bindPhotoWell,
+  classifyPhoto,
+  photoCaption,
+  rankPhotos,
+  shortPhotoCredit,
+  type PhotoKind,
+} from "../look/photo-well";
 import {
   modelKeyOf,
   storeName,
@@ -30,7 +37,7 @@ export type PlaceCardModel = {
   addressLoading: boolean;
   description: string;
   descriptionEmpty: boolean;
-  photos: Array<{ url: string; credit: string; kind: PhotoKind; caption: string }>;
+  photos: Array<{ url: string; credit: string; source?: string; kind: PhotoKind; caption: string }>;
   photosEmpty: boolean;
   photosEmptyLabel: string;
   photosLoading: boolean;
@@ -102,15 +109,18 @@ export function placeCardModel(store: Store, info?: PlaceInfo, opts?: { loading?
     addressLoading: loading && !address,
     description: description ?? PLACE_EMPTY.description,
     descriptionEmpty: !description,
-    photos: photos.map((p) => {
-      const kind = classifyPhoto({ url: p.url, credit: p.credit });
-      return {
-        url: p.url,
-        credit: p.credit?.trim() || PLACE_EMPTY.credit,
-        kind,
-        caption: photoCaption(kind),
-      };
-    }),
+    photos: rankPhotos(
+      photos.map((p) => {
+        const kind = classifyPhoto({ url: p.url, credit: p.credit, source: p.source });
+        return {
+          url: p.url,
+          credit: p.credit?.trim() || PLACE_EMPTY.credit,
+          source: p.source,
+          kind,
+          caption: photoCaption(kind),
+        };
+      }),
+    ),
     photosEmpty: photos.length === 0,
     photosEmptyLabel: PLACE_EMPTY.photos,
     photosLoading: loading && photos.length === 0,
@@ -137,12 +147,13 @@ export function placeCardHtml(model: PlaceCardModel): string {
     : model.photosEmpty
     ? `<div class="look-photos is-empty" data-empty="photos">${ICO.photo}<span>${esc(model.photosEmptyLabel)}</span></div>`
     : `<div class="look-photos" role="list">${model.photos
-        .map(
-          (p) => `<figure class="look-photo is-${p.kind}" role="listitem" title="${esc(p.credit)}">
-        <img src="${esc(p.url)}" alt="" />
-        <figcaption>${esc(p.caption)}</figcaption>
-      </figure>`,
-        )
+        .map((p, i) => {
+          const credit = shortPhotoCredit(p.credit);
+          return `<figure class="look-photo is-${p.kind}" role="listitem" title="${esc(p.credit)}"${p.source ? ` data-source="${esc(p.source)}"` : ""}>
+        <img src="${esc(p.url)}" alt="${esc(p.caption)}" referrerpolicy="no-referrer" decoding="async" loading="${i === 0 ? "eager" : "lazy"}" />
+        <figcaption><span class="look-photo-kind">${esc(p.caption)}</span>${credit ? `<span class="look-photo-credit">${esc(credit)}</span>` : ""}</figcaption>
+      </figure>`;
+        })
         .join("")}</div>`;
 
   return `<div class="look-sheet-handle" aria-hidden="true"></div>

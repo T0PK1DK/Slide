@@ -31,6 +31,9 @@ describe("place card", () => {
     expect(html).toContain("look-photo is-logo");
     expect(html).toContain(PLACE_EMPTY.logoCaption);
     expect(html).toContain("look-photo is-photo");
+    expect(html).toContain("referrerpolicy=\"no-referrer\"");
+    expect(html).toContain("look-photo-kind");
+    expect(html).toContain("Slide look kit");
   });
 
   it("says Opens 8a when closed with a posted start", () => {

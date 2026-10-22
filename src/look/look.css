@@ -228,9 +228,15 @@ html[data-look="day"] .look-photo.is-fallback {
   color: var(--muted);
 }
 html[data-look="day"] .look-empty-ico { color: var(--muted); }
-html[data-look="day"] .look-photo.is-logo img,
+html[data-look="day"] .look-photo.is-logo img {
+  background:
+    radial-gradient(circle at 50% 46%, var(--fill-08), transparent 64%),
+    var(--surface-2);
+}
 html[data-look="day"] .look-photo.is-photo img,
 html[data-look="day"] .look-photo img { background: var(--surface-2); }
+html[data-look="day"] .look-photo-kind { color: var(--text); }
+html[data-look="day"] .look-photo-credit { color: var(--muted); }
 html[data-look="day"] .look-act { color: var(--text); }
 html[data-look="day"] .look-ghost-tag { color: var(--text); }
 html[data-look="day"] .look-skel-pin {

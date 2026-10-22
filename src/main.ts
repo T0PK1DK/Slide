@@ -29,6 +29,7 @@ import { cardAriaLabel, routeCards } from "./plan/review-cards";
 import { EMPTY, postedSignText, SEARCH, setMaybeEmpty } from "./lib/empty";
 import { splitPlaceLabel } from "./lib/place";
 import { recentsListHtml, savedPlaceRow, savedRowInnerHtml } from "./hud/search-rows";
+import { paintPlaceExtras, placeExtrasFrom } from "./hud/place-extras";
 import { mountVoiceMute } from "./hud/voice-mute";
 import { resetVoice, startVoice, stopVoice, tickVoice } from "./voice";
 import { stepGhost, type GhostCar } from "./lib/ghosts";
@@ -846,10 +847,24 @@ function openPlace(hit: SearchHit) {
   $("#place-saved").hidden = true;
   $("#place-card").removeAttribute("hidden");
   $("#search-card").classList.remove("open");
+  paintPlaceExtras($("#place-extras"), placeExtrasFrom({}));
+  void fillPlaceExtras(hit);
+}
+
+let extrasGen = 0;
+async function fillPlaceExtras(hit: SearchHit) {
+  const my = ++extrasGen;
+  const found = await lookLive.extrasFor(hit.lat, hit.lon);
+  if (my !== extrasGen || !found) return;
+  const card = $("#place-card");
+  if (card.hidden) return;
+  paintPlaceExtras($("#place-extras"), placeExtrasFrom(found.store, found.info));
 }
 
 function hidePlace() {
+  extrasGen += 1;
   $("#place-card").setAttribute("hidden", "");
+  paintPlaceExtras($("#place-extras"), placeExtrasFrom({}));
 }
 
 function saveOpenPlace() {

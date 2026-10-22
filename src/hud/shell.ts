@@ -71,6 +71,7 @@ export const HUD_HTML = `
         </div>
         <button class="icon loc-close" id="place-close" type="button" aria-label="Close place">×</button>
       </header>
+      <div class="place-extras" id="place-extras" hidden></div>
       <div class="place-actions">
         <button class="ghost" id="place-save" type="button">Save<small>On this phone</small></button>
         <button class="primary" id="place-go" type="button">Go<small>Drop the line</small></button>

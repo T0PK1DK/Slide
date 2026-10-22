@@ -8,6 +8,7 @@ import { mountPlaceCard, shouldOpenPlaceCard } from "../hud/place-card";
 import { cloudConfigured } from "../lib/cloud";
 import { watchLiveGhosts, type GhostWatch } from "../lib/live-ghosts/client";
 import type { Ghost as LiveGhost } from "../lib/live-ghosts/types";
+import type { PlaceInfo } from "../lib/place-info";
 import type { Store } from "../lib/stores";
 import { STORE_LAYER_CLUSTERS, STORE_LAYER_PINS, STORE_LAYER_SELECTED, mountStorePins } from "../map/store-pins";
 import { mountGhostCars } from "../map/ghost-car";
@@ -39,6 +40,8 @@ export type LookLiveHandle = {
   refresh(force?: boolean): void;
   hideCard(): void;
   notifyDest(): void;
+  storeNear(lat: number, lon: number, maxM?: number): Store | undefined;
+  extrasFor(lat: number, lon: number, maxM?: number): Promise<{ store: Store; info?: PlaceInfo } | null>;
   destroy(): void;
 };
 
@@ -50,6 +53,7 @@ export type SlideLookLiveApi = {
   showStore(id: string): Promise<void>;
   flyTo(lon: number, lat: number, zoom?: number): void;
   refresh(): void;
+  extrasFor(lat: number, lon: number, maxM?: number): Promise<{ store: Store; info?: PlaceInfo } | null>;
 };
 
 declare global {
@@ -264,6 +268,19 @@ export function mountLookLive(hooks: LookLiveHooks): LookLiveHandle {
     });
   }
 
+  const storeNear = (lat: number, lon: number, maxM = 90) =>
+    nearestStore(lastStores, lat, lon, maxM) ?? nearestStore(feed.peek(), lat, lon, maxM);
+
+  const extrasFor = async (lat: number, lon: number, maxM = 90) => {
+    const store = storeNear(lat, lon, maxM);
+    if (!store) return null;
+    try {
+      return { store, info: await feed.loadPlace(store) };
+    } catch {
+      return { store };
+    }
+  };
+
   const api: SlideLookLiveApi = {
     ready: false,
     stores: () => lastStores,
@@ -278,6 +295,7 @@ export function mountLookLive(hooks: LookLiveHooks): LookLiveHandle {
       void refresh();
     },
     refresh: () => void refresh(),
+    extrasFor,
   };
   window.slideLookLive = api;
 
@@ -309,6 +327,8 @@ export function mountLookLive(hooks: LookLiveHooks): LookLiveHandle {
       destOpenedFor = null;
       considerDestination();
     },
+    storeNear,
+    extrasFor,
     destroy() {
       gen += 1;
       ghostWatch?.stop();

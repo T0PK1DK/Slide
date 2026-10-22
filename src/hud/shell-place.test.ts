@@ -12,6 +12,7 @@ describe("search place card chrome", () => {
     expect(HUD_HTML).toContain('id="place-save"');
     expect(HUD_HTML).toContain('id="place-go"');
     expect(HUD_HTML).toContain('id="place-close"');
+    expect(HUD_HTML).toContain('id="place-extras"');
     expect(HUD_HTML).toContain("<small>");
   });
 
@@ -19,6 +20,10 @@ describe("search place card chrome", () => {
     const look = readFileSync(new URL("../look/components.css", import.meta.url), "utf8");
     expect(look).not.toContain("#place-card");
     expect(look).toContain(".look-sheet-handle");
+    expect(look).toContain(".look-photo.is-wordmark");
+    const css = readFileSync(new URL("../styles.css", import.meta.url), "utf8");
+    expect(css).toContain(".place-extras");
+    expect(css).not.toMatch(/\.place-extras[^{]*\{[^}]*#[0-9a-fA-F]{3,8}/);
   });
 
   it("keeps Home / Work / recents as row slots", () => {

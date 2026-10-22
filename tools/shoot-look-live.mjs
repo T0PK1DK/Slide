@@ -121,7 +121,16 @@ try {
   }, pick);
   if (!opened) throw new Error("could not open a live store card");
   await page.waitForSelector("#look-place-card:not([hidden])", { timeout: 15000 });
-  await new Promise((r) => setTimeout(r, 1600));
+  await page
+    .waitForFunction(
+      () =>
+        [...document.querySelectorAll("#look-place-card .look-photo img")].some(
+          (img) => img instanceof HTMLImageElement && img.complete && img.naturalWidth > 0,
+        ),
+      { timeout: 20000 },
+    )
+    .catch(() => undefined);
+  await new Promise((r) => setTimeout(r, 800));
   await shot(page, "live-card-night");
   console.log("opened", opened, "of", count, "stores");
 } finally {

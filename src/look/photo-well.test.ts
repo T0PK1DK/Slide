@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { PLACE_EMPTY } from "./empty";
 import { LOOK_FIXTURES, placeFor } from "./fixtures";
 import { sampleLogo, samplePhoto } from "./photos";
-import { classifyPhoto, markPhotoFallback, photoCaption } from "./photo-well";
+import { classifyPhoto, logoLayout, markPhotoFallback, photoCaption, rankPhotos, shortPhotoCredit } from "./photo-well";
 
 describe("photo well", () => {
   it("captions Wikimedia-style marks as Logo and stills as Photo", () => {
@@ -16,8 +16,20 @@ describe("photo well", () => {
     ).toBe("logo");
     expect(classifyPhoto({ url: "https://upload.wikimedia.org/wikipedia/commons/a/a0/Storefront.jpg" })).toBe("photo");
     expect(classifyPhoto({ url: "https://example.com/shot.jpg", width: 96, height: 96 })).toBe("logo");
+    expect(
+      classifyPhoto({
+        url: "https://upload.wikimedia.org/wikipedia/commons/a/a0/Storefront.jpg",
+        source: "wikidata",
+      }),
+    ).toBe("logo");
     expect(photoCaption("logo")).toBe(PLACE_EMPTY.logoCaption);
     expect(photoCaption("photo")).toBe(PLACE_EMPTY.photoCaption);
+    expect(shortPhotoCredit("Wikimedia Commons · Publix_logo.svg")).toBe("Wikimedia");
+    expect(shortPhotoCredit(PLACE_EMPTY.credit)).toBe("");
+    expect(shortPhotoCredit("Slide look kit · sample still")).toBe("Slide look kit");
+    expect(logoLayout(200, 200)).toBe("mark");
+    expect(logoLayout(320, 80)).toBe("wordmark");
+    expect(rankPhotos([{ kind: "photo" }, { kind: "logo" }]).map((p) => p.kind)).toEqual(["logo", "photo"]);
   });
 
   it("swaps a broken image for the empty well", () => {

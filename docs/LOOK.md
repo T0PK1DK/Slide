@@ -11,7 +11,7 @@ Demo: **`/look.html`** (`?look=day`, `?place=osm:node/123`, `?empty=1`, `?loadin
 | Piece | Source | Behaviour |
 |---|---|---|
 | Store pins | `GET /api/stores?tiles=` | Debounced 600 ms on map move. Skip below zoom 12. Client tile cache 8 min. Skeleton pins while the first Overpass call is in flight. Never blocks the map. |
-| Place card | `GET /api/places` | Sheet opens on pin tap (and at a destination within 90 m). Store fields paint immediately; photos/copy shimmer until Wikidata returns. Client place cache 30 min. |
+| Place card | `GET /api/places` | Sheet opens on pin tap (and at a destination within 90 m). Store fields paint immediately; photos/copy shimmer until Wikidata returns. P154 marks are Logo (contain, mark/wordmark well); P18 stills stay Photo. Client place cache 30 min. Search `#place-card` can reuse the same extras when a store is within 90 m. |
 | Hologram | Leon `registerSlideModels()` | Slot above the selected pin and at the top of the card. |
 | Ghost cars | `watchLiveGhosts` | Only when `cloudConfigured()` (Supabase). Off otherwise — no fixture ghosts in the real app. Hidden in Drive. Garage **Ghosts** still toggles them. Rough ~1 km friend presence is unchanged. |
 
@@ -95,6 +95,7 @@ Fixture demo (`node tools/shoot-look.mjs docs/look <previewUrl>`):
 | `docs/look/search-empty-night.png` | Empty search: Home/Work + idle recents |
 | `docs/look/search-no-results-night.png` | No-match suggest status |
 | `docs/look/search-offline-night.png` | Offline fail sheet |
+| `docs/look/search-card-extras-night.png` | Search `#place-card` hours + logo well |
 
 Live OSM (`node tools/shoot-look-live.mjs docs/look <previewUrl>`):
 

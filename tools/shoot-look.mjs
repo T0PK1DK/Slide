@@ -250,6 +250,30 @@ try {
   });
   await new Promise((r) => setTimeout(r, 400));
   await shot(hud, "search-card-night");
+
+  await hud.evaluate(() => {
+    const extras = document.getElementById("place-extras");
+    if (!extras) return;
+    extras.hidden = false;
+    const mark =
+      "data:image/svg+xml;charset=utf-8," +
+      encodeURIComponent(
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><circle cx="100" cy="100" r="72" fill="#3d8b40"/><text x="100" y="118" text-anchor="middle" font-size="72" fill="#fff" font-family="system-ui">P</text></svg>',
+      );
+    extras.innerHTML = `
+      <div class="place-extras-meta">
+        <span class="look-chip look-chip-open">Open · closes 11p</span>
+        <p class="place-hours">Daily 6a–11p</p>
+      </div>
+      <div class="look-photos" role="list">
+        <figure class="look-photo is-logo is-mark" title="Wikimedia Commons · Publix_logo.svg">
+          <img src="${mark}" alt="Logo" referrerpolicy="no-referrer" />
+          <figcaption><span class="look-photo-kind">Logo</span><span class="look-photo-credit">Wikimedia</span></figcaption>
+        </figure>
+      </div>`;
+  });
+  await new Promise((r) => setTimeout(r, 350));
+  await shot(hud, "search-card-extras-night");
   await hud.close();
 } finally {
   await browser.close();
