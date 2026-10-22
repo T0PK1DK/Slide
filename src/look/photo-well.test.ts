@@ -23,16 +23,17 @@ describe("photo well", () => {
   it("swaps a broken image for the empty well", () => {
     const walmart = LOOK_FIXTURES.stores.find((s) => s.brandKey === "walmart")!;
     expect(placeFor(walmart)?.photos?.[0]?.url).toContain("image/svg");
-    const fig = {
-      className: "look-photo is-photo",
+    const caption = { textContent: "Photo" };
+    const removed: string[] = [];
+    const state = { className: "look-photo is-photo" };
+    const node = {
       classList: {
         add(name: string) {
-          this.parent.className += ` ${name}`;
+          state.className += ` ${name}`;
         },
         remove(...names: string[]) {
-          for (const n of names) this.parent.className = this.parent.className.replace(n, "").trim();
+          for (const n of names) state.className = state.className.replace(n, "").trim();
         },
-        parent: null as { className: string } | null,
       },
       querySelector(sel: string) {
         if (sel === "img") return { remove() { removed.push("img"); } };
@@ -40,11 +41,8 @@ describe("photo well", () => {
         return null;
       },
     };
-    fig.classList.parent = fig;
-    const caption = { textContent: "Photo" };
-    const removed: string[] = [];
-    markPhotoFallback(fig as unknown as HTMLElement);
-    expect(fig.className).toContain("is-fallback");
+    markPhotoFallback(node as unknown as HTMLElement);
+    expect(state.className).toContain("is-fallback");
     expect(caption.textContent).toBe(PLACE_EMPTY.photoFailed);
     expect(removed).toContain("img");
   });
