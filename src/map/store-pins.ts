@@ -9,6 +9,7 @@ import {
   haloRadiusExpr,
   pinDropPaint,
   pinSelectScale,
+  pickClusterWinner,
   pinSizeExpr,
   rankPins,
   selectedPinSizeExpr,
@@ -189,6 +190,7 @@ function drawPinCanvas(
 export type StorePinsHandle = {
   setStores(stores: Store[]): void;
   select(id: string | null): void;
+  focus(id: string | null): void;
   selected(): string | null;
   storeById(id: string): Store | undefined;
   setVisible(on: boolean): void;
@@ -213,6 +215,7 @@ export function mountStorePins(hooks: StorePinsHooks): StorePinsHandle {
   let stores: Store[] = [];
   const byId = new Map<string, Store>();
   let selected: string | null = null;
+  let focusId: string | null = null;
   let visible = true;
   let holo: maplibregl.Marker | null = null;
   let disposeHolo: HologramDispose | null = null;
@@ -346,7 +349,7 @@ export function mountStorePins(hooks: StorePinsHooks): StorePinsHandle {
 
   const rankedCollection = () => {
     const c = map.getCenter();
-    return storesToFeatureCollection(stores, { center: { lon: c.lng, lat: c.lat }, selected });
+    return storesToFeatureCollection(stores, { center: { lon: c.lng, lat: c.lat }, selected: selected ?? focusId });
   };
 
   const paintData = () => {
@@ -545,22 +548,41 @@ export function mountStorePins(hooks: StorePinsHooks): StorePinsHandle {
       });
     }
 
-    map.on("click", STORE_LAYER_CLUSTERS, (e) => {
+    const expandCluster = (e: { features?: { geometry?: { type?: string; coordinates?: number[] }; properties?: { cluster_id?: unknown; id?: unknown } }[] }) => {
       const f = e.features?.[0];
-      if (!f || f.geometry.type !== "Point") return;
+      if (!f || f.geometry?.type !== "Point" || !f.geometry.coordinates) return;
       const coords = f.geometry.coordinates as [number, number];
       const clusterId = Number(f.properties?.cluster_id);
-      const src = map.getSource(STORE_SOURCE) as maplibregl.GeoJSONSource;
+      const src = map.getSource(STORE_SOURCE) as maplibregl.GeoJSONSource | undefined;
+      if (!src || !Number.isFinite(clusterId)) return;
+      void src.getClusterLeaves(clusterId, 24, 0).then((leaves) => {
+        const pts = leaves.flatMap((leaf) => {
+          if (leaf.geometry.type !== "Point") return [];
+          const [lon, lat] = leaf.geometry.coordinates as [number, number];
+          const id = String(leaf.properties?.id ?? "");
+          return id ? [{ id, lon, lat }] : [];
+        });
+        focusId = pickClusterWinner(pts, { lon: coords[0], lat: coords[1] });
+        selected = null;
+        apply();
+      }).catch(() => undefined);
       void src.getClusterExpansionZoom(clusterId).then((zoom) => {
-        map.easeTo({ center: coords, zoom });
-      });
-    });
+        map.easeTo({
+          center: coords,
+          zoom: Math.max(zoom, CLUSTER_MAX_ZOOM + 0.35),
+          duration: prefersReducedMotion() ? 0 : 480,
+        });
+      }).catch(() => undefined);
+    };
+    map.on("click", STORE_LAYER_CLUSTERS, expandCluster);
+    map.on("click", STORE_LAYER_CLUSTER_GLOW, expandCluster);
 
     const onPinClick = (e: { features?: { properties?: { id?: unknown } }[] }) => {
       const id = String(e.features?.[0]?.properties?.id ?? "");
       const store = byId.get(id);
       if (!store) return;
       selected = id;
+      focusId = null;
       apply();
       startSelect();
       hooks.onSelect?.(store);
@@ -568,7 +590,7 @@ export function mountStorePins(hooks: StorePinsHooks): StorePinsHandle {
     map.on("click", STORE_LAYER_PINS, onPinClick);
     map.on("click", STORE_LAYER_SELECTED, onPinClick);
 
-    for (const id of [STORE_LAYER_PINS, STORE_LAYER_SELECTED, STORE_LAYER_CLUSTERS]) {
+    for (const id of [STORE_LAYER_PINS, STORE_LAYER_SELECTED, STORE_LAYER_CLUSTERS, STORE_LAYER_CLUSTER_GLOW]) {
       map.on("mouseenter", id, () => {
         map.getCanvas().style.cursor = "pointer";
       });
@@ -617,10 +639,15 @@ export function mountStorePins(hooks: StorePinsHooks): StorePinsHandle {
     },
     select(id) {
       selected = id;
+      if (id) focusId = null;
       whenStyle(map, () => {
         apply();
         if (id) startSelect();
       });
+    },
+    focus(id) {
+      focusId = id;
+      whenStyle(map, () => paintData());
     },
     selected: () => selected,
     storeById: (id) => byId.get(id),

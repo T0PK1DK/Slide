@@ -23,7 +23,7 @@ Local `npm run dev` / `preview` serve `/api/stores` and `/api/places` through th
 
 | Piece | Files | Behavior |
 |---|---|---|
-| Store pins | `src/map/store-pins.ts`, `src/look/marks.ts`, `src/look/motion.ts` | Teardrop brand pin + original two-letter monogram. Pins drop in when a tile lands; the selected one scales up with a pulsing halo. Unknown chains use the category glyph. Clusters get a glow disc when zoomed out (`clusterRadius` 52, `clusterMaxZoom` 14). Labels from zoom 15 — no overlap; selected then nearest-to-center win, stacked neighbors fade. |
+| Store pins | `src/map/store-pins.ts`, `src/look/marks.ts`, `src/look/motion.ts` | Teardrop brand pin + original two-letter monogram. Pins drop in when a tile lands; the selected one scales up with a pulsing halo. Unknown chains use the category glyph. Clusters get a glow disc when zoomed out (`clusterRadius` 52, `clusterMaxZoom` 14). Tap a cluster to zoom in; the nearest leaf keeps the label (`focusId`) without opening the card. Labels from zoom 15 — no overlap; selected / focused then nearest-to-center win, stacked neighbors fade. |
 | Place card | `src/hud/place-card.ts` | Bottom sheet slides up and expands. Hologram stage, name, badge, open-now chip, formatted hours, address, icon actions, photo strip, description. Empty-states every missing field. |
 | Hologram | `src/look/hologram.ts` | Slot above the selected pin **and** in `.look-holo-well` on the card. Reveal animation is CSS on the stage. Leon fills `registerHologramRenderer` (unchanged). Honors `prefers-reduced-motion`. |
 | Ghost cars | `src/map/ghost-car.ts` | Color, name tag, heading arrow. Visual only. 3D via `mountGhostCar`. |
@@ -90,6 +90,11 @@ Fixture demo (`node tools/shoot-look.mjs docs/look <previewUrl>`):
 | `docs/look/search-results-night.png` | Search bar + results list, Night |
 | `docs/look/card-closed-night.png` | Closed chip `Opens 5a` (Dunkin) |
 | `docs/look/pins-collide-night.png` | Street-zoom pins, selected label wins |
+| `docs/look/pins-cluster-tap-night.png` | After a cluster tap: winner label, no card |
+| `docs/look/pins-skel-day.png` | Skeleton pins, Day contrast |
+| `docs/look/search-empty-night.png` | Empty search: Home/Work + idle recents |
+| `docs/look/search-no-results-night.png` | No-match suggest status |
+| `docs/look/search-offline-night.png` | Offline fail sheet |
 
 Live OSM (`node tools/shoot-look-live.mjs docs/look <previewUrl>`):
 

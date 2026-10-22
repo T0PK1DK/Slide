@@ -40,8 +40,11 @@ export function postedSignText(mph: number | null | undefined): string {
 export const SEARCH = {
   loading: "Searching…",
   empty: "No match, try adding the city",
+  idle: "Places you pick will show here",
 } as const;
 
-export function suggestStatusText(state: "loading" | "empty"): string {
-  return state === "loading" ? SEARCH.loading : SEARCH.empty;
+export function suggestStatusText(state: "loading" | "empty" | "idle"): string {
+  if (state === "loading") return SEARCH.loading;
+  if (state === "idle") return SEARCH.idle;
+  return SEARCH.empty;
 }

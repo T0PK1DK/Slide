@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { LOOK_FIXTURES } from "../look/fixtures";
 import {
@@ -5,6 +6,8 @@ import {
   CLUSTER_RADIUS,
   PIN_PIXEL_RATIO,
   PIN_SPRITE_SIZE,
+  STORE_LAYER_CLUSTER_GLOW,
+  STORE_LAYER_CLUSTERS,
   clusterStrokeColor,
   pinImageId,
   pinLabelPaint,
@@ -30,6 +33,8 @@ describe("store pins", () => {
   it("clusters at street-ish zoom", () => {
     expect(CLUSTER_RADIUS).toBeGreaterThan(30);
     expect(CLUSTER_MAX_ZOOM).toBeGreaterThanOrEqual(12);
+    expect(STORE_LAYER_CLUSTERS).toContain("cluster");
+    expect(STORE_LAYER_CLUSTER_GLOW).toContain("cluster");
   });
 
   it("draws a 128px sprite so downsample stays sharp", () => {
@@ -54,5 +59,16 @@ describe("store pins", () => {
     expect(pinLabelPaint(true).color).toBe("#1c1812");
     expect(pinLabelPaint(false).color).toBe("#f4f3ef");
     expect(clusterStrokeColor(true)).not.toBe(clusterStrokeColor(false));
+  });
+
+  it("expands a cluster without opening a place", () => {
+    const src = readFileSync(new URL("./store-pins.ts", import.meta.url), "utf8");
+    const expand = src.split("const expandCluster")[1]?.split("const onPinClick")[0] ?? "";
+    expect(expand).toContain("pickClusterWinner");
+    expect(expand).toContain("selected = null");
+    expect(expand).toContain("Number.isFinite(clusterId)");
+    expect(expand).not.toContain("onSelect");
+    expect(src).toContain('map.on("click", STORE_LAYER_CLUSTER_GLOW, expandCluster)');
+    expect(src).toContain('map.on("click", STORE_LAYER_CLUSTERS, expandCluster)');
   });
 });

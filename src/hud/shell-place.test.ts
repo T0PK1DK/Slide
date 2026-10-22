@@ -21,6 +21,25 @@ describe("search place card chrome", () => {
     expect(look).toContain(".look-sheet-handle");
   });
 
+  it("keeps Home / Work / recents as row slots", () => {
+    expect(HUD_HTML).toContain('id="recents"');
+    expect(HUD_HTML).toContain('id="chip-home"');
+    expect(HUD_HTML).toContain("recent-item place-chip");
+    expect(HUD_HTML).toContain("fail-sheet");
+    expect(HUD_HTML).toContain('id="loc-banner"');
+    expect(HUD_HTML).toContain('id="net-sheet"');
+    const css = readFileSync(new URL("../styles.css", import.meta.url), "utf8");
+    expect(css).toContain(".recent-item");
+    const recent = css.split(".recent-item {")[1]?.slice(0, 220) ?? "";
+    expect(recent).toContain("min-height: var(--touch)");
+    expect(css).toContain(".suggest-status.is-empty");
+    expect(css).toContain(".suggest-status.is-loading");
+    const name = css.split(".suggest-name {")[1]?.slice(0, 280) ?? "";
+    expect(name).toContain("text-overflow: ellipsis");
+    const cardTitle = css.split(".place-card h2 {")[1]?.slice(0, 280) ?? "";
+    expect(cardTitle).toContain("-webkit-line-clamp: 2");
+  });
+
   it("gives the search bar the same handle and list type as the card", () => {
     expect(HUD_HTML).toContain("search-card-handle");
     expect(HUD_HTML).toContain('id="to-suggest"');

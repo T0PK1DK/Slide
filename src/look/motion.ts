@@ -121,3 +121,21 @@ export function rankPins(
   }
   return out;
 }
+
+/** After a cluster expands, the leaf nearest the cluster point keeps the label. */
+export function pickClusterWinner(
+  leaves: PinPoint[],
+  center: { lon: number; lat: number },
+): string | null {
+  if (!leaves.length) return null;
+  let best = leaves[0]!;
+  let bestD = distM(best, center);
+  for (const p of leaves.slice(1)) {
+    const d = distM(p, center);
+    if (d < bestD) {
+      best = p;
+      bestD = d;
+    }
+  }
+  return best.id || null;
+}

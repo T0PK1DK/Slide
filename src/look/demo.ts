@@ -19,6 +19,7 @@ type SlideLookApi = {
   trigger: (kind: "stopped" | "destination" | "close") => void;
   zoom: (z: number, lonlat?: [number, number]) => void;
   selectPin: (id: string | null) => void;
+  focusPin: (id: string | null) => void;
   showSkel: (on: boolean) => void;
   showGhosts: (on: boolean) => void;
   previewMotion: (kind: "enter" | "reveal" | "drop" | "select") => void;
@@ -141,6 +142,9 @@ const api: SlideLookApi = {
   },
   selectPin(id) {
     pins.select(id);
+  },
+  focusPin(id) {
+    pins.focus(id);
   },
   showGhosts(on) {
     ghosts.setGhosts(on ? LOOK_FIXTURES.ghosts : []);

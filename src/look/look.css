@@ -233,3 +233,12 @@ html[data-look="day"] .look-photo.is-photo img,
 html[data-look="day"] .look-photo img { background: var(--surface-2); }
 html[data-look="day"] .look-act { color: var(--text); }
 html[data-look="day"] .look-ghost-tag { color: var(--text); }
+html[data-look="day"] .look-skel-pin {
+  background: color-mix(in srgb, var(--glow) 48%, var(--text) 16%);
+  box-shadow: 0 0 0 6px var(--fill-10);
+}
+html[data-look="day"] .look-skel-pin::after {
+  border-top-color: color-mix(in srgb, var(--glow) 48%, var(--text) 16%);
+}
+html[data-look="day"] .look-live-status[data-kind="empty"],
+html[data-look="day"] .look-live-status[data-kind="zoom"] { color: var(--muted); }

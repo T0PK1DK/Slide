@@ -111,6 +111,15 @@ try {
   });
   await new Promise((r) => setTimeout(r, 900));
   await shot(night, "pins-collide-night");
+
+  await night.evaluate(() => {
+    window.slideLook.trigger("close");
+    window.slideLook.showGhosts(false);
+    window.slideLook.zoom(15.35, [-80.1362, 26.1186]);
+    window.slideLook.focusPin("osm:node/shell-1");
+  });
+  await new Promise((r) => setTimeout(r, 800));
+  await shot(night, "pins-cluster-tap-night");
   await night.close();
 
   const day = await openLook(browser, "day");
@@ -128,6 +137,12 @@ try {
   });
   await new Promise((r) => setTimeout(r, 800));
   await shot(day, "clusters-day");
+  await day.evaluate(() => {
+    window.slideLook.trigger("close");
+    window.slideLook.showSkel(true);
+  });
+  await new Promise((r) => setTimeout(r, 500));
+  await shot(day, "pins-skel-day");
   await day.close();
 
   const hud = await browser.newPage();
@@ -142,6 +157,47 @@ try {
     const card = document.getElementById("search-card");
     card?.classList.add("open");
     card?.removeAttribute("hidden");
+    document.getElementById("to-suggest")?.setAttribute("hidden", "");
+    const recents = document.getElementById("recents");
+    if (recents) {
+      recents.hidden = false;
+      recents.innerHTML = `<div class="recents-label">Recent</div><p class="suggest-status is-empty">Places you pick will show here</p>`;
+    }
+    const home = document.getElementById("chip-home");
+    const work = document.getElementById("chip-work");
+    if (home) home.innerHTML = `<span class="suggest-name">Home</span><span class="suggest-addr">Save a place on this phone</span>`;
+    if (work) work.innerHTML = `<span class="suggest-name">Work</span><span class="suggest-addr">Save a place on this phone</span>`;
+  });
+  await new Promise((r) => setTimeout(r, 350));
+  await shot(hud, "search-empty-night");
+
+  await hud.evaluate(() => {
+    const box = document.getElementById("to-suggest");
+    if (!box) return;
+    box.hidden = false;
+    box.innerHTML = `<p class="suggest-status is-empty">No match, try adding the city</p>`;
+  });
+  await new Promise((r) => setTimeout(r, 300));
+  await shot(hud, "search-no-results-night");
+
+  await hud.evaluate(() => {
+    document.getElementById("to-suggest")?.setAttribute("hidden", "");
+    const recents = document.getElementById("recents");
+    if (recents) {
+      recents.hidden = false;
+      recents.innerHTML = `
+        <div class="recents-label">Recent</div>
+        <button type="button" class="recent-item">
+          <span class="suggest-name">Bayside Marketplace</span>
+          <span class="suggest-addr">401 Biscayne Blvd, Miami</span>
+        </button>
+        <button type="button" class="recent-item">
+          <span class="suggest-name">Mary Brickell Village</span>
+          <span class="suggest-addr">901 S Miami Ave, Miami</span>
+        </button>`;
+    }
+    const home = document.getElementById("chip-home");
+    if (home) home.innerHTML = `<span class="suggest-name">Home</span><span class="suggest-addr">9601 Collins Ave, Miami Beach</span>`;
     const box = document.getElementById("to-suggest");
     if (!box) return;
     box.hidden = false;
@@ -152,7 +208,7 @@ try {
         <span class="suggest-addr">401 Biscayne Blvd, Miami</span>
       </button>
       <button type="button" class="active">
-        <span class="suggest-name">Mary Brickell Village</span>
+        <span class="suggest-name">Our Lady of Guadalupe Catholic Church and Community Center</span>
         <span class="suggest-dist">1.1 mi</span>
         <span class="suggest-addr">901 S Miami Ave, Miami</span>
       </button>
@@ -167,6 +223,22 @@ try {
   await hud.evaluate(() => {
     document.getElementById("to-suggest")?.setAttribute("hidden", "");
     document.getElementById("search-card")?.classList.remove("open");
+    const sheet = document.getElementById("net-sheet");
+    if (!sheet) return;
+    sheet.hidden = false;
+    sheet.dataset.kind = "offline";
+    const t = document.getElementById("net-title");
+    const m = document.getElementById("net-msg");
+    if (t) t.textContent = "You're offline";
+    if (m) t && (m.textContent = "Slide will retry when the phone has a connection.");
+  });
+  await new Promise((r) => setTimeout(r, 350));
+  await shot(hud, "search-offline-night");
+
+  await hud.evaluate(() => {
+    document.getElementById("to-suggest")?.setAttribute("hidden", "");
+    document.getElementById("search-card")?.classList.remove("open");
+    document.getElementById("net-sheet")?.setAttribute("hidden", "");
     const p = document.getElementById("place-card");
     if (!p) return;
     p.hidden = false;

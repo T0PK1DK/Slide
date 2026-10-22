@@ -28,6 +28,7 @@ import { classifyFailure, type FailWhat } from "./plan/failure";
 import { cardAriaLabel, routeCards } from "./plan/review-cards";
 import { EMPTY, postedSignText, SEARCH, setMaybeEmpty } from "./lib/empty";
 import { splitPlaceLabel } from "./lib/place";
+import { recentsListHtml, savedPlaceRow, savedRowInnerHtml } from "./hud/search-rows";
 import { mountVoiceMute } from "./hud/voice-mute";
 import { resetVoice, startVoice, stopVoice, tickVoice } from "./voice";
 import { stepGhost, type GhostCar } from "./lib/ghosts";
@@ -768,13 +769,12 @@ function rememberRecent(hit: { label: string; lon: number; lat: number }) {
 function renderRecents() {
   const box = $("#recents");
   const items = garage.recents ?? [];
-  if (!items.length) { box.hidden = true; box.innerHTML = ""; return; }
   box.hidden = false;
-  box.innerHTML = `<div class="recents-label">Recent</div>${items.map((r) => `<button type="button" class="recent-item" data-lon="${r.lon}" data-lat="${r.lat}">${esc(r.label)}</button>`).join("")}`;
+  box.innerHTML = recentsListHtml(items);
   box.querySelectorAll<HTMLButtonElement>(".recent-item").forEach((btn) => {
     btn.onclick = () => {
       openPlace({
-        label: btn.textContent || "",
+        label: btn.dataset.label || "",
         lon: Number(btn.dataset.lon),
         lat: Number(btn.dataset.lat),
         kind: "recent",
@@ -926,13 +926,12 @@ function refreshPlaceChips() {
     const btn = $(`#chip-${slot}`);
     const saved = garage[slot];
     btn.classList.toggle("empty", !saved);
-    btn.textContent = saved ? slot[0].toUpperCase() + slot.slice(1) : `Set ${slot}`;
+    btn.innerHTML = savedRowInnerHtml(savedPlaceRow(saved?.label ?? "", slot, !saved));
   }
   const extra = $("#chip-saved");
   const saved = savedChipPlace();
   extra.toggleAttribute("hidden", !saved);
-  // "401, Bayside Marketplace, …" → "Bayside Marketplace": skip a bare house number.
-  extra.textContent = saved ? (saved.label.split(",").map((x) => x.trim()).find((x) => x && !/^\d+[a-z]?$/i.test(x)) ?? saved.label) : "";
+  if (saved) extra.innerHTML = savedRowInnerHtml(savedPlaceRow(saved.label, "saved"));
 }
 function wireGarage() {
   const tag = $("#g-tag") as HTMLInputElement;
@@ -1230,13 +1229,13 @@ function bindSearch(input: HTMLInputElement, box: HTMLElement, onPick: (hit: Sea
       inflight = new AbortController();
       const mine = inflight;
       box.hidden = false;
-      box.innerHTML = `<p class="suggest-status">${SEARCH.loading}</p>`;
+      box.innerHTML = `<p class="suggest-status is-loading">${SEARCH.loading}</p>`;
       try {
         items = await searchPlaces(input.value, origin ?? MIAMI, { signal: mine.signal });
         if (mine.signal.aborted) return;
         active = -1;
         if (!items.length) {
-          box.innerHTML = `<p class="suggest-status">${SEARCH.empty}</p>`;
+          box.innerHTML = `<p class="suggest-status is-empty">${SEARCH.empty}</p>`;
           box.hidden = false;
         } else {
           draw();

@@ -6,7 +6,7 @@ Stay on PR **#59** (`cursor/slide-look-polish-f924`) unless the owner opens a ne
 
 ## What just shipped (do not redo)
 
-Six look rounds on #59. Additive only. `registerHologramRenderer` unchanged. Nard's `/api/stores` + `/api/places` + live ghosts unchanged.
+Seven look rounds on #59. Additive only. `registerHologramRenderer` unchanged. Nard's `/api/stores` + `/api/places` + live ghosts unchanged.
 
 **Round 1 — chrome:** teardrop pins, two-letter monograms, hologram stage, card icons, `formatHours`, skeletons, phone FAB lift, empty icons.
 
@@ -21,7 +21,12 @@ Six look rounds on #59. Additive only. `registerHologramRenderer` unchanged. Nar
 - Closed chip: `Opens 8a` when `openNow === false` and OSM start parses. `Hours unknown` and bare `Closed` stay.
 - Search `#search-card` handle + suggest rows use the same type as the cards (light title, mono uppercase address, distance pill). Styled in `src/styles.css` only.
 
-Never weaken or delete a test. 415+ must keep passing.
+**Round 7 — recents + cluster tap + edges:**
+- Home / Work / recents are two-line suggest rows (`src/hud/search-rows.ts`). Empty Home/Work: "Save a place on this phone". Empty recents: `SEARCH.idle` ("Places you pick will show here"). Clicks use `data-label`, not concatenated `textContent`.
+- Cluster tap on the disc **and** glow: `getClusterLeaves` → `pickClusterWinner` → `focusId` (label priority, no `onSelect`, no card / hologram / select pop). `easeTo` at least `CLUSTER_MAX_ZOOM + 0.35`. Reduced-motion duration 0. Invalid `cluster_id` is ignored.
+- Edge pass: search loading shimmer + empty/no-results copy, offline/loc fail-sheet handle + light title + 44px filled close, long names ellipsis/2-line clamp, `--touch` taps on recents/chips/status/fail actions, day skeleton + live-status contrast.
+
+Never weaken or delete a test. 420+ must keep passing.
 
 ## Do not
 
@@ -38,18 +43,18 @@ Phone-first at 390×844. `node tools/shoot-look.mjs docs/look http://127.0.0.1:4
 
 1. **Live photo well.** A real `/api/places` Wikimedia logo on the HUD (no fixture). Keep Nard's Function unchanged.
 2. **Search card extras.** Optional hours/open chip on `#place-card` only when Nard already has them on the hit — do not invent.
-3. **Recents as rows.** Saved Home/Work/recents in the open search sheet should use the same two-line row as suggest (already started).
-4. **Cluster tap.** After expanding a fuel cluster, keep the winner label and fade the rest without a second select.
+3. **Cluster after expand.** If leaves are still stacked at the expansion zoom, keep fading non-winners and consider a second tap-to-select (today cluster tap never selects).
+4. **Day search sheet.** `#search-card` / recents / fail sheets under `html[data-look=day]` if the live HUD ever uses the look-day tokens.
 
 ## How to verify
 
 ```bash
-npm test          # must stay ≥415
+npm test          # must stay ≥420
 npm run build
 npm run preview
 node tools/shoot-look.mjs docs/look http://127.0.0.1:4173/
 ```
 
-Demo: `/look.html`, `?place=`, `?empty=1`, `?loading=1`, `?skel=1`, `?motion=enter|reveal|drop|select`, `?look=day`. Closed chip: Dunkin fixture. Search: main HUD `#search-card` + `#to-suggest`.
+Demo: `/look.html`, `?place=`, `?empty=1`, `?loading=1`, `?skel=1`, `?motion=enter|reveal|drop|select`, `?look=day`. Closed chip: Dunkin fixture. Search: main HUD `#search-card` + `#to-suggest`. Recents: `#recents` / `#chip-home` / `#chip-work`. Cluster: zoom ~13.4 then tap a fuel disc. Demo `focusPin(id)` ranks a winner without selecting.
 
 Update `HANDOFF.md` + this file, push #59, list changes with phone screenshots. Do not merge.

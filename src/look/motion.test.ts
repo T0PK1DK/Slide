@@ -19,6 +19,7 @@ import {
   pinDropPaint,
   pinSelectScale,
   pinSizeExpr,
+  pickClusterWinner,
   rankPins,
   selectedPinSizeExpr,
   storeIdsKey,
@@ -88,5 +89,18 @@ describe("look motion", () => {
     expect(ranks.get("bp")?.fade).toBe(PIN_FADE_NEAR);
     expect(ranks.get("far")?.fade).toBe(1);
     expect(PIN_COLLIDE_M).toBeGreaterThan(30);
+  });
+
+  it("picks the leaf nearest the cluster point as the label winner", () => {
+    const winner = pickClusterWinner(
+      [
+        { id: "bp", lon: -80.1358, lat: 26.1186 },
+        { id: "shell", lon: -80.1362, lat: 26.1188 },
+        { id: "chevron", lon: -80.1366, lat: 26.1184 },
+      ],
+      { lon: -80.1362, lat: 26.1188 },
+    );
+    expect(winner).toBe("shell");
+    expect(pickClusterWinner([], { lon: 0, lat: 0 })).toBeNull();
   });
 });

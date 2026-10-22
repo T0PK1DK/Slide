@@ -27,9 +27,9 @@ export const HUD_HTML = `
           <div class="field"><label>From</label><input id="from" value="Current location" placeholder="Current location or address" autocomplete="off" /><button type="button" class="use-gps" id="from-gps" aria-label="Start from my current location"><svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true"><path d="M21 3L3 10.5l7.5 2.9L13.4 21z" fill="currentColor"/></svg>Me</button><div class="suggest" id="from-suggest" hidden></div></div>
         </div>
         <div class="place-chips" id="place-chips">
-          <button type="button" class="place-chip" id="chip-home">Home</button>
-          <button type="button" class="place-chip" id="chip-work">Work</button>
-          <button type="button" class="place-chip" id="chip-saved" hidden></button>
+          <button type="button" class="recent-item place-chip" id="chip-home">Home</button>
+          <button type="button" class="recent-item place-chip" id="chip-work">Work</button>
+          <button type="button" class="recent-item place-chip" id="chip-saved" hidden></button>
         </div>
         <div class="recents" id="recents" hidden></div>
         <div class="actions">
@@ -43,6 +43,7 @@ export const HUD_HTML = `
     </div>
     <div class="panel status-pill" id="status">Locking a 3D line…</div>
     <div class="panel loc-banner fail-sheet" id="loc-banner" role="alert" hidden>
+      <div class="place-card-handle" aria-hidden="true"></div>
       <b class="net-title" id="loc-title"></b>
       <p id="loc-msg"></p>
       <div class="loc-actions">
@@ -52,6 +53,7 @@ export const HUD_HTML = `
       </div>
     </div>
     <div class="panel loc-banner net-sheet fail-sheet" id="net-sheet" role="alert" hidden>
+      <div class="place-card-handle" aria-hidden="true"></div>
       <b class="net-title" id="net-title"></b>
       <p id="net-msg"></p>
       <div class="loc-actions">
