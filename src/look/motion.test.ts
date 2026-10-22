@@ -26,6 +26,7 @@ describe("look motion", () => {
     const end = pinDropPaint(1);
     expect(start.translate[1]).toBeLessThan(0);
     expect(start.opacity).toBe(0);
+    expect(pinDropPaint(0.14).translate[1]).toBeLessThan(-10);
     expect(mid.translate[1]).toBeGreaterThan(start.translate[1]);
     expect(mid.opacity).toBeGreaterThan(0);
     expect(end).toEqual({ translate: [0, 0], opacity: 1 });

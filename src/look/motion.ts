@@ -53,8 +53,8 @@ export function haloPulse(nowMs: number): { radiusBoost: number; opacity: number
   const t = ((nowMs % HALO_PULSE_MS) + HALO_PULSE_MS) % HALO_PULSE_MS;
   const s = 0.5 - 0.5 * Math.cos((t / HALO_PULSE_MS) * Math.PI * 2);
   return {
-    radiusBoost: 2 + s * 5,
-    opacity: Math.round((0.16 + s * 0.14) * 1000) / 1000,
+    radiusBoost: 3 + s * 7,
+    opacity: Math.round((0.22 + s * 0.2) * 1000) / 1000,
   };
 }
 

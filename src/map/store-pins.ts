@@ -31,7 +31,7 @@ export function clusterDiscRadiusExpr(): unknown[] {
 }
 
 export function clusterGlowRadiusExpr(): unknown[] {
-  return ["step", ["get", "point_count"], CLUSTER_MIN_RADIUS + 12, 3, 34, 8, 40, 18, 48];
+  return ["step", ["get", "point_count"], CLUSTER_MIN_RADIUS + 16, 3, 38, 8, 46, 18, 56];
 }
 
 export function storesToFeatureCollection(stores: Store[]): FeatureCollection {
@@ -195,8 +195,12 @@ export function mountStorePins(hooks: StorePinsHooks): StorePinsHandle {
     const { translate, opacity } = pinDropPaint(progress);
     for (const id of pinLayers()) {
       if (!map.getLayer(id)) continue;
+      map.setPaintProperty(id, "icon-translate-anchor", "viewport");
+      map.setPaintProperty(id, "text-translate-anchor", "viewport");
       map.setPaintProperty(id, "icon-translate", translate);
+      map.setPaintProperty(id, "text-translate", translate);
       map.setPaintProperty(id, "icon-opacity", opacity);
+      map.setPaintProperty(id, "text-opacity", opacity);
     }
   };
 
@@ -354,11 +358,11 @@ export function mountStorePins(hooks: StorePinsHooks): StorePinsHandle {
         source: STORE_SOURCE,
         filter: ["has", "point_count"],
         paint: {
-          "circle-color": "rgba(240,160,75,0.4)",
+          "circle-color": "rgba(240,160,75,0.55)",
           "circle-radius": clusterGlowRadiusExpr() as ExpressionSpecification,
-          "circle-blur": 0.72,
-          "circle-opacity": 1,
-          "circle-pitch-alignment": "map",
+          "circle-blur": 0.85,
+          "circle-opacity": 0.95,
+          "circle-pitch-alignment": "viewport",
         },
       });
       map.addLayer({
@@ -380,7 +384,7 @@ export function mountStorePins(hooks: StorePinsHooks): StorePinsHandle {
           "circle-stroke-width": 3,
           "circle-radius": clusterDiscRadiusExpr() as ExpressionSpecification,
           "circle-opacity": 0.98,
-          "circle-pitch-alignment": "map",
+          "circle-pitch-alignment": "viewport",
         },
       });
       map.addLayer({
@@ -408,11 +412,12 @@ export function mountStorePins(hooks: StorePinsHooks): StorePinsHandle {
         filter: ["==", ["get", "id"], ""],
         paint: {
           "circle-radius": haloRadiusExpr(0) as ExpressionSpecification,
-          "circle-color": "rgba(240,160,75,0.2)",
-          "circle-opacity": 0.2,
-          "circle-stroke-width": 2,
-          "circle-stroke-color": "rgba(240,160,75,0.92)",
-          "circle-blur": 0.12,
+          "circle-color": "rgba(240,160,75,0.28)",
+          "circle-opacity": 0.28,
+          "circle-stroke-width": 2.4,
+          "circle-stroke-color": "rgba(240,160,75,0.95)",
+          "circle-blur": 0.18,
+          "circle-pitch-alignment": "viewport",
         },
       });
       map.addLayer({
@@ -440,7 +445,11 @@ export function mountStorePins(hooks: StorePinsHooks): StorePinsHandle {
           "text-halo-color": "rgba(8,10,12,0.78)",
           "text-halo-width": 1.2,
           "icon-translate": [0, 0],
+          "icon-translate-anchor": "viewport",
           "icon-opacity": 1,
+          "text-translate": [0, 0],
+          "text-translate-anchor": "viewport",
+          "text-opacity": 1,
         },
       });
       map.addLayer({
@@ -468,7 +477,11 @@ export function mountStorePins(hooks: StorePinsHooks): StorePinsHandle {
           "text-halo-color": "rgba(8,10,12,0.82)",
           "text-halo-width": 1.4,
           "icon-translate": [0, 0],
+          "icon-translate-anchor": "viewport",
           "icon-opacity": 1,
+          "text-translate": [0, 0],
+          "text-translate-anchor": "viewport",
+          "text-opacity": 1,
         },
       });
     }
