@@ -3,7 +3,9 @@ import { scopedKey } from "./account-store";
 /**
  * On-device drive history — the only data the Command view charts. Every
  * number on those panels comes from drives this phone actually recorded with
- * live GPS; simulated/preview drives are never saved. Nothing leaves the device.
+ * live GPS; simulated/preview drives are never saved. localStorage is the
+ * source of truth. The built-in test driver's trips are also mirrored
+ * best-effort to Supabase (`drive-history-sync.ts`); that never blocks a save.
  * Scoped to the signed-in account so two drivers on one phone stay private.
  */
 export type TripRecord = {
@@ -27,6 +29,14 @@ export type TripRecord = {
 const KEY = "slide.history.v1";
 const MAX_TRIPS = 400;
 
+type TripListener = (trip: TripRecord) => void;
+let tripListener: TripListener | null = null;
+
+/** Optional hook (test-driver commute sync). Must not throw. */
+export function setTripRecordListener(fn: TripListener | null) {
+  tripListener = fn;
+}
+
 export function loadTrips(): TripRecord[] {
   try {
     const raw = localStorage.getItem(scopedKey(KEY));
@@ -43,6 +53,11 @@ export function recordTrip(trip: TripRecord) {
     localStorage.setItem(scopedKey(KEY), JSON.stringify(list));
   } catch {
     // Storage full or blocked: history is a nice-to-have, never block the drive.
+  }
+  try {
+    tripListener?.(trip);
+  } catch {
+    /* sync is best-effort */
   }
 }
 

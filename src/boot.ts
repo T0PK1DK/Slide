@@ -11,6 +11,8 @@ import { ensureSignedIn } from "./hud/login";
 import { authEnabled } from "./lib/auth-config";
 import { loadGarage, TRAILS } from "./lib/garage";
 import type { DriverProfile } from "./lib/profile";
+import { noteLocalTrip, startDriveHistorySync } from "./lib/drive-history-sync";
+import { setTripRecordListener } from "./lib/history";
 import { installTestAccount } from "./lib/test-account";
 import { warmMapStyle } from "./map/warm";
 import { watchForUpdates } from "./lib/update";
@@ -29,6 +31,8 @@ document.documentElement.style.setProperty("--mint", TRAILS[g.trail].line);
 document.querySelector("#app")!.innerHTML = HUD_HTML;
 document.body.dataset.mode = document.body.dataset.mode || "plan";
 if (!authEnabled()) document.getElementById("ov-lock")?.setAttribute("hidden", "");
+setTripRecordListener(noteLocalTrip);
+startDriveHistorySync();
 
 let signedIn: (p: DriverProfile) => void = () => {};
 /** Resolves once the driver is past the login gate (immediately when auth is off). */

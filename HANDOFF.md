@@ -121,6 +121,7 @@ functions/api/stores.ts   Pages Function: Overpass chains near view/route
 functions/api/places.ts   Pages Function: place copy + photos
 docs/DATA_SHAPES.md    Store / Ghost / PlaceInfo types + sample JSON
 supabase/migrations/20261018000000_ghost_sharing.sql  ghost_invites + ghosts + RLS / Realtime
+supabase/migrations/20261031000000_drive_history.sql  test-driver commute mirror (apply in SQL Editor)
 src/lib/guidance.ts    next maneuver, posted-speed lookahead, turn arrows
 src/lanes/             Valhalla turn-lane strip for Grim's `#lane-strip` slot
 src/lib/tracking.ts    live GPS watch (course + speed smoothing), RouteSnapper (windowed, heading-aware), accuracy-aware off-route
@@ -142,8 +143,12 @@ src/lib/auth-config.ts `VITE_AUTH_ENABLED` (default off) + built-in test identit
 src/lib/test-account.ts  install the test driver (scoped keys + on-device profile) with no login DOM
 src/lib/auth-config.test.ts  flag parse + stable test id
 src/lib/test-account.test.ts  scoped keys + persisted test profile
-docs/TEST_ACCOUNT_DATA.md  how a bot reads the test driver's commute data (local keys + Supabase REST/SQL)
+docs/TEST_ACCOUNT_DATA.md  how a bot / Nard 2.0 reads the test driver's commute data (local keys + `drive_history`)
+src/lib/drive-history-sync.ts  best-effort upsert of test-driver trips → `upsert_test_drive_history`
+src/lib/drive-history-sync.test.ts  row shape, idempotent upsert, offline retry, owner/cloud gates
+supabase/migrations/20261031000000_drive_history.sql  `drive_history` + view + RPC + `nard_readonly` (apply in SQL Editor; not applied here)
 tools/shoot-test-account.mjs  390×844 shots: first open (no login), menu without Lock, test Profile
+tools/shoot-drive-sync.mjs  390×844 shots: HUD + Profile commute-sync status
 src/hud/login.ts       login gate (only when auth is on): Sign in / Create account (username + password), then driver setup / welcome back (PIN) / sign-out
 src/map/you.ts         "you are here" marker: glow dot, pulse, heading cone, accuracy halo
 src/hud/command.ts     Command view: SEKAI-style dashboard (wide) / Insights sheet (phone)
@@ -480,6 +485,8 @@ Read `TASKS.md` top unchecked item. Do not rebase history. Do not rename the pro
 
 - 2026-10-31 Cursor: **Skip sign-in; built-in test driver.** King: login fails sometimes; open straight into the app. `VITE_AUTH_ENABLED` defaults off. Boot installs `@slide_test` (`00000000-0000-4000-8000-000000000001`) sync before `loadGarage()`, so there is no login flash and garage / history / ghosts / XP stay keyed to that id. Existing username + password code is unchanged behind the flag. Sign out / Lock Slide / Profile sign-in / live-ghost subscribe stay hidden while the flag is off. **RLS:** no fake JWT and no service-role key in the client; RPCs that need `auth.uid()` stay off; radar still reads official incidents. Bot read-path is `docs/TEST_ACCOUNT_DATA.md` (local `slide.history.v1.<id>` plus service-role REST/SQL on `profiles` / `reports` / `presence` / `ghosts`). No deploy, no merge. No scoring-contract change.
 
+- 2026-10-31 Cursor: **Test-driver commute sync.** Best-effort upsert of `slide.history.v1.<test id>` → `public.drive_history` via `upsert_test_drive_history`. localStorage stays source of truth; idempotent on trip id; offline retry; never blocks the HUD. Anon cannot SELECT; RPC forces the test profile id + size limits. Nard 2.0 reads `drive_history_test` with `nard_readonly` / `NARD_READONLY_DATABASE_URL` or `SUPABASE_SERVICE_ROLE_KEY` (names only). Migration `20261031000000_drive_history.sql` must be pasted in the SQL Editor — not applied here. `VITE_AUTH_ENABLED` untouched. No deploy, no merge. No scoring-contract change.
+
 ## Teammate slots (stable IDs — do not rename)
 
 | Who | Slot | Selector | Where |
@@ -507,6 +514,7 @@ Unhide empty slots with `el.hidden = false`. Do not add a CSS override layer.
 - **Sign-in flag:** `VITE_AUTH_ENABLED` in `.env.production` (default `false`). The live app uses the built-in test driver until this is `true` and the bundle is rebuilt. Bot read-path: `docs/TEST_ACCOUNT_DATA.md`. The service-role key stays in the Dashboard only (`SUPABASE_SERVICE_ROLE_KEY` — never `VITE_`).
 - **Applied:** profiles, follows, reports, report_votes and presence, with RLS; `reports_near`, `submit_report`, `vote_report`, `my_social_counts`, `share_presence` and `friends_presence`; and the grants. These match `supabase/migrations/` except for the last two functions below.
 - **Still to run (Nard, 2026-10-18):** paste `supabase/migrations/20261018000000_ghost_sharing.sql` in the SQL Editor. Until it runs, live ghosts stay off (invite / publish RPCs 404). Rough ~1 km presence is unchanged.
+- **Still to run (Nard, 2026-10-31):** paste `supabase/migrations/20261031000000_drive_history.sql` in the SQL Editor so Nard 2.0 can read the test driver's commutes. Until it runs, the app still works; sync status will sit on “will retry”. Do not put a service-role key in the client. See `docs/TEST_ACCOUNT_DATA.md`.
 - **Still to run (Nard):** the connector timed out on statements containing `delete`, so paste this into Dashboard → SQL Editor and click Run. Until it's run, "Stop sharing" and "Delete my Slide account" fail:
 
 ```sql
