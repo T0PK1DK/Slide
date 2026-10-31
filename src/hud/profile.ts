@@ -1,6 +1,8 @@
 import { accountLabel, currentCloudUser, signOutAccount } from "../lib/account";
-import { authEnabled } from "../lib/auth-config";
+import { accountOwner } from "../lib/account-store";
+import { authEnabled, TEST_USER_ID } from "../lib/auth-config";
 import { cloudConfigured } from "../lib/cloud";
+import { driveHistoryStatus } from "../lib/drive-history-sync";
 import { clearTrips, lifetime, loadTrips } from "../lib/history";
 import { stopPresence } from "../lib/presence";
 import { eraseDeviceData, FUELS, loadProfile, saveProfile, toCar, type DriverProfile } from "../lib/profile";
@@ -111,6 +113,7 @@ export function mountProfile(h: ProfileHooks): { open(): void; close(): void } {
           <p class="pf-note">${authEnabled()
             ? "Home, work, drives, ghosts and XP on this phone stay private to your account. Reports you file are tied to you on the server and never show your name."
             : "Home, work, drives, ghosts and XP on this phone stay private to the built-in test driver. Sign-in is off on this build."}</p>
+          ${accountOwner() === TEST_USER_ID ? `<p class="pf-note" id="pf-sync" role="status">${esc(driveHistoryStatus().label)}</p>` : ""}
           <div class="pf-actions wrap">
             ${authEnabled() && cloudConfigured() && currentCloudUser() ? `<button type="button" class="pf-link" data-signout>Sign out</button>` : ""}
             ${authEnabled() ? `<button type="button" class="pf-link" data-lock>Lock Slide</button>` : ""}
