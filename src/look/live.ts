@@ -1,10 +1,11 @@
 /**
  * Live look on the real HUD. Pins, place card, hologram slot talk to Nard's
  * `/api/stores` + `/api/places`. Ghost cars follow `watchLiveGhosts` when
- * accounts are on. Fixtures stay on `/look.html` and in tests.
+ * auth is on and accounts are configured. Fixtures stay on `/look.html` and in tests.
  */
 import maplibregl from "maplibre-gl";
 import { mountPlaceCard, shouldOpenPlaceCard } from "../hud/place-card";
+import { authEnabled } from "../lib/auth-config";
 import { cloudConfigured } from "../lib/cloud";
 import { watchLiveGhosts, type GhostWatch } from "../lib/live-ghosts/client";
 import type { Ghost as LiveGhost } from "../lib/live-ghosts/types";
@@ -261,7 +262,7 @@ export function mountLookLive(hooks: LookLiveHooks): LookLiveHandle {
     pins.select(null);
   });
 
-  if (cloudConfigured()) {
+  if (authEnabled() && cloudConfigured()) {
     ghostWatch = watchLiveGhosts((rows) => {
       ghostRows = rows;
       applyGhosts();

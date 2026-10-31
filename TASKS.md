@@ -55,6 +55,7 @@ Work top-down. Check the box in the same PR.
 - [x] Profile: driver, My car, all-time stats, places, privacy (on-device)
 - [x] Accounts (Supabase, username + password since 2026-10-06; was email code), profiles, follow/unfollow, friends = mutual follows, driver search
 - [x] **Sign-in: username + password, no email** (King, 2026-10-06) — `<username>@users.slide.local` under Supabase Auth, Sign in / Create account sheet, magic link + OTP removed, tests (branch `nard/username-password-auth`)
+- [x] **Skip login; built-in test driver** (King, 2026-10-31) — `VITE_AUTH_ENABLED` default off, `@slide_test` / `00000000-0000-4000-8000-000000000001`, no login flash, Sign out / Lock hidden, existing auth intact behind the flag, bot read-path in `docs/TEST_ACCOUNT_DATA.md`
 - [ ] **King/Nard:** Supabase → Authentication → Sign In / Providers → Email → **Confirm email OFF** (needed before anyone can create a username account)
 - [ ] Later: password reset without email (e.g. admin reset or recovery code); older email-only accounts need a new username account
 - [x] Radar mini map + driver reports (police, crash, hazard, closure, jam) with votes, heads-up banner, FL511 incidents

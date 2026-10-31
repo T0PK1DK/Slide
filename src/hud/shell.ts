@@ -1,6 +1,6 @@
 /**
  * The HUD markup. Painted by boot.ts before MapLibre downloads, so the driver
- * sees the HUD (and the login gate) on a slow phone while the map engine loads;
+ * sees the HUD (and the login gate only when auth is on) on a slow phone while the map engine loads;
  * main.ts wires the listeners once it arrives.
  */
 import { buildLabel } from "../lib/update";

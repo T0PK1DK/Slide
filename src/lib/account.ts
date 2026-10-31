@@ -1,5 +1,6 @@
 import type { Session, SupabaseClient } from "@supabase/supabase-js";
 import { setAccountOwner } from "./account-store";
+import { authEnabled } from "./auth-config";
 import { clearAuthStorage } from "./auth-storage";
 import { cloud, cloudConfigured } from "./cloud";
 import { requestPersistentStorage } from "./profile";
@@ -101,6 +102,15 @@ function applySession(session: Session | null) {
   setAccountOwner(cached?.id ?? null);
 }
 
+/**
+ * Bind a local (non-JWT) user so garage / history / ghosts / XP key off this id.
+ * Used for the built-in test driver when `VITE_AUTH_ENABLED` is off.
+ */
+export function useLocalUser(user: CloudUser) {
+  cached = user;
+  setAccountOwner(user.id);
+}
+
 /** Pure: turn a Supabase auth error into something a driver can act on. */
 export function friendlyAuthError(err: { message: string; code?: string }, mode: "in" | "up"): string {
   const m = err.message ?? "";
@@ -173,6 +183,7 @@ export async function restoreSession(api?: AuthApi): Promise<CloudUser | null> {
 }
 
 export async function signOutAccount(api?: AuthApi): Promise<void> {
+  if (!authEnabled() && !api) return;
   const sb = api ?? (await cloud());
   await sb.auth.signOut();
   applySession(null);
@@ -213,7 +224,7 @@ export function listenAuthState(
 
 /** Create the client and restore a saved session on boot. */
 export async function prepareAccount(): Promise<CloudUser | null> {
-  if (!cloudConfigured()) return null;
+  if (!authEnabled() || !cloudConfigured()) return null;
   let sb: SupabaseClient;
   try {
     sb = await cloud();

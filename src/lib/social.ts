@@ -1,4 +1,5 @@
 import { signOutAccount } from "./account";
+import { authEnabled, TEST_USER_ID } from "./auth-config";
 import { cloud } from "./cloud";
 
 /**
@@ -37,6 +38,7 @@ export function mutuals(followingIds: string[], followerIds: string[]): string[]
 }
 
 export async function currentUserId(): Promise<string | null> {
+  if (!authEnabled()) return TEST_USER_ID;
   const sb = await cloud();
   const { data } = await sb.auth.getSession();
   return data.session?.user.id ?? null;
@@ -47,6 +49,7 @@ export async function signOut(): Promise<void> {
 }
 
 export async function myProfile(): Promise<PublicProfile | null> {
+  if (!authEnabled()) return null;
   const uid = await currentUserId();
   if (!uid) return null;
   const sb = await cloud();
@@ -56,6 +59,7 @@ export async function myProfile(): Promise<PublicProfile | null> {
 
 /** Create or update your public profile. Throws a friendly message if the handle is taken. */
 export async function saveMyProfile(p: Omit<PublicProfile, "id">): Promise<void> {
+  if (!authEnabled()) throw new Error("Accounts are off on this build.");
   const uid = await currentUserId();
   if (!uid) throw new Error("Sign in first.");
   const sb = await cloud();
@@ -100,6 +104,7 @@ export async function myNetwork(): Promise<Array<PublicProfile & Relation>> {
 }
 
 export async function follow(id: string): Promise<void> {
+  if (!authEnabled()) throw new Error("Accounts are off on this build.");
   const uid = await currentUserId();
   if (!uid) throw new Error("Sign in first.");
   const sb = await cloud();

@@ -1,5 +1,6 @@
 import maplibregl from "maplibre-gl";
 import type { Fix } from "../lib/tracking";
+import { authEnabled } from "../lib/auth-config";
 import { cloudConfigured } from "../lib/cloud";
 import { friendsPresence, sharePresence, stopPresence, type FriendSpot } from "../lib/presence";
 import { currentUserId } from "../lib/social";
@@ -72,7 +73,7 @@ export function mountFriends(h: FriendsHooks): FriendsView {
   h.map.on("zoom", sizeAreas);
 
   const tick = async () => {
-    if (busy || document.hidden || !cloudConfigured()) return;
+    if (busy || document.hidden || !authEnabled() || !cloudConfigured()) return;
     busy = true;
     try {
       if (!(await currentUserId())) { spots = []; pill.hidden = true; draw(); return; }

@@ -1,5 +1,6 @@
 /**
- * First thing that runs. Paints the HUD and the login gate from a small chunk,
+ * First thing that runs. Paints the HUD (and the login gate only when
+ * `VITE_AUTH_ENABLED` is on) from a small chunk,
  * starts the map style downloads, then loads main.ts + MapLibre (~280 kB gzip)
  * in the background. On Slow 4G that puts the HUD up about 1.5 s sooner and lets
  * the style/sprite/glyphs download alongside the map engine instead of after it.
@@ -7,22 +8,30 @@
 import "./styles.css";
 import { HUD_HTML } from "./hud/shell";
 import { ensureSignedIn } from "./hud/login";
+import { authEnabled } from "./lib/auth-config";
 import { loadGarage, TRAILS } from "./lib/garage";
 import type { DriverProfile } from "./lib/profile";
+import { installTestAccount } from "./lib/test-account";
 import { warmMapStyle } from "./map/warm";
 import { watchForUpdates } from "./lib/update";
 
 export const STYLE = "https://tiles.openfreemap.org/styles/dark";
 
+// Bind the test user before the first garage read so Home / paint / look
+// already use the scoped keys. Must stay sync — no login flash.
+if (!authEnabled()) installTestAccount();
+
 const g = loadGarage();
 document.documentElement.dataset.look = g.look;
+document.documentElement.dataset.auth = authEnabled() ? "on" : "off";
 document.documentElement.style.setProperty("--glow", g.glow);
 document.documentElement.style.setProperty("--mint", TRAILS[g.trail].line);
 document.querySelector("#app")!.innerHTML = HUD_HTML;
 document.body.dataset.mode = document.body.dataset.mode || "plan";
+if (!authEnabled()) document.getElementById("ov-lock")?.setAttribute("hidden", "");
 
 let signedIn: (p: DriverProfile) => void = () => {};
-/** Resolves once the driver is past the login gate (immediately for a returning driver). */
+/** Resolves once the driver is past the login gate (immediately when auth is off). */
 export const driverReady = new Promise<DriverProfile>((resolve) => { signedIn = resolve; });
 ensureSignedIn(document.body, (p) => signedIn(p));
 

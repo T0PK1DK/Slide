@@ -1,4 +1,5 @@
 import { accountLabel, currentCloudUser, signOutAccount } from "../lib/account";
+import { authEnabled } from "../lib/auth-config";
 import { cloudConfigured } from "../lib/cloud";
 import { clearTrips, lifetime, loadTrips } from "../lib/history";
 import { stopPresence } from "../lib/presence";
@@ -62,7 +63,7 @@ export function mountProfile(h: ProfileHooks): { open(): void; close(): void } {
           <div class="pf-id">
             <h2 id="pf-name">${esc(p.name)}</h2>
             <span class="pf-tag">${esc(p.tag)}</span>
-            <span class="pf-since">Driving with Slide since ${since}${accountLabel(currentCloudUser()) ? ` · ${esc(accountLabel(currentCloudUser())!)}` : ""}</span>
+            <span class="pf-since">Driving with Slide since ${since}${accountLabel(currentCloudUser()) ? ` · ${esc(accountLabel(currentCloudUser())!)}` : ""}${!authEnabled() ? " · test driver" : ""}</span>
           </div>
           <button type="button" class="pf-close" aria-label="Close profile">×</button>
         </header>
@@ -107,10 +108,12 @@ export function mountProfile(h: ProfileHooks): { open(): void; close(): void } {
 
         <section class="pf-section">
           <h3>Privacy</h3>
-          <p class="pf-note">Home, work, drives, ghosts and XP on this phone stay private to your account. Reports you file are tied to you on the server and never show your name.</p>
+          <p class="pf-note">${authEnabled()
+            ? "Home, work, drives, ghosts and XP on this phone stay private to your account. Reports you file are tied to you on the server and never show your name."
+            : "Home, work, drives, ghosts and XP on this phone stay private to the built-in test driver. Sign-in is off on this build."}</p>
           <div class="pf-actions wrap">
-            ${cloudConfigured() && currentCloudUser() ? `<button type="button" class="pf-link" data-signout>Sign out</button>` : ""}
-            <button type="button" class="pf-link" data-lock>Lock Slide</button>
+            ${authEnabled() && cloudConfigured() && currentCloudUser() ? `<button type="button" class="pf-link" data-signout>Sign out</button>` : ""}
+            ${authEnabled() ? `<button type="button" class="pf-link" data-lock>Lock Slide</button>` : ""}
             <button type="button" class="pf-danger" data-clear-history>Clear my drive history</button>
             <button type="button" class="pf-danger" data-erase>Erase everything on this phone</button>
           </div>
@@ -157,7 +160,7 @@ export function mountProfile(h: ProfileHooks): { open(): void; close(): void } {
       await signOutAccount().catch(() => undefined);
       location.reload();
     });
-    el.querySelector("[data-lock]")!.addEventListener("click", lockApp);
+    el.querySelector("[data-lock]")?.addEventListener("click", lockApp);
     el.querySelector("[data-clear-history]")!.addEventListener("click", () => {
       if (!confirm("Delete every recorded drive from this phone? This can't be undone.")) return;
       clearTrips();
