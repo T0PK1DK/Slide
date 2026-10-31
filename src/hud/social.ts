@@ -1,4 +1,5 @@
 import { currentCloudUser, PASSWORD_MAX, PASSWORD_MIN, signInWithUsername, signUpWithUsername } from "../lib/account";
+import { authEnabled, TEST_USERNAME } from "../lib/auth-config";
 import { cloudConfigured } from "../lib/cloud";
 import { stopPresence } from "../lib/presence";
 import type { DriverProfile } from "../lib/profile";
@@ -34,6 +35,10 @@ type Tab = "friends" | "followers" | "following";
 export type ShareHooks = { sharing: () => boolean; setSharing: (on: boolean) => void };
 
 export function renderSocial(box: HTMLElement, local: DriverProfile, share: ShareHooks) {
+  if (!authEnabled()) {
+    box.innerHTML = `<h3>Friends & followers</h3><p class="pf-note">Signed in as the built-in test driver (@${TEST_USERNAME}). Friends, follows and live sharing stay off until sign-in is turned back on.</p>`;
+    return;
+  }
   if (!cloudConfigured()) {
     box.innerHTML = `<h3>Friends & followers</h3><p class="pf-note">Slide accounts aren't switched on for this build yet. Your profile works on this phone in the meantime.</p>`;
     return;

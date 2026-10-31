@@ -9,7 +9,9 @@ import {
   signUpWithUsername,
   type CloudUser,
 } from "../lib/account";
+import { authEnabled } from "../lib/auth-config";
 import { cloudConfigured } from "../lib/cloud";
+import { enterAsTestDriver } from "../lib/test-account";
 import {
   eraseDeviceData,
   hashPin,
@@ -29,11 +31,17 @@ const esc = (s: string) =>
   s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 
 /**
- * Gate the app. When accounts are on, restore the Supabase session first,
- * show Sign in / Create account (username + password, no email), then the
- * on-device driver card. Returning drivers skip straight in.
+ * Gate the app. When `VITE_AUTH_ENABLED` is off (default), skip every sign-in
+ * sheet and enter as the built-in test driver — sync, so the login card never
+ * flashes. When the flag is on, restore the Supabase session first, show
+ * Sign in / Create account (username + password, no email), then the on-device
+ * driver card. Returning drivers skip straight in.
  */
 export function ensureSignedIn(root: HTMLElement, onReady: Done) {
+  if (!authEnabled()) {
+    onReady(enterAsTestDriver());
+    return;
+  }
   void bootGate(root, onReady);
 }
 
@@ -68,6 +76,7 @@ async function bootGate(root: HTMLElement, onReady: Done) {
 
 /** Lock the app: keeps every saved thing, shows "Welcome back" next time. */
 export function lockApp() {
+  if (!authEnabled()) return;
   setSignedIn(false);
   location.reload();
 }

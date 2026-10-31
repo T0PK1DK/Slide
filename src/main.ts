@@ -56,6 +56,7 @@ import {
   suggestRow,
   trafficChipText,
 } from "./lib/tomtom-map";
+import { authEnabled } from "./lib/auth-config";
 import { lockApp } from "./hud/login";
 import { driverReady, STYLE } from "./boot";
 import { warmedStyle } from "./map/warm";
@@ -385,7 +386,8 @@ $("#ov-rail").addEventListener("click", () => {
 });
 $("#ov-home").addEventListener("click", () => { overflowEl.classList.remove("open"); savePlace("home"); });
 $("#ov-work").addEventListener("click", () => { overflowEl.classList.remove("open"); savePlace("work"); });
-$("#ov-lock").addEventListener("click", lockApp);
+if (authEnabled()) $("#ov-lock").addEventListener("click", lockApp);
+else $("#ov-lock").hidden = true;
 const profileSheet = mountProfile({
   places: () => ({ home: garage.home, work: garage.work }),
   clearPlace: (which) => { garage[which] = null; persist(); },

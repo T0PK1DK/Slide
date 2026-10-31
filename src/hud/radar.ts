@@ -1,4 +1,5 @@
 import type { Fix } from "../lib/tracking";
+import { authEnabled } from "../lib/auth-config";
 import { cloudConfigured } from "../lib/cloud";
 import {
   ago,
@@ -185,10 +186,11 @@ export function mountRadar(h: RadarHooks): RadarView {
       sheet.querySelector(".rs-close")!.addEventListener("click", closeSheet);
       return;
     }
-    if (!cloudConfigured() || !(await currentUserId().catch(() => null))) {
+    if (!authEnabled() || !cloudConfigured() || !(await currentUserId().catch(() => null))) {
+      const canSignIn = authEnabled() && cloudConfigured();
       sheet.innerHTML = `<div class="rs-card"><header><h2>Report</h2><button type="button" class="rs-close" aria-label="Close">×</button></header>
-        <p class="rs-src">${cloudConfigured() ? "Sign in on your Profile to report, so reports stay trustworthy." : "Reporting turns on once Slide accounts are set up on this build."}</p>
-        ${cloudConfigured() ? `<button type="button" class="rs-signin">Open Profile to sign in</button>` : ""}</div>`;
+        <p class="rs-src">${canSignIn ? "Sign in on your Profile to report, so reports stay trustworthy." : authEnabled() ? "Reporting turns on once Slide accounts are set up on this build." : "Reporting stays off while the built-in test driver is on. Radar still shows official incidents."}</p>
+        ${canSignIn ? `<button type="button" class="rs-signin">Open Profile to sign in</button>` : ""}</div>`;
       sheet.hidden = false;
       sheet.querySelector(".rs-close")!.addEventListener("click", closeSheet);
       sheet.querySelector(".rs-signin")?.addEventListener("click", () => { closeSheet(); h.openProfile(); });

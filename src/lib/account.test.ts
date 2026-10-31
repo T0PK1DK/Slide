@@ -1,16 +1,20 @@
 import { describe, expect, it } from "vitest";
 import type { Session } from "@supabase/supabase-js";
+import { setAccountOwner } from "./account-store";
 import {
   accountLabel,
+  currentCloudUser,
   CONFIRM_EMAIL_ON,
   friendlyAuthError,
   listenAuthState,
   normalizeUsername,
   passwordProblem,
+  prepareAccount,
   restoreSession,
   signInWithUsername,
   signOutAccount,
   signUpWithUsername,
+  useLocalUser,
   USERNAME_EMAIL_DOMAIN,
   usernameFromEmail,
   usernameToEmail,
@@ -202,5 +206,15 @@ describe("username + password accounts", () => {
     await restoreSession(api);
     await signOutAccount(api);
     expect(await restoreSession(api)).toBeNull();
+  });
+
+  it("useLocalUser binds the id without a JWT (test driver)", () => {
+    useLocalUser({ id: "00000000-0000-4000-8000-000000000001", email: "slide_test@users.slide.local", username: "slide_test" });
+    expect(currentCloudUser()?.id).toBe("00000000-0000-4000-8000-000000000001");
+    setAccountOwner(null);
+  });
+
+  it("prepareAccount does not open Supabase when auth is off", async () => {
+    expect(await prepareAccount()).toBeNull();
   });
 });
